@@ -6,4 +6,6 @@ export * from "./adminApi";
 export * from "./passwordApi";
 export * from "./secureDeviceApi";
 export * from "./sessionApi";
-export * from "./bootstrapApi"; // added bootstrap session handling
+export * from "./bootstrapApi";
+export * from "./activationApi";
+export * from "./institutionAdminApi";

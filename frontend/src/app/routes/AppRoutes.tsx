@@ -5,6 +5,8 @@ import { Routes, Route, Navigate } from "react-router-dom";
 
 import LoginPage from "../../features/auth/pages/Login";
 import Dashboard from "../../features/dashboard/pages/Dashboard";
+import ActivatePage from "../../features/auth/pages/Activate";
+import CoreStudentAdmin from "../../features/dashboard/pages/CoreStudentAdmin";
 import { AppLayout } from "../../features/auth/layouts/AppLayout";
 
 import ProtectedRoute from "../../features/auth/components/ProtectedRoute";
@@ -108,8 +110,16 @@ export const AppRoutes = () => {
         <Route
           path="/admin/students"
           element={
-            <ProtectedRoute allowedRoles={["admin"]}>
+            <ProtectedRoute allowedRoles={["admin", "inst_admin", "super_admin"]}>
               <StudentProfileSearch />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/core-students"
+          element={
+            <ProtectedRoute allowedRoles={["inst_admin", "super_admin"]}>
+              <CoreStudentAdmin />
             </ProtectedRoute>
           }
         />

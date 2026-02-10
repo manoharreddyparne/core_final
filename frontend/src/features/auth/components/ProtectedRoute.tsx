@@ -8,7 +8,7 @@ import { useAuth } from "../context/AuthProvider/AuthProvider";
 
 interface Props {
   children: ReactNode;
-  allowedRoles?: ("student" | "admin")[];
+  allowedRoles?: ("student" | "admin" | "inst_admin" | "super_admin")[];
 }
 
 /**

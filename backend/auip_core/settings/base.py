@@ -85,9 +85,21 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "allauth.account.middleware.AccountMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
-    "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "apps.identity.middleware.AccessTokenSessionMiddleware",  # custom JWT session middleware
+    "apps.identity.middleware.AccessTokenSessionMiddleware",
 ]
+
+# -----------------------------
+# SECURITY HEADERS (Professional Standard)
+# -----------------------------
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_BROWSER_XSS_FILTER = True
+X_FRAME_OPTIONS = "DENY"
+REFERRER_POLICY = "same-origin"
+# Permissions-Policy
+SECURE_REFERRER_POLICY = "same-origin"
+
+# Modern Isolation Policies
+SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
 
 # -----------------------------
 # REST FRAMEWORK
@@ -156,6 +168,10 @@ REFRESH_COOKIE_MAX_AGE = int(REFRESH_COOKIE_AGE.total_seconds())
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = config(
     "CORS_ALLOWED_ORIGINS", default="http://localhost:3000,http://localhost:5173"
+).split(",")
+
+CSRF_TRUSTED_ORIGINS = config(
+    "CSRF_TRUSTED_ORIGINS", default="http://localhost:3000,http://localhost:5173"
 ).split(",")
 
 FRONTEND_URL = config("FRONTEND_URL", default="http://localhost:3000")
