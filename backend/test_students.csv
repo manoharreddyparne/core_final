@@ -1,0 +1,4 @@
+stu_ref,roll_number,full_name,department,batch_year,current_semester,official_email,tenth_percentage,twelfth_percentage,cgpa,attendance_percentage
+2026-CSE-101,2026CS101,John Doe,CSE,2026,1,john@example.com,95.5,92.0,9.1,98.5
+2026-IT-102,2026IT102,Jane Smith,IT,2026,1,jane@example.com,88.0,90.5,8.5,95.0
+2026-ECE-103,2026EC103,Bob Wilson,ECE,2026,1,bob@example.com,82.0,85.0,,80.0

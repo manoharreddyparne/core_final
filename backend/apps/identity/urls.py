@@ -40,6 +40,7 @@ from apps.identity.views.admin.teacher_admin_views import (
 # ✅ NEW — Student / Teacher Detail Views
 from apps.identity.views.admin.student_detail_views import AdminStudentDetailView
 from apps.identity.views.admin.teacher_detail_views import AdminTeacherDetailView
+from apps.identity.views.admin.bulk_upload import BulkStudentUploadView
 
 # -------------------------------
 # CURRENT USER
@@ -121,6 +122,7 @@ urlpatterns = [
     path("admin/create-student/", AdminCreateStudentView.as_view(), name="admin_create_student"),
     path("admin/search-student/", AdminStudentSearchView.as_view(), name="admin_search_student"),
     path("admin/invite-students/", BulkInviteStudentsView.as_view(), name="admin_invite_students"),
+    path("admin/bulk-seed-students/", BulkStudentUploadView.as_view(), name="admin_bulk_seed_students"),
     path("admin/student/<int:pk>/", AdminStudentDetailView.as_view(), name="admin_student_detail"),   # ✅ NEW
 
     # ============================
