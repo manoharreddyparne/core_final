@@ -43,6 +43,7 @@ from apps.identity.views.admin.teacher_detail_views import AdminTeacherDetailVie
 from apps.identity.views.admin.bulk_upload import BulkStudentUploadView
 from apps.identity.views.admin.core_student_views import CoreStudentAdminViewSet
 from apps.identity.views.admin.institution_views import InstitutionViewSet
+from apps.identity.views.auth.activate import StudentActivationView
 
 # -------------------------------
 # CURRENT USER
@@ -104,6 +105,7 @@ urlpatterns = [
     path("session/bootstrap/", SessionBootstrapView.as_view(), name="session_bootstrap"),
     path("token/secure/", CustomTokenSecureView.as_view(), name="token_secure"),
     path("token/verify/", CustomTokenVerifyView.as_view(), name="token_verify"),
+    path("auth/activate/", StudentActivationView.as_view(), name="student-activate"),
 
     # ============================
     # DEVICE / SESSION MANAGEMENT

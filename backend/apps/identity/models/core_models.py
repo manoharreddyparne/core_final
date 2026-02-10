@@ -39,6 +39,16 @@ class User(AbstractUser):
     failed_login_attempts = models.IntegerField(default=0)
     lockout_until = models.DateTimeField(null=True, blank=True)
 
+    # Multi-tenant link for Students
+    stu_ref = models.OneToOneField(
+        'identity.CoreStudent',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='auth_user',
+        verbose_name="Core Student Reference"
+    )
+
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["username"]
 
