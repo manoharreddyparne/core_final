@@ -18,6 +18,14 @@ class CoreStudent(models.Model):
     This is the "source of truth" for student information.
     Populated by admin/SPOC via bulk upload before students activate accounts.
     """
+
+    institution = models.ForeignKey(
+        'identity.Institution', 
+        on_delete=models.CASCADE, 
+        related_name='core_students',
+        null=True,  # Temporary for migration
+        blank=True
+    )
     
     STATUS_CHOICES = [
         ('SEEDED', 'Seeded'),     # Added to database, no invite sent

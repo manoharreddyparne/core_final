@@ -63,8 +63,12 @@ class BulkStudentUploadView(APIView):
                             if field in row and row[field] == '':
                                 validated_data[field] = None
                         
+                        from apps.identity.utils.tenant_utils import get_user_institution
+                        institution = get_user_institution(request.user)
+                        
                         CoreStudent.objects.create(
                             **validated_data,
+                            institution=institution,
                             seeded_by=request.user.email
                         )
                         successful += 1

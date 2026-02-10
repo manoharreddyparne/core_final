@@ -41,6 +41,8 @@ from apps.identity.views.admin.teacher_admin_views import (
 from apps.identity.views.admin.student_detail_views import AdminStudentDetailView
 from apps.identity.views.admin.teacher_detail_views import AdminTeacherDetailView
 from apps.identity.views.admin.bulk_upload import BulkStudentUploadView
+from apps.identity.views.admin.core_student_views import CoreStudentAdminViewSet
+from apps.identity.views.admin.institution_views import InstitutionViewSet
 
 # -------------------------------
 # CURRENT USER
@@ -86,6 +88,8 @@ app_name = "users"
 # -------------------------------
 router = DefaultRouter()
 router.register(r"users", UserAdminViewSet, basename="user")
+router.register(r"admin/core-students", CoreStudentAdminViewSet, basename="core-student")
+router.register(r"superadmin/institutions", InstitutionViewSet, basename="institution")
 
 # -------------------------------
 # URLPATTERNS

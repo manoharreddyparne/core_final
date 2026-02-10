@@ -7,7 +7,7 @@ from apps.identity.models.core import CoreStudent
 
 
 class CoreStudentSerializer(serializers.ModelSerializer):
-    """Serializer for Core Student data (read-only for students)"""
+    """Serializer for Core Student data (read-only for students, writeable for admins)"""
     
     academic_summary = serializers.ReadOnlyField()
     is_invited = serializers.ReadOnlyField()
@@ -35,8 +35,15 @@ class CoreStudentSerializer(serializers.ModelSerializer):
             'academic_summary',
             'is_invited',
             'is_active_student',
+            'institution',
         ]
-        read_only_fields = fields  # All fields read-only for students
+        read_only_fields = ['status', 'seeded_at', 'updated_at', 'institution']
+
+    def validate_stu_ref(self, value):
+        parts = value.split('-')
+        if len(parts) != 3:
+            raise serializers.ValidationError('Format: YEAR-DEPT-NUMBER (e.g., 2021-CS-001)')
+        return value
 
 
 class CoreStudentBulkUploadSerializer(serializers.Serializer):

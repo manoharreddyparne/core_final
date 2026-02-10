@@ -13,13 +13,15 @@ from apps.identity.utils.security import hash_token  # centralized HMAC hashing
 # --------------------------
 class User(AbstractUser):
     class Roles(models.TextChoices):
+        SUPER_ADMIN = "SUPER_ADMIN", "Super Admin"
+        INSTITUTION_ADMIN = "INST_ADMIN", "Institution Admin"
         ADMIN = "ADMIN", "Admin"
         TEACHER = "TEACHER", "Teacher"
         STUDENT = "STUDENT", "Student"
 
     email = models.EmailField(unique=True, verbose_name="Email Address")
     role = models.CharField(
-        max_length=10,
+        max_length=20,
         choices=Roles.choices,
         default=Roles.STUDENT,
         verbose_name="User Role",
@@ -67,6 +69,12 @@ class Subject(models.Model):
 # --------------------------
 class TeacherProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="teacher_profile")
+    institution = models.ForeignKey(
+        'identity.Institution', 
+        on_delete=models.CASCADE, 
+        related_name="teacher_profiles",
+        null=True, blank=True
+    )
     department = models.CharField(max_length=100, blank=True)
     subjects = models.ManyToManyField(Subject, blank=True, related_name="teachers")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -84,6 +92,12 @@ class TeacherProfile(models.Model):
 # --------------------------
 class StudentProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="student_profile")
+    institution = models.ForeignKey(
+        'identity.Institution', 
+        on_delete=models.CASCADE, 
+        related_name="student_profiles",
+        null=True, blank=True
+    )
     roll_number = models.CharField(max_length=50, unique=True)
     admission_year = models.CharField(max_length=10, blank=True)
     batch = models.CharField(max_length=50, blank=True)
