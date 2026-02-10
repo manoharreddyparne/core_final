@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from .models import Course, Batch
 from .serializers import CourseSerializer, BatchSerializer
-from users.models import User
+from apps.identity.models import User
 
 
 # ----------------------------

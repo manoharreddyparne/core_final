@@ -9,8 +9,8 @@ from django.core.cache import cache
 from rest_framework.exceptions import ValidationError, AuthenticationFailed
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from users.serializers import auth_serializers, password_serializers, user_serializers
-from users.models import PasswordResetRequest
+from apps.identity.serializers import auth_serializers, password_serializers, user_serializers
+from apps.identity.models import PasswordResetRequest
 
 User = get_user_model()
 
@@ -140,7 +140,7 @@ class TestPasswordSerializers:
         user = create_user(username="carol", password="Pass1234")
 
         # create PasswordResetRequest using the correct method
-        from users.utils.email_utils import create_reset_request
+        from apps.identity.utils.email_utils import create_reset_request
         reset_request, raw_token = create_reset_request(user, raw_token=token_raw)
 
         # serializer expects raw token

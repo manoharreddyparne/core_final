@@ -5,7 +5,7 @@ from typing import Dict, Optional
 
 from django.core.cache import cache
 
-from users import constants
+from apps.identity import constants
 
 logger = logging.getLogger(__name__)
 

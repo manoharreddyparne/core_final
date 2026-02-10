@@ -1,7 +1,7 @@
 # users/utils/device_utils.py
 from hashlib import sha256
 from django.conf import settings
-from users.constants import DEFAULT_IP
+from apps.identity.constants import DEFAULT_IP
 
 def get_device_hash(ip: str, user_agent: str, salt: str = "") -> str:
     """

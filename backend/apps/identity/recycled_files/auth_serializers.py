@@ -6,8 +6,8 @@ from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenVerifySerializer
 from rest_framework_simplejwt.exceptions import InvalidToken
 from rest_framework_simplejwt.settings import api_settings
-from users.models.core_models import User
-from users.models.auth_models import BlacklistedAccessToken
+from apps.identity.models.core_models import User
+from apps.identity.models.auth_models import BlacklistedAccessToken
 
 logger = logging.getLogger(__name__)
 

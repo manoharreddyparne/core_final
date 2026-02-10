@@ -4,12 +4,12 @@ from typing import Optional, Sequence
 
 from django.utils import timezone
 
-from users.serializers.auth_serializers import (
+from apps.identity.serializers.auth_serializers import (
     AdminTokenObtainPairSerializer,
     CustomTokenObtainPairSerializer,
 )
-from users.services.token_service import create_login_session_safe
-from users.models.core_models import User
+from apps.identity.services.token_service import create_login_session_safe
+from apps.identity.models.core_models import User
 
 logger = logging.getLogger(__name__)
 

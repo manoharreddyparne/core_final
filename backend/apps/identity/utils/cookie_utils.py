@@ -88,7 +88,7 @@ def invalidate_session(session, reason="Device mismatch"):
     4) Clears cookies
     """
     # NOTE: use public helpers; avoid internal/private patterns
-    from users.services.token_service import (
+    from apps.identity.services.token_service import (
         blacklist_refresh_jti,
         send_session_ws_event,
     )

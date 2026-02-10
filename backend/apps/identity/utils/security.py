@@ -97,7 +97,7 @@ def verify_jwt_token(token_obj) -> bool:
     Example:
         verify_jwt_token(RefreshToken('...'))
     """
-    from users.models.auth_models import BlacklistedAccessToken
+    from apps.identity.models.auth_models import BlacklistedAccessToken
     return not BlacklistedAccessToken.objects.filter(token_hash=hash_token(str(token_obj))).exists()
 
 

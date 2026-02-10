@@ -5,10 +5,10 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.exceptions import AuthenticationFailed
 from django.utils.functional import SimpleLazyObject
 
-from users.authentication import SafeJWTAuthentication
-from users.middleware import AccessTokenBlacklistMiddleware
-from users.models.core_models import User
-from users.models.auth_models import BlacklistedAccessToken
+from apps.identity.authentication import SafeJWTAuthentication
+from apps.identity.middleware import AccessTokenBlacklistMiddleware
+from apps.identity.models.core_models import User
+from apps.identity.models.auth_models import BlacklistedAccessToken
 
 factory = APIRequestFactory()
 
@@ -25,7 +25,7 @@ class TestSafeJWTAuthentication:
         self.auth = SafeJWTAuthentication()
     # --- helper to create a blacklisted token ---
     def blacklist_token(self, token):
-        from users.services.token_service import get_token_hash
+        from apps.identity.services.token_service import get_token_hash
         return BlacklistedAccessToken.objects.create(
             user=self.user,
             token_hash=get_token_hash(token)
@@ -33,7 +33,7 @@ class TestSafeJWTAuthentication:
     def test_authenticate_success(self):
         token = str(RefreshToken.for_user(self.user).access_token)
         # Ensure login session exists for the token
-        from users.services.token_service import create_login_session_safe
+        from apps.identity.services.token_service import create_login_session_safe
         create_login_session_safe(self.user, token)
 
         request = factory.get("/", HTTP_AUTHORIZATION=f"Bearer {token}")
@@ -53,7 +53,7 @@ class TestSafeJWTAuthentication:
 
     def test_authenticate_inactive_session(self):
         token = str(RefreshToken.for_user(self.user).access_token)
-        from users.services.token_service import get_token_hash
+        from apps.identity.services.token_service import get_token_hash
         # FIXED: include user
         BlacklistedAccessToken.objects.create(
             user=self.user,
@@ -84,7 +84,7 @@ class TestAccessTokenBlacklistMiddleware:
 
     def test_middleware_valid_token(self):
         token = str(RefreshToken.for_user(self.user).access_token)
-        from users.services.token_service import create_login_session_safe
+        from apps.identity.services.token_service import create_login_session_safe
         create_login_session_safe(self.user, token)
 
         middleware = AccessTokenBlacklistMiddleware(lambda req: req)
@@ -97,7 +97,7 @@ class TestAccessTokenBlacklistMiddleware:
 
     def test_middleware_invalid_token_raises(self):
         token = str(RefreshToken.for_user(self.user).access_token)
-        from users.services.token_service import get_token_hash
+        from apps.identity.services.token_service import get_token_hash
         # FIXED: include user
         BlacklistedAccessToken.objects.create(
             user=self.user,

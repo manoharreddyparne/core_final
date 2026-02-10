@@ -4,10 +4,10 @@ import logging
 import re
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from users.models import PasswordResetRequest
+from apps.identity.models import PasswordResetRequest
 from django.conf import settings
 from cryptography.fernet import Fernet, InvalidToken
-from users.utils.security import verify_token
+from apps.identity.utils.security import verify_token
 
 logger = logging.getLogger(__name__)
 User = get_user_model()

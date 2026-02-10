@@ -4,15 +4,15 @@ from django.db import transaction
 from rest_framework import permissions
 from rest_framework.views import APIView
 
-from users.models import PasswordResetRequest
-from users.serializers.password_serializers import ResetPasswordConfirmSerializer
-from users.services.password_service import change_user_password, check_password_reuse, validate_password_strength
-from users.services.token_service import logout_all_sessions_secure
-from users.utils.response_utils import password_error, password_success
-from users.utils.request_utils import get_client_ip
-from users.utils.email_utils import send_password_changed_email
-from users.utils.general_utils import serialize_user
-from users.utils.cookie_utils import REFRESH_COOKIE_NAME, REFRESH_COOKIE_PATH
+from apps.identity.models import PasswordResetRequest
+from apps.identity.serializers.password_serializers import ResetPasswordConfirmSerializer
+from apps.identity.services.password_service import change_user_password, check_password_reuse, validate_password_strength
+from apps.identity.services.token_service import logout_all_sessions_secure
+from apps.identity.utils.response_utils import password_error, password_success
+from apps.identity.utils.request_utils import get_client_ip
+from apps.identity.utils.email_utils import send_password_changed_email
+from apps.identity.utils.general_utils import serialize_user
+from apps.identity.utils.cookie_utils import REFRESH_COOKIE_NAME, REFRESH_COOKIE_PATH
 
 logger = logging.getLogger(__name__)
 

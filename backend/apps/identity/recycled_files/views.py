@@ -19,7 +19,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
 
-from users.authentication import SafeJWTAuthentication
+from apps.identity.authentication import SafeJWTAuthentication
 from .models import (
     User,
     StudentProfile,

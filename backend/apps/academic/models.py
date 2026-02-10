@@ -1,5 +1,5 @@
 from django.db import models
-from users.models import User
+from apps.identity.models import User
 
 class Course(models.Model):
     """

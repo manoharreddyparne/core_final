@@ -7,9 +7,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 
-from users.models import User
-from users.utils.session_utils import success_response, get_location, parse_device_info
-from users.utils.security import hash_token_secure
+from apps.identity.models import User
+from apps.identity.utils.session_utils import success_response, get_location, parse_device_info
+from apps.identity.utils.security import hash_token_secure
 from rest_framework_simplejwt.tokens import RefreshToken
 
 logger = logging.getLogger(__name__)

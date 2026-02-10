@@ -5,16 +5,16 @@ import logging
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 
-from users.models import LoginSession, User
-from users.services.token_service import (
+from apps.identity.models import LoginSession, User
+from apps.identity.services.token_service import (
     send_session_ws_event,
     logout_all_sessions_secure,
     logout_single_session_secure,
 )
-from users.utils.session_utils import get_location, parse_device_info
-from users.utils.response_utils import success_response, error_response
-from users.utils.cookie_utils import clear_session_cookies
-from users.utils.request_utils import get_client_ip
+from apps.identity.utils.session_utils import get_location, parse_device_info
+from apps.identity.utils.response_utils import success_response, error_response
+from apps.identity.utils.cookie_utils import clear_session_cookies
+from apps.identity.utils.request_utils import get_client_ip
 
 logger = logging.getLogger(__name__)
 

@@ -11,7 +11,7 @@ import traceback
 # -------------------------------
 def get_jwt_headers(user):
     from rest_framework_simplejwt.tokens import RefreshToken
-    from users.models.auth_models import LoginSession
+    from apps.identity.models.auth_models import LoginSession
 
     token = RefreshToken.for_user(user)
     access_token = token.access_token
@@ -54,7 +54,7 @@ def safe_request(func, *args, **kwargs):
 class TestUserViewSet(TestCase):
     def setUp(self):
         self.client = APIClient()
-        from users.models import User
+        from apps.identity.models import User
 
         self.admin_user = User.objects.create_user(
             username="admin",
@@ -95,7 +95,7 @@ class TestUserViewSet(TestCase):
 class TestMeView(TestCase):
     def setUp(self):
         self.client = APIClient()
-        from users.models import User
+        from apps.identity.models import User
 
         self.user = User.objects.create_user(
             username="user",
@@ -114,7 +114,7 @@ class TestMeView(TestCase):
 class TestCreateStudentView(TestCase):
     def setUp(self):
         self.client = APIClient()
-        from users.models import User
+        from apps.identity.models import User
 
         self.admin_user = User.objects.create_user(
             username="admin",
@@ -152,7 +152,7 @@ class TestCreateStudentView(TestCase):
 class TestCreateTeacherView(TestCase):
     def setUp(self):
         self.client = APIClient()
-        from users.models import User
+        from apps.identity.models import User
 
         self.admin_user = User.objects.create_user(
             username="admin",
@@ -182,7 +182,7 @@ class TestCreateTeacherView(TestCase):
 class TestStudentProfileSearchView(TestCase):
     def setUp(self):
         self.client = APIClient()
-        from users.models import User, StudentProfile
+        from apps.identity.models import User, StudentProfile
 
         self.admin_user = User.objects.create_user(
             username="admin",
@@ -215,7 +215,7 @@ class TestStudentProfileSearchView(TestCase):
 class TestTeacherProfileSearchView(TestCase):
     def setUp(self):
         self.client = APIClient()
-        from users.models import User, TeacherProfile
+        from apps.identity.models import User, TeacherProfile
 
         self.admin_user = User.objects.create_user(
             username="admin",

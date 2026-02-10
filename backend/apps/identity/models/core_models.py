@@ -6,7 +6,7 @@ from django.contrib.auth.models import AbstractUser
 from django.core.validators import URLValidator
 from django.db import models
 from django.utils import timezone
-from users.utils.security import hash_token  # centralized HMAC hashing
+from apps.identity.utils.security import hash_token  # centralized HMAC hashing
 
 # --------------------------
 # Custom User Model

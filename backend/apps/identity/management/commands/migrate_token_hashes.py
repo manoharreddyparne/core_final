@@ -1,7 +1,7 @@
 # users/management/commands/migrate_token_hashes.py
 from django.core.management.base import BaseCommand
-from users.models.auth_models import LoginSession, BlacklistedAccessToken
-from users.utils.security import hash_token
+from apps.identity.models.auth_models import LoginSession, BlacklistedAccessToken
+from apps.identity.utils.security import hash_token
 
 class Command(BaseCommand):
     help = "Migrate old token hashes to new HMAC format"

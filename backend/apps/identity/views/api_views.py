@@ -1,8 +1,8 @@
 # users/views/api_views.py
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
-from users.utils.session_utils import success_response
-from users.models import LoginSession
+from apps.identity.utils.session_utils import success_response
+from apps.identity.models import LoginSession
 import logging
 
 logger = logging.getLogger(__name__)

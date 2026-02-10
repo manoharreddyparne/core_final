@@ -5,11 +5,11 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from users.authentication import SafeJWTAuthentication
-from users.services.token_service import rotate_tokens_secure
-from users.utils.request_utils import get_client_ip
-from users.utils.response_utils import success_response
-from users.utils.cookie_utils import set_refresh_cookie
+from apps.identity.authentication import SafeJWTAuthentication
+from apps.identity.services.token_service import rotate_tokens_secure
+from apps.identity.utils.request_utils import get_client_ip
+from apps.identity.utils.response_utils import success_response
+from apps.identity.utils.cookie_utils import set_refresh_cookie
 
 logger = logging.getLogger(__name__)
 
@@ -100,7 +100,7 @@ class CustomTokenSecureView(APIView):
 # ✅ Token Verify – sanity endpoint
 # ------------------------------------------------------
 from rest_framework_simplejwt.views import TokenVerifyView
-from users.serializers.auth_serializers import SafeTokenVerifySerializer
+from apps.identity.serializers.auth_serializers import SafeTokenVerifySerializer
 
 
 class CustomTokenVerifyView(TokenVerifyView):

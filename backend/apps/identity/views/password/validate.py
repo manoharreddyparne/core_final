@@ -11,11 +11,11 @@ from django.utils import timezone
 from rest_framework import permissions
 from rest_framework.views import APIView
 
-from users.models import PasswordResetRequest
-from users.utils.response_utils import password_error, password_success
-from users.utils.security import hash_token, normalize_token_value
-from users.utils.request_utils import get_client_ip
-from users.views.password.helpers import record_password_suspicious_attempt as record_suspicious_attempt
+from apps.identity.models import PasswordResetRequest
+from apps.identity.utils.response_utils import password_error, password_success
+from apps.identity.utils.security import hash_token, normalize_token_value
+from apps.identity.utils.request_utils import get_client_ip
+from apps.identity.views.password.helpers import record_password_suspicious_attempt as record_suspicious_attempt
 
 logger = logging.getLogger(__name__)
 

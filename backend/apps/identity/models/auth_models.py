@@ -4,7 +4,7 @@ import logging
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
-from users.utils.security import hash_token, hash_token_secure
+from apps.identity.utils.security import hash_token, hash_token_secure
 logger = logging.getLogger(__name__)
 
 

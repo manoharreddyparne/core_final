@@ -5,10 +5,10 @@ from django.conf import settings
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 
-from users.models import LoginSession, User
-from users.services.token_service import send_session_ws_event, logout_all_sessions_secure
-from users.utils.session_utils import success_response, get_location, parse_device_info
-from users.utils.cookie_utils import clear_session_cookies
+from apps.identity.models import LoginSession, User
+from apps.identity.services.token_service import send_session_ws_event, logout_all_sessions_secure
+from apps.identity.utils.session_utils import success_response, get_location, parse_device_info
+from apps.identity.utils.cookie_utils import clear_session_cookies
 
 logger = logging.getLogger(__name__)
 REFRESH_COOKIE_PATH = getattr(settings, "REFRESH_COOKIE_PATH", "/")

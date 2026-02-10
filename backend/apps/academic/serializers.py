@@ -1,8 +1,8 @@
 # courses/serializers.py
 from rest_framework import serializers
 from .models import Course, Batch
-from users.serializers import UserSerializer
-from users.models import User
+from apps.identity.serializers import UserSerializer
+from apps.identity.models import User
 
 
 class CourseSerializer(serializers.ModelSerializer):

@@ -1,14 +1,5 @@
-# ✅ FINAL — users/views/admin/teacher_detail_views.py
-
-import logging
-from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
-from users.models import User, TeacherProfile
-from users.serializers.user_serializers import (
-    TeacherProfileSerializer,
-    TeacherProfileUpdateSerializer,
-)
-from users.utils.response_utils import success_response, error_response
+from apps.identity.permissions import IsAdminRole
+from apps.identity.utils.response_utils import success_response, error_response
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +11,7 @@ class AdminTeacherDetailView(APIView):
       PATCH → update teacher profile fields
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminRole]
 
     def get_object(self, pk: int):
         try:
@@ -32,9 +23,6 @@ class AdminTeacherDetailView(APIView):
     # GET
     # ------------------------
     def get(self, request, pk: int):
-        if request.user.role != User.Roles.ADMIN:
-            return error_response("Admin access required", code=403)
-
         profile = self.get_object(pk)
         if not profile:
             return error_response("Teacher not found", code=404)
@@ -46,9 +34,6 @@ class AdminTeacherDetailView(APIView):
     # PATCH
     # ------------------------
     def patch(self, request, pk: int):
-        if request.user.role != User.Roles.ADMIN:
-            return error_response("Admin access required", code=403)
-
         profile = self.get_object(pk)
         if not profile:
             return error_response("Teacher not found", code=404)

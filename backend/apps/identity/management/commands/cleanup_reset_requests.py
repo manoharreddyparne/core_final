@@ -3,7 +3,7 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 from datetime import timedelta
 
-from users.models import PasswordResetRequest
+from apps.identity.models import PasswordResetRequest
 
 class Command(BaseCommand):
     help = "Cleanup expired or long-unused password reset requests."

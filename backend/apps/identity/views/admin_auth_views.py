@@ -7,18 +7,18 @@ from django.db.models import Q
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
 
-from users.models import User, RememberedDevice
-from users.utils.response_utils import success_response, error_response
-from users.services.auth_service import handle_login
-from users.services.brute_force_service import (
+from apps.identity.models import User, RememberedDevice
+from apps.identity.utils.response_utils import success_response, error_response
+from apps.identity.services.auth_service import handle_login
+from apps.identity.services.brute_force_service import (
     check_brute_force,
     register_failed_attempt,
     clear_failed_attempt,
 )
-from users.utils.otp_utils import send_otp_secure, verify_otp_for_user
-from users.utils.device_utils import get_device_hash
-from users.utils.cookie_utils import set_refresh_cookie
-from users.utils.request_utils import get_client_ip
+from apps.identity.utils.otp_utils import send_otp_secure, verify_otp_for_user
+from apps.identity.utils.device_utils import get_device_hash
+from apps.identity.utils.cookie_utils import set_refresh_cookie
+from apps.identity.utils.request_utils import get_client_ip
 
 logger = logging.getLogger(__name__)
 

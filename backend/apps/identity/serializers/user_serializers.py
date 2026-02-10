@@ -6,7 +6,7 @@ import hashlib
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
-from users.models import StudentProfile, TeacherProfile
+from apps.identity.models import StudentProfile, TeacherProfile
 
 logger = logging.getLogger(__name__)
 User = get_user_model()

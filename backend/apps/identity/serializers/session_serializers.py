@@ -4,7 +4,7 @@ import logging
 from typing import Optional
 from rest_framework import serializers
 from django.contrib.gis.geoip2 import GeoIP2, GeoIP2Exception
-from users.models.auth_models import LoginSession
+from apps.identity.models.auth_models import LoginSession
 from django.core.cache import cache
 
 logger = logging.getLogger(__name__)

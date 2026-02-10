@@ -2,10 +2,10 @@
 import logging
 import secrets
 from django.conf import settings
-from users.utils.cache_utils import make_cache_key, cache_set, cache_get, cache_delete
-from users.utils.security import hash_token_secure
-from users.utils.email_utils import send_otp_to_user
-from users.constants import OTP_TTL_SECONDS
+from apps.identity.utils.cache_utils import make_cache_key, cache_set, cache_get, cache_delete
+from apps.identity.utils.security import hash_token_secure
+from apps.identity.utils.email_utils import send_otp_to_user
+from apps.identity.constants import OTP_TTL_SECONDS
 
 logger = logging.getLogger(__name__)
 

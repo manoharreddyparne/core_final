@@ -6,7 +6,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 from unittest.mock import patch, MagicMock
 
-from users.models.core_models import User
+from apps.identity.models.core_models import User
 from allauth.socialaccount.providers.oauth2.client import OAuth2Error
 from rest_framework.response import Response as DRFResponse
 GOOGLE_LOGIN_URL = reverse("users:google_login")

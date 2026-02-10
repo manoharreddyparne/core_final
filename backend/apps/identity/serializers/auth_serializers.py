@@ -13,9 +13,9 @@ from cryptography.fernet import Fernet, InvalidToken
 from rest_framework import serializers
 from django.db.models import Q
 
-from users.models.core_models import User
-from users.models.auth_models import BlacklistedAccessToken
-from users.utils import get_client_ip
+from apps.identity.models.core_models import User
+from apps.identity.models.auth_models import BlacklistedAccessToken
+from apps.identity.utils import get_client_ip
 
 logger = logging.getLogger(__name__)
 

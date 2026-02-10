@@ -2,9 +2,9 @@
 import logging
 from rest_framework import permissions
 from rest_framework.views import APIView
-from users.serializers.user_serializers import UserSerializer
-from users.utils.response_utils import success_response
-from users.authentication import SafeJWTAuthentication
+from apps.identity.serializers.user_serializers import UserSerializer
+from apps.identity.utils.response_utils import success_response
+from apps.identity.authentication import SafeJWTAuthentication
 
 logger = logging.getLogger(__name__)
 

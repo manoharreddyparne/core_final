@@ -4,7 +4,7 @@ from unittest import mock
 from django.core.cache import cache
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
-from users.models.core_models import User
+from apps.identity.models.core_models import User
 
 @pytest.mark.django_db
 class TestAuthFlows:

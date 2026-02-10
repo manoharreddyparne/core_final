@@ -7,11 +7,11 @@ from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 from django.db.models import Q
 
-from users.models import User
-from users.services.auth_service import handle_login
-from users.utils.request_utils import get_client_ip
-from users.utils.response_utils import success_response, error_response
-from users.utils.cookie_utils import set_refresh_cookie
+from apps.identity.models import User
+from apps.identity.services.auth_service import handle_login
+from apps.identity.utils.request_utils import get_client_ip
+from apps.identity.utils.response_utils import success_response, error_response
+from apps.identity.utils.cookie_utils import set_refresh_cookie
 
 logger = logging.getLogger(__name__)
 

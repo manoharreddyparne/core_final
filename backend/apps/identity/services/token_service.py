@@ -7,9 +7,9 @@ from django.db import transaction
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.tokens import RefreshToken, UntypedToken
 
-from users.models import LoginSession, User
-from users.utils.device_utils import get_device_hash, is_local_dev
-from users.utils.ws_utils import send_session_ws_event
+from apps.identity.models import LoginSession, User
+from apps.identity.utils.device_utils import get_device_hash, is_local_dev
+from apps.identity.utils.ws_utils import send_session_ws_event
 
 logger = logging.getLogger(__name__)
 

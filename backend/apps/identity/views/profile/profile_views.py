@@ -2,13 +2,13 @@
 import logging
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
-from users.models import User, StudentProfile, TeacherProfile, LoginSession
-from users.serializers.user_serializers import (
+from apps.identity.models import User, StudentProfile, TeacherProfile, LoginSession
+from apps.identity.serializers.user_serializers import (
     UserSerializer,
     StudentProfileSerializer,
     TeacherProfileSerializer,
 )
-from users.utils.response_utils import success_response, error_response
+from apps.identity.utils.response_utils import success_response, error_response
 
 logger = logging.getLogger(__name__)
 

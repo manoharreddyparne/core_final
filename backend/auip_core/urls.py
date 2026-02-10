@@ -24,16 +24,16 @@ urlpatterns = [
     path('admin/', admin.site.urls),
 
     # Users API (login, logout, profile, password management, bulk-create, social login)
-    path('api/users/', include('users.urls')),
+    path('api/users/', include('apps.identity.urls')),
 
     # Courses and batches
-    path('api/courses/', include('courses.urls')),
+    path('api/courses/', include('apps.academic.urls')),
 
     # Quizzes, questions, options
-    path('api/quizzes/', include('quizzes.urls')),
+    path('api/quizzes/', include('apps.quizzes.urls')),
 
     # Quiz attempts
-    path('api/attempts/', include('attempts.urls')),
+    path('api/attempts/', include('apps.attempts.urls')),
 
     # Optional dj-rest-auth endpoints (token refresh, login/logout fallback)
     path('api/auth/', include('dj_rest_auth.urls')),

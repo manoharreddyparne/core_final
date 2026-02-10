@@ -7,7 +7,7 @@ from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import UntypedToken
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 import jwt
-from users.models.auth_models import LoginSession
+from apps.identity.models.auth_models import LoginSession
 
 User = get_user_model()
 

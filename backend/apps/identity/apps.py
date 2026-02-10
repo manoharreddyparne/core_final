@@ -3,6 +3,6 @@ from django.apps import AppConfig
 
 class IdentityAccessConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'services.identity_access'
-    label = 'identity_access'
+    name = 'apps.identity'
+    label = 'identity'
     verbose_name = 'Identity & Access Management'

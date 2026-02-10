@@ -39,15 +39,12 @@ INSTALLED_APPS = [
 # AUIP Service Apps (Feature-Based Architecture)
 LOCAL_APPS = [
     # Core Services
-    "services.identity_access",
-    "services.academic_management",
-    "services.examination",
-    "services.analytics_reporting",
-    # New Services (to be implemented)
-    # "services.placement_management",
-    # "services.governance_brain",
-    # "services.intelligence",
-    # "services.notifications",
+    "apps.identity",
+    "apps.academic",
+    "apps.quizzes",
+    "apps.attempts",
+    "apps.anti_cheat",
+    "apps.analytics",
 ]
 
 THIRD_PARTY_APPS = [
@@ -69,7 +66,7 @@ INSTALLED_APPS += LOCAL_APPS + THIRD_PARTY_APPS
 # SITE / AUTH
 # -----------------------------
 SITE_ID = 1
-AUTH_USER_MODEL = "identity_access.User"
+AUTH_USER_MODEL = "identity.User"
 
 AUTHENTICATION_BACKENDS = (
     "django.contrib.auth.backends.ModelBackend",
@@ -89,7 +86,7 @@ MIDDLEWARE = [
     "allauth.account.middleware.AccountMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "services.identity_access.middleware.AccessTokenSessionMiddleware",  # custom JWT session middleware
+    "apps.identity.middleware.AccessTokenSessionMiddleware",  # custom JWT session middleware
 ]
 
 # -----------------------------
@@ -97,7 +94,7 @@ MIDDLEWARE = [
 # -----------------------------
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "services.identity_access.authentication.SafeJWTAuthentication",
+        "apps.identity.authentication.SafeJWTAuthentication",
     ),
     # Default to open endpoints unless restricted per-view
     "DEFAULT_PERMISSION_CLASSES": (
@@ -157,19 +154,11 @@ REFRESH_COOKIE_MAX_AGE = int(REFRESH_COOKIE_AGE.total_seconds())
 # CORS
 # -----------------------------
 CORS_ALLOW_CREDENTIALS = True
-if DEBUG:
-    CORS_ALLOWED_ORIGINS = [
-        "http://localhost:5173",
-        "http://localhost:5174",
-        "http://localhost:5175",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:5174",
-    ]
-else:
-    # Replace with production frontend URL
-    CORS_ALLOWED_ORIGINS = [
-        "https://your-production-frontend.com",
-    ]
+CORS_ALLOWED_ORIGINS = config(
+    "CORS_ALLOWED_ORIGINS", default="http://localhost:3000,http://localhost:5173"
+).split(",")
+
+FRONTEND_URL = config("FRONTEND_URL", default="http://localhost:3000")
 
 # -----------------------------
 # ROOT & TEMPLATES
@@ -258,7 +247,7 @@ SOCIALACCOUNT_PROVIDERS = {
         "AUTH_PARAMS": {"access_type": "online"},
     }
 }
-SOCIALACCOUNT_ADAPTER = "services.identity_access.adapters.GoogleJWTAdapter"
+SOCIALACCOUNT_ADAPTER = "apps.identity.adapters.GoogleJWTAdapter"
 SOCIALACCOUNT_AUTO_SIGNUP = False
 SOCIALACCOUNT_EMAIL_REQUIRED = True
 

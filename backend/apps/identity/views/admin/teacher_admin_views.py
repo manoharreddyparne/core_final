@@ -5,11 +5,13 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.db import transaction
 
-from users.models import User, TeacherProfile
-from users.serializers.user_serializers import TeacherProfileSerializer
-from users.utils.general_utils import generate_random_password
-from users.utils.email_utils import send_welcome_email
-from users.utils.response_utils import success_response, error_response
+from apps.identity.models import User, TeacherProfile
+from apps.identity.serializers.user_serializers import TeacherProfileSerializer
+from apps.identity.utils.general_utils import generate_random_password
+from apps.identity.utils.email_utils import send_welcome_email
+from apps.identity.utils.response_utils import success_response, error_response
+
+from apps.identity.permissions import IsAdminRole
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +23,7 @@ class CreateTeacherView(APIView):
     - Sends welcome email
     - Tracks created and skipped teachers
     """
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsAdminRole]
 
     def post(self, request):
         teachers_data = request.data.get("teachers", [])
@@ -78,7 +80,7 @@ class TeacherProfileSearchView(APIView):
     """
     Admin endpoint to search/filter teacher profiles by department or email.
     """
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsAdminRole]
 
     def get(self, request):
         qs = TeacherProfile.objects.select_related("user").all()

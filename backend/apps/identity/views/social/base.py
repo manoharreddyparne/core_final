@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.exceptions import AuthenticationFailed
 from dj_rest_auth.registration.views import SocialLoginView
 from allauth.socialaccount.providers.oauth2.client import OAuth2Error
-from users.services.token_service import create_login_session_safe
+from apps.identity.services.token_service import create_login_session_safe
 
 logger = logging.getLogger(__name__)
 

@@ -3,8 +3,8 @@ import pytest
 from django.test import TestCase
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from users.models import User, LoginSession, BlacklistedAccessToken, PasswordResetRequest
-from users.services.token_service import (
+from apps.identity.models import User, LoginSession, BlacklistedAccessToken, PasswordResetRequest
+from apps.identity.services.token_service import (
     create_login_session_safe,
     logout_all_sessions_secure,
     send_otp_to_user_secure,
@@ -12,16 +12,16 @@ from users.services.token_service import (
     blacklist_access_token,
     blacklist_user_tokens,
 )
-from users.services.password_service import (
+from apps.identity.services.password_service import (
     validate_password_strength,
     check_password_reuse,
     change_user_password,
 )
-from users.services.reset_service import (
+from apps.identity.services.reset_service import (
     create_reset_request,
     confirm_reset_password,
 )
-from users.utils.security import verify_token
+from apps.identity.utils.security import verify_token
 
 
 @pytest.mark.django_db
@@ -135,7 +135,7 @@ class TestResetService(TestCase):
         assert reset_request.used is True
 
     def test_reset_with_invalid_token(self):
-        from users.services.reset_service import confirm_reset_password as reset_func
+        from apps.identity.services.reset_service import confirm_reset_password as reset_func
         with pytest.raises(ValueError):
             reset_func("invalidtoken", "AnyPass1!")
 
@@ -147,7 +147,7 @@ class TestResetService(TestCase):
         )
         reset_request, raw_token = create_reset_request(user)
         change_user_password(user, "ReusePass1!")
-        from users.services.reset_service import confirm_reset_password as reset_func
+        from apps.identity.services.reset_service import confirm_reset_password as reset_func
         with pytest.raises(ValueError):
             reset_func(raw_token, "ReusePass1!")  # same as previous
 

@@ -7,8 +7,8 @@ from rest_framework import status
 from rest_framework.test import APIClient
 from django.core.cache import cache
 
-from users.models import User, RememberedDevice
-from users.services import token_service
+from apps.identity.models import User, RememberedDevice
+from apps.identity.services import token_service
 
 # -------------------------------
 # Helper to POST JSON with headers correctly

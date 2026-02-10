@@ -4,9 +4,9 @@
 import logging
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
-from users.utils.response_utils import success_response, error_response
-from users.serializers.password_serializers import ChangePasswordSerializer
-from users.models import LoginSession
+from apps.identity.utils.response_utils import success_response, error_response
+from apps.identity.serializers.password_serializers import ChangePasswordSerializer
+from apps.identity.models import LoginSession
 
 logger = logging.getLogger(__name__)
 

@@ -1,6 +1,6 @@
 import pytest
 from rest_framework.test import APIClient
-from users.models.core_models import User
+from apps.identity.models.core_models import User
 from rest_framework_simplejwt.tokens import RefreshToken
 
 @pytest.fixture

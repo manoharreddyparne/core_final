@@ -3,9 +3,9 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 from rest_framework_simplejwt.tokens import RefreshToken
-from users.models.core_models import User
-from users.services import token_service
-from users.utils.email_utils import create_reset_request
+from apps.identity.models.core_models import User
+from apps.identity.services import token_service
+from apps.identity.utils.email_utils import create_reset_request
 
 # -------------------------------
 # CHANGE PASSWORD TESTS

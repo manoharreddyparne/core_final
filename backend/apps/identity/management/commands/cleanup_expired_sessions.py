@@ -4,7 +4,7 @@ import logging
 from datetime import timedelta
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from users.models import LoginSession
+from apps.identity.models import LoginSession
 
 logger = logging.getLogger(__name__)
 

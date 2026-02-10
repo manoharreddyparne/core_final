@@ -9,10 +9,10 @@ from django.db import transaction
 from django.conf import settings
 from django.core.exceptions import ValidationError
 
-from users.models import PasswordResetRequest, User
-from users.services.password_service import change_user_password, check_password_reuse
-from users.services.token_service import logout_all_sessions_secure
-from users.utils.email_utils import create_reset_request as utils_create_reset_request
+from apps.identity.models import PasswordResetRequest, User
+from apps.identity.services.password_service import change_user_password, check_password_reuse
+from apps.identity.services.token_service import logout_all_sessions_secure
+from apps.identity.utils.email_utils import create_reset_request as utils_create_reset_request
 
 logger = logging.getLogger(__name__)
 

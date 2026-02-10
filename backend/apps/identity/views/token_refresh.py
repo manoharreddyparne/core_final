@@ -6,19 +6,19 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 
-from users.models import LoginSession
-from users.models.core_models import User
-from users.services.token_service import (
+from apps.identity.models import LoginSession
+from apps.identity.models.core_models import User
+from apps.identity.services.token_service import (
     blacklist_refresh_jti,
     verify_session_fingerprint,
 )
-from users.utils.cookie_utils import (
+from apps.identity.utils.cookie_utils import (
     set_refresh_cookie,
     clear_refresh_cookie,
     invalidate_session,
 )
-from users.utils.response_utils import success_response
-from users.utils.request_utils import get_client_ip
+from apps.identity.utils.response_utils import success_response
+from apps.identity.utils.request_utils import get_client_ip
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ class SessionBootstrapView(APIView):
     permission_classes = []   # public endpoint — refresh cookie is auth
 
     def get(self, request):
-        from users.utils.cookie_utils import REFRESH_COOKIE_NAME
+        from apps.identity.utils.cookie_utils import REFRESH_COOKIE_NAME
         
         # DEBUG: Log all cookies to help diagnose cross-origin issues
         logger.info(f"[BOOTSTRAP] incoming cookies: {list(request.COOKIES.keys())}")
@@ -101,7 +101,7 @@ class SessionBootstrapView(APIView):
             
             # CRITICAL: Update the session JTI to match the new access token!
             from rest_framework_simplejwt.tokens import UntypedToken
-            from users.utils.security import hash_token_secure
+            from apps.identity.utils.security import hash_token_secure
             
             u = UntypedToken(str(new_access))
             session.jti = u.get("jti")
@@ -115,7 +115,7 @@ class SessionBootstrapView(APIView):
 
             # ✅ Response
             # ✅ Response
-            from users.serializers.user_serializers import UserSerializer
+            from apps.identity.serializers.user_serializers import UserSerializer
             
             data = {
                 "access": str(new_access),

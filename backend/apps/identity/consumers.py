@@ -6,7 +6,7 @@ from typing import Optional
 from channels.generic.websocket import AsyncWebsocketConsumer
 from asgiref.sync import sync_to_async, async_to_sync
 from channels.layers import get_channel_layer
-from users.models.auth_models import LoginSession
+from apps.identity.models.auth_models import LoginSession
 
 logger = logging.getLogger(__name__)
 

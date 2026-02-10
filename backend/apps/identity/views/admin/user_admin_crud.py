@@ -1,8 +1,10 @@
 # users/views/admin/user_admin_crud.py
 import logging
 from rest_framework import permissions, viewsets
-from users.models import User
-from users.serializers.user_serializers import UserSerializer
+from apps.identity.models import User
+from apps.identity.serializers.user_serializers import UserSerializer
+
+from apps.identity.permissions import IsAdminRole
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +17,7 @@ class UserAdminViewSet(viewsets.ModelViewSet):
     """
     queryset = User.objects.all()
     serializer_class = UserSerializer
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsAdminRole]
 
     def get_queryset(self):
         qs = super().get_queryset()

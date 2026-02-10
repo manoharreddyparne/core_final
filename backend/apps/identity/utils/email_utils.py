@@ -3,8 +3,8 @@ import logging
 from typing import Optional, Tuple
 from django.conf import settings
 from django.core.mail import EmailMessage, EmailMultiAlternatives
-from users.models import User, PasswordResetRequest
-from users.utils.security import hash_token
+from apps.identity.models import User, PasswordResetRequest
+from apps.identity.utils.security import hash_token
 
 logger = logging.getLogger(__name__)
 OTP_TTL_SECONDS = getattr(settings, "OTP_TTL_SECONDS", 300)  # default 5 min

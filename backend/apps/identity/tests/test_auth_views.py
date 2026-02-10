@@ -5,7 +5,7 @@ from rest_framework.test import APITestCase
 from unittest.mock import patch
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from users.models.core_models import User
+from apps.identity.models.core_models import User
 
 
 class AuthViewsTests(APITestCase):

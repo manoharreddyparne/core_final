@@ -6,57 +6,58 @@ from rest_framework.routers import DefaultRouter
 # -------------------------------
 # AUTH / TOKEN / LOGOUT
 # -------------------------------
-from users.views.auth.login import CustomTokenObtainPairView
-from users.views.auth.logout import LogoutView, LogoutAllView
-from users.views.auth.token import CustomTokenSecureView, CustomTokenVerifyView
+from apps.identity.views.auth.login import CustomTokenObtainPairView
+from apps.identity.views.auth.logout import LogoutView, LogoutAllView
+from apps.identity.views.auth.token import CustomTokenSecureView, CustomTokenVerifyView
 
 # -------------------------------
 # SESSION MANAGEMENT
 # -------------------------------
-from users.views.token_refresh import SessionBootstrapView
-from users.views.device_sessions import (
+from apps.identity.views.token_refresh import SessionBootstrapView
+from apps.identity.views.device_sessions import (
     SessionListView,
     SessionLogoutView,
     SessionLogoutAllView,
     SessionValidateView,
 )
-from users.views.api_views import UpdateSessionLocationView
-from users.views.security_views import SecureDeviceView
+from apps.identity.views.api_views import UpdateSessionLocationView
+from apps.identity.views.security_views import SecureDeviceView
 
 # -------------------------------
 # USER MANAGEMENT (ADMIN)
 # -------------------------------
-from users.views.admin.user_admin_crud import UserAdminViewSet
-from users.views.admin.student_admin_views import (
+from apps.identity.views.admin.user_admin_crud import UserAdminViewSet
+from apps.identity.views.admin.student_admin_views import (
     CreateStudentView as AdminCreateStudentView,
     StudentProfileSearchView as AdminStudentSearchView,
+    BulkInviteStudentsView,
 )
-from users.views.admin.teacher_admin_views import (
+from apps.identity.views.admin.teacher_admin_views import (
     CreateTeacherView as AdminCreateTeacherView,
     TeacherProfileSearchView as AdminTeacherSearchView,
 )
 
 # ✅ NEW — Student / Teacher Detail Views
-from users.views.admin.student_detail_views import AdminStudentDetailView
-from users.views.admin.teacher_detail_views import AdminTeacherDetailView
+from apps.identity.views.admin.student_detail_views import AdminStudentDetailView
+from apps.identity.views.admin.teacher_detail_views import AdminTeacherDetailView
 
 # -------------------------------
 # CURRENT USER
 # -------------------------------
-from users.views.user.me_view import MeView
+from apps.identity.views.user.me_view import MeView
 
 # -------------------------------
 # PASSWORD MANAGEMENT
 # -------------------------------
-from users.views.password.change import ChangePasswordView
-from users.views.password.request import ResetPasswordRequestView
-from users.views.password.validate import ResetPasswordValidateView
-from users.views.password.confirm import ResetPasswordConfirmView
+from apps.identity.views.password.change import ChangePasswordView
+from apps.identity.views.password.request import ResetPasswordRequestView
+from apps.identity.views.password.validate import ResetPasswordValidateView
+from apps.identity.views.password.confirm import ResetPasswordConfirmView
 
 # -------------------------------
 # ADMIN AUTH / 2FA
 # -------------------------------
-from users.views.admin_auth_views import (
+from apps.identity.views.admin_auth_views import (
     AdminTokenObtainPairView,
     AdminVerifyOTPView,
 )
@@ -64,15 +65,15 @@ from users.views.admin_auth_views import (
 # -------------------------------
 # SOCIAL LOGIN
 # -------------------------------
-from users.views.social.google import GoogleOAuthLoginView
+from apps.identity.views.social.google import GoogleOAuthLoginView
 
 # -------------------------------
 # PROFILE MANAGEMENT
 # -------------------------------
-from users.views.profile.profile_views import UserProfileView
-from users.views.profile.profile_update import ProfileUpdateView
-from users.views.profile.profile_security import ProfileSecurityView
-from users.views.profile.settings_security import SettingsSecurityView
+from apps.identity.views.profile.profile_views import UserProfileView
+from apps.identity.views.profile.profile_update import ProfileUpdateView
+from apps.identity.views.profile.profile_security import ProfileSecurityView
+from apps.identity.views.profile.settings_security import SettingsSecurityView
 
 # -------------------------------
 # APP NAMESPACE
@@ -119,6 +120,7 @@ urlpatterns = [
     # ============================
     path("admin/create-student/", AdminCreateStudentView.as_view(), name="admin_create_student"),
     path("admin/search-student/", AdminStudentSearchView.as_view(), name="admin_search_student"),
+    path("admin/invite-students/", BulkInviteStudentsView.as_view(), name="admin_invite_students"),
     path("admin/student/<int:pk>/", AdminStudentDetailView.as_view(), name="admin_student_detail"),   # ✅ NEW
 
     # ============================

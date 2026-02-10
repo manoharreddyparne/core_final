@@ -1,6 +1,6 @@
 from hashlib import sha256
 from django.core.cache import cache
-from users.constants import CACHE_KEY_SALT
+from apps.identity.constants import CACHE_KEY_SALT
 
 
 def make_cache_key(prefix: str, identifier: str, ip: str) -> str:

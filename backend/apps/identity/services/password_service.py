@@ -4,7 +4,7 @@ import re
 from typing import Tuple
 from django.contrib.auth.hashers import check_password, make_password
 from django.db import transaction
-from users.models import PasswordHistory, User
+from apps.identity.models import PasswordHistory, User
 
 logger = logging.getLogger(__name__)
 

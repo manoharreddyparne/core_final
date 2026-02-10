@@ -2,8 +2,8 @@ import logging
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 
-from users.services.token_service import authenticate_access_token
-from users.utils.request_utils import get_client_ip
+from apps.identity.services.token_service import authenticate_access_token
+from apps.identity.utils.request_utils import get_client_ip
 
 logger = logging.getLogger(__name__)
 

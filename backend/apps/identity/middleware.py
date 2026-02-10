@@ -5,9 +5,9 @@ from django.utils.functional import SimpleLazyObject
 from django.utils import timezone
 from django.contrib.auth.models import AnonymousUser
 from rest_framework.exceptions import AuthenticationFailed
-from users.authentication import SafeJWTAuthentication
-from users.models import LoginSession
-from users.services.token_service import send_session_ws_event
+from apps.identity.authentication import SafeJWTAuthentication
+from apps.identity.models import LoginSession
+from apps.identity.services.token_service import send_session_ws_event
 
 logger = logging.getLogger(__name__)
 

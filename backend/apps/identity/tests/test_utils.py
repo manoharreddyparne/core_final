@@ -5,8 +5,8 @@ from django.core.cache import cache
 from django.contrib.auth.hashers import check_password
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from users.utils import email_utils, general_utils, security
-from users.models import User, PasswordHistory, BlacklistedAccessToken, PasswordResetRequest
+from apps.identity.utils import email_utils, general_utils, security
+from apps.identity.models import User, PasswordHistory, BlacklistedAccessToken, PasswordResetRequest
 
 @pytest.fixture
 def create_user(db):
@@ -90,7 +90,7 @@ def test_send_welcome_email(mock_send, create_user):
 @pytest.mark.django_db
 def test_send_password_reset_email_success(create_user):
     user = create_user()
-    from users.utils.email_utils import create_reset_request, send_password_reset_email
+    from apps.identity.utils.email_utils import create_reset_request, send_password_reset_email
 
     reset_request, raw_token = create_reset_request(user)
 
@@ -103,7 +103,7 @@ def test_send_password_reset_email_success(create_user):
 @pytest.mark.django_db
 def test_send_password_reset_email_failure(create_user):
     user = create_user()
-    from users.utils.email_utils import create_reset_request, send_password_reset_email
+    from apps.identity.utils.email_utils import create_reset_request, send_password_reset_email
 
     reset_request, raw_token = create_reset_request(user)
 

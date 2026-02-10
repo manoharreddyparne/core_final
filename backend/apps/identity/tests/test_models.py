@@ -5,15 +5,15 @@ from django.db import IntegrityError
 from datetime import timedelta
 import secrets
 
-from users.utils.security import verify_token, hash_token
-from users.models.core_models import (
+from apps.identity.utils.security import verify_token, hash_token
+from apps.identity.models.core_models import (
     User,
     TeacherProfile,
     StudentProfile,
     PasswordResetRequest,
     PasswordHistory,
 )
-from users.models.auth_models import (
+from apps.identity.models.auth_models import (
     BlacklistedAccessToken,
     LoginSession,
     RememberedDevice,
