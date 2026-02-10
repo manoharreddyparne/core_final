@@ -1,0 +1,174 @@
+# ✅ FINAL — users/urls.py
+
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+
+# -------------------------------
+# AUTH / TOKEN / LOGOUT
+# -------------------------------
+from users.views.auth.login import CustomTokenObtainPairView
+from users.views.auth.logout import LogoutView, LogoutAllView
+from users.views.auth.token import CustomTokenSecureView, CustomTokenVerifyView
+
+# -------------------------------
+# SESSION MANAGEMENT
+# -------------------------------
+from users.views.token_refresh import SessionBootstrapView
+from users.views.device_sessions import (
+    SessionListView,
+    SessionLogoutView,
+    SessionLogoutAllView,
+    SessionValidateView,
+)
+from users.views.api_views import UpdateSessionLocationView
+from users.views.security_views import SecureDeviceView
+
+# -------------------------------
+# USER MANAGEMENT (ADMIN)
+# -------------------------------
+from users.views.admin.user_admin_crud import UserAdminViewSet
+from users.views.admin.student_admin_views import (
+    CreateStudentView as AdminCreateStudentView,
+    StudentProfileSearchView as AdminStudentSearchView,
+)
+from users.views.admin.teacher_admin_views import (
+    CreateTeacherView as AdminCreateTeacherView,
+    TeacherProfileSearchView as AdminTeacherSearchView,
+)
+
+# ✅ NEW — Student / Teacher Detail Views
+from users.views.admin.student_detail_views import AdminStudentDetailView
+from users.views.admin.teacher_detail_views import AdminTeacherDetailView
+
+# -------------------------------
+# CURRENT USER
+# -------------------------------
+from users.views.user.me_view import MeView
+
+# -------------------------------
+# PASSWORD MANAGEMENT
+# -------------------------------
+from users.views.password.change import ChangePasswordView
+from users.views.password.request import ResetPasswordRequestView
+from users.views.password.validate import ResetPasswordValidateView
+from users.views.password.confirm import ResetPasswordConfirmView
+
+# -------------------------------
+# ADMIN AUTH / 2FA
+# -------------------------------
+from users.views.admin_auth_views import (
+    AdminTokenObtainPairView,
+    AdminVerifyOTPView,
+)
+
+# -------------------------------
+# SOCIAL LOGIN
+# -------------------------------
+from users.views.social.google import GoogleOAuthLoginView
+
+# -------------------------------
+# PROFILE MANAGEMENT
+# -------------------------------
+from users.views.profile.profile_views import UserProfileView
+from users.views.profile.profile_update import ProfileUpdateView
+from users.views.profile.profile_security import ProfileSecurityView
+from users.views.profile.settings_security import SettingsSecurityView
+
+# -------------------------------
+# APP NAMESPACE
+# -------------------------------
+app_name = "users"
+
+# -------------------------------
+# ROUTER FOR ADMIN USER CRUD
+# -------------------------------
+router = DefaultRouter()
+router.register(r"users", UserAdminViewSet, basename="user")
+
+# -------------------------------
+# URLPATTERNS
+# -------------------------------
+urlpatterns = [
+    # ============================
+    # JWT AUTH
+    # ============================
+    path("login/", CustomTokenObtainPairView.as_view(), name="token_obtain"),
+    path("logout/", LogoutView.as_view(), name="auth_logout"),
+    path("logout-all/", LogoutAllView.as_view(), name="auth_logout_all"),
+    path("session/bootstrap/", SessionBootstrapView.as_view(), name="session_bootstrap"),
+    path("token/secure/", CustomTokenSecureView.as_view(), name="token_secure"),
+    path("token/verify/", CustomTokenVerifyView.as_view(), name="token_verify"),
+
+    # ============================
+    # DEVICE / SESSION MANAGEMENT
+    # ============================
+    path("sessions/", SessionListView.as_view(), name="session_list"),
+    path("sessions/<int:pk>/logout/", SessionLogoutView.as_view(), name="session_logout"),
+    path("sessions/logout-all/", SessionLogoutAllView.as_view(), name="session_logout_all"),
+    path("sessions/update-location/", UpdateSessionLocationView.as_view(), name="update_session_location"),
+    path("sessions/validate/", SessionValidateView.as_view(), name="session_validate"),
+    path("secure-device/", SecureDeviceView.as_view(), name="secure_device"), 
+
+    # ============================
+    # CURRENT USER
+    # ============================
+    path("me/", MeView.as_view(), name="me"),
+
+    # ============================
+    # STUDENT MANAGEMENT (ADMIN)
+    # ============================
+    path("admin/create-student/", AdminCreateStudentView.as_view(), name="admin_create_student"),
+    path("admin/search-student/", AdminStudentSearchView.as_view(), name="admin_search_student"),
+    path("admin/student/<int:pk>/", AdminStudentDetailView.as_view(), name="admin_student_detail"),   # ✅ NEW
+
+    # ============================
+    # TEACHER MANAGEMENT (ADMIN)
+    # ============================
+    path("admin/create-teacher/", AdminCreateTeacherView.as_view(), name="admin_create_teacher"),
+    path("admin/search-teacher/", AdminTeacherSearchView.as_view(), name="admin_search_teacher"),
+    path("admin/teacher/<int:pk>/", AdminTeacherDetailView.as_view(), name="admin_teacher_detail"),   # ✅ NEW
+
+    # ============================
+    # PROFILE MANAGEMENT (SELF)
+    # ============================
+    path("profile/", UserProfileView.as_view(), name="profile_view"),
+    path("profile/update/", ProfileUpdateView.as_view(), name="profile_update"),
+    path("profile/security/", ProfileSecurityView.as_view(), name="profile_security"),
+    path("profile/settings/", SettingsSecurityView.as_view(), name="profile_settings"),
+
+    # ============================
+    # PASSWORD MGMT
+    # ============================
+    path("change-password/", ChangePasswordView.as_view(), name="change_password"),
+    path(
+        "reset-password-request/",
+        ResetPasswordRequestView.as_view(),
+        name="reset_password_request",
+    ),
+    path(
+        "reset-password-validate/<str:token>/",
+        ResetPasswordValidateView.as_view(),
+        name="reset_password_validate",
+    ),
+    path(
+        "reset-password-confirm/<str:token>/",
+        ResetPasswordConfirmView.as_view(),
+        name="reset_password_confirm",
+    ),
+
+    # ============================
+    # ADMIN AUTH / 2FA
+    # ============================
+    path("admin/login/", AdminTokenObtainPairView.as_view(), name="admin_login"),
+    path("admin/verify-otp/", AdminVerifyOTPView.as_view(), name="admin_verify_otp"),
+
+    # ============================
+    # SOCIAL LOGIN
+    # ============================
+    path("social/google/", GoogleOAuthLoginView.as_view(), name="google_login"),
+
+    # ============================
+    # ROUTER (Admin CRUD)
+    # ============================
+    path("", include(router.urls)),
+]

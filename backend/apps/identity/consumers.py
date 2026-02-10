@@ -1,0 +1,149 @@
+# users/consumers.py
+
+import json
+import logging
+from typing import Optional
+from channels.generic.websocket import AsyncWebsocketConsumer
+from asgiref.sync import sync_to_async, async_to_sync
+from channels.layers import get_channel_layer
+from users.models.auth_models import LoginSession
+
+logger = logging.getLogger(__name__)
+
+
+class SessionConsumer(AsyncWebsocketConsumer):
+    """
+    WebSocket consumer to manage user sessions:
+    - Notifies of logout, token rotation, new login, and live location.
+    - Supports 'logout all other devices' feature.
+    - Each device joins group 'user_sessions_<user_id>'.
+    """
+
+    async def connect(self):
+        self.user = self.scope.get("user")
+        self.session_id = self.scope.get("session_id")  # front-end should send this in scope
+
+        if not self.user or not self.user.is_authenticated:
+            await self.close()
+            logger.debug("WS connection rejected: unauthenticated user")
+            return
+
+        self.group_name = f"user_sessions_{self.user.id}"
+        await self.channel_layer.group_add(self.group_name, self.channel_name)
+        await self.accept()
+        logger.debug(f"WS connected for user_id={self.user.id} | session_id={self.session_id}")
+
+    async def disconnect(self, close_code: int):
+        if hasattr(self, "group_name"):
+            await self.channel_layer.group_discard(self.group_name, self.channel_name)
+        logger.debug(f"WS disconnected user_id={getattr(self.user,'id', None)} | code={close_code}")
+
+    async def receive(self, text_data: Optional[str] = None, bytes_data: Optional[bytes] = None):
+        """Handle messages from client."""
+        if not text_data:
+            return
+
+        try:
+            data = json.loads(text_data)
+            action = data.get("action")
+
+            if action == "update_location":
+                jti = data.get("jti")
+                latitude = data.get("latitude")
+                longitude = data.get("longitude")
+                if jti and latitude is not None and longitude is not None:
+                    await self.update_session_location(jti, latitude, longitude)
+
+            elif action == "logout_current":
+                jti = data.get("jti")
+                if jti:
+                    await self.force_logout(jti)
+
+            elif action == "logout_others":
+                origin_jti = data.get("jti")
+                if origin_jti:
+                    await self.logout_other_devices(origin_jti)
+
+        except Exception as e:
+            logger.exception(f"WS receive error user_id={getattr(self.user,'id', None)}: {e}")
+
+    async def session_update(self, event: dict):
+        """Push session updates to client."""
+        data = event.get("data", {})
+
+        # Skip event if it originated from this session (for "logout all other devices")
+        if data.get("origin_session_id") == self.session_id:
+            return
+
+        try:
+            await self.send(text_data=json.dumps(data))
+        except Exception as e:
+            logger.warning(f"Failed to send WS message to user_id={self.user.id}: {e}")
+
+    @sync_to_async
+    def update_session_location(self, jti: str, latitude: float, longitude: float):
+        """Update LoginSession with live location and broadcast."""
+        try:
+            session = LoginSession.objects.filter(user=self.user, jti=jti, is_active=True).first()
+            if session:
+                session.latitude = latitude
+                session.longitude = longitude
+                session.save(update_fields=["latitude", "longitude"])
+                logger.debug(f"Updated location for session {jti} | user_id={self.user.id}")
+
+                self._broadcast_to_group({
+                    "action": "location_update",
+                    "session_id": session.id,
+                    "latitude": latitude,
+                    "longitude": longitude
+                })
+        except Exception as e:
+            logger.exception(f"Failed to update session location jti={jti} user_id={self.user.id}: {e}")
+
+    @sync_to_async
+    def force_logout(self, jti: str):
+        """Force logout of a specific session."""
+        try:
+            session = LoginSession.objects.filter(user=self.user, jti=jti, is_active=True).first()
+            if session:
+                session.is_active = False
+                session.save(update_fields=["is_active"])
+                logger.info(f"Forced logout session {jti} | user_id={self.user.id}")
+
+                self._broadcast_to_group({
+                    "action": "force_logout",
+                    "session_id": session.id
+                })
+        except Exception as e:
+            logger.exception(f"Failed to force logout jti={jti} user_id={self.user.id}: {e}")
+
+    @sync_to_async
+    def logout_other_devices(self, origin_jti: str):
+        """Logout all sessions except origin_jti."""
+        try:
+            other_sessions = LoginSession.objects.filter(user=self.user, is_active=True).exclude(jti=origin_jti)
+            for session in other_sessions:
+                session.is_active = False
+                session.save(update_fields=["is_active"])
+                logger.info(f"Logged out other session {session.jti} | user_id={self.user.id}")
+
+                self._broadcast_to_group({
+                    "action": "force_logout",
+                    "session_id": session.id,
+                    "origin_session_id": origin_jti
+                })
+        except Exception as e:
+            logger.exception(f"Failed to logout other devices for user_id={self.user.id}: {e}")
+
+    def _broadcast_to_group(self, data: dict):
+        """Helper to send WS events to the user's group safely."""
+        try:
+            if hasattr(self, "group_name"):
+                channel_layer = get_channel_layer()
+                if channel_layer:
+                    async_to_sync(channel_layer.group_send)(
+                        self.group_name,
+                        {"type": "session_update", "data": data}
+                    )
+        except Exception as e:
+            logger.warning(f"Failed to broadcast WS event for user_id={self.user.id}: {e}")
