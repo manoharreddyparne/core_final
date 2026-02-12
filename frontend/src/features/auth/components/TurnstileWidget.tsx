@@ -1,15 +1,15 @@
 import { useEffect, useRef, FC } from "react";
 
 interface Props {
+    siteKey?: string;
     onSuccess: (token: string) => void;
     onExpire?: () => void;
     onError?: () => void;
     theme?: "light" | "dark" | "auto";
 }
 
-const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || "1x00000000000000000000AA";
-
 export const TurnstileWidget: FC<Props> = ({
+    siteKey,
     onSuccess,
     onExpire,
     onError,
@@ -20,9 +20,9 @@ export const TurnstileWidget: FC<Props> = ({
 
     useEffect(() => {
         const renderWidget = () => {
-            if (containerRef.current && (window as any).turnstile && !widgetIdRef.current) {
+            if (containerRef.current && (window as any).turnstile && !widgetIdRef.current && siteKey) {
                 widgetIdRef.current = (window as any).turnstile.render(containerRef.current, {
-                    sitekey: TURNSTILE_SITE_KEY,
+                    sitekey: siteKey,
                     callback: onSuccess,
                     "expired-callback": onExpire,
                     "error-callback": onError,

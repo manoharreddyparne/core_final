@@ -22,12 +22,14 @@ export interface StudentLoginPayload {
     institution_id: number;
     identifier: string; // email or roll number
     password: string;
+    turnstile_token: string;
 }
 
 export interface FacultyLoginPayload {
     institution_id: number;
     email: string;
     password: string;
+    turnstile_token: string;
 }
 
 export interface FacultyMFAPayload {
@@ -36,10 +38,25 @@ export interface FacultyMFAPayload {
     otp: string;
 }
 
+export interface PublicConfig {
+    turnstile_site_key: string;
+    turnstile_enabled: boolean;
+    app_name: string;
+    environment: string;
+}
+
 /**
  * V2 Authentication API - Multi-Tenant Schema-Isolated Auth
  */
 export const v2AuthApi = {
+    /**
+     * Public: Fetch application configuration (Site Keys, etc.)
+     */
+    getPublicConfig: async (): Promise<PublicConfig> => {
+        const res = await apiClient.get<PublicConfig>("auth/config/");
+        return res.data;
+    },
+
     /**
      * Public: List all approved institutions for selectors.
      */

@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { v2AuthApi } from "../api/v2AuthApi";
+import { toast } from "react-hot-toast";
 
 
 export default function SuperAdminLogin() {
@@ -23,7 +24,9 @@ export default function SuperAdminLogin() {
         password,
         setPassword,
         isLoading,
-        handleAdminLogin
+        handleAdminLogin,
+        turnstileToken,
+        setTurnstileToken
     } = useLoginV2VM();
 
     const [searchParams] = useSearchParams();
@@ -31,10 +34,18 @@ export default function SuperAdminLogin() {
 
     const [isVerifyingTicket, setIsVerifyingTicket] = useState(true);
     const [isTicketValid, setIsTicketValid] = useState(false);
-    const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+    const [siteKey, setSiteKey] = useState<string>("");
 
     React.useEffect(() => {
-        const verify = async () => {
+        const init = async () => {
+            // Fetch public config (site keys)
+            try {
+                const config = await v2AuthApi.getPublicConfig();
+                setSiteKey(config.turnstile_site_key);
+            } catch (err) {
+                console.error("Failed to load public config", err);
+            }
+
             if (!ticket) {
                 setIsVerifyingTicket(false);
                 return;
@@ -48,12 +59,15 @@ export default function SuperAdminLogin() {
                 setIsVerifyingTicket(false);
             }
         };
-        verify();
+        init();
     }, [ticket]);
 
     const onSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!turnstileToken || !isTicketValid) return;
+        if (!turnstileToken || !isTicketValid) {
+            if (!turnstileToken) toast.error("Please complete human verification.");
+            return;
+        }
         handleAdminLogin();
     };
 
@@ -175,6 +189,7 @@ export default function SuperAdminLogin() {
 
                             <div className="pt-2">
                                 <TurnstileWidget
+                                    siteKey={siteKey}
                                     onSuccess={(token: string) => setTurnstileToken(token)}
                                     onExpire={() => setTurnstileToken(null)}
                                     theme="dark"

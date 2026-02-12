@@ -24,6 +24,7 @@ export const useLoginV2VM = () => {
     const [otpRequired, setOtpRequired] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [emailHint, setEmailHint] = useState("");
+    const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
 
     const handleInstitutionSelect = (inst: Institution | null) => {
         setSelectedInstitution(inst);
@@ -73,13 +74,18 @@ export const useLoginV2VM = () => {
             toast.error("Please fill in all fields.");
             return;
         }
+        if (!turnstileToken) {
+            toast.error("Please complete the human verification.");
+            return;
+        }
 
         setIsLoading(true);
         try {
             const res = await v2AuthApi.studentLogin({
                 institution_id: selectedInstitution.id,
                 identifier,
-                password
+                password,
+                turnstile_token: turnstileToken
             });
 
             if (res.success && res.data) {
@@ -104,13 +110,18 @@ export const useLoginV2VM = () => {
             toast.error("Please fill in all fields.");
             return;
         }
+        if (!turnstileToken) {
+            toast.error("Please complete the human verification.");
+            return;
+        }
 
         setIsLoading(true);
         try {
             const res = await v2AuthApi.facultyLogin({
                 institution_id: selectedInstitution.id,
                 email: identifier,
-                password
+                password,
+                turnstile_token: turnstileToken
             });
 
             if (res.data?.requires_otp) {
@@ -132,6 +143,10 @@ export const useLoginV2VM = () => {
             toast.error("Please fill in all fields.");
             return;
         }
+        if (!turnstileToken) {
+            toast.error("Please complete the human verification.");
+            return;
+        }
 
         setIsLoading(true);
         try {
@@ -140,7 +155,8 @@ export const useLoginV2VM = () => {
             const res = await v2AuthApi.studentLogin({
                 institution_id: 1, // Global Public Schema
                 identifier,
-                password
+                password,
+                turnstile_token: turnstileToken
             });
 
             if (res.success) {
@@ -185,6 +201,7 @@ export const useLoginV2VM = () => {
         setOtp("");
         setPassword("");
         setEmail("");
+        setTurnstileToken(null);
     };
 
     return {
@@ -200,6 +217,8 @@ export const useLoginV2VM = () => {
         setEmail,
         otp,
         setOtp,
+        turnstileToken,
+        setTurnstileToken,
         otpRequired,
         setOtpRequired,
         isLoading,

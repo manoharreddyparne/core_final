@@ -20,7 +20,10 @@ from apps.identity.views.device_sessions import (
     SessionLogoutAllView,
     SessionValidateView,
 )
-from apps.identity.views.api_views import UpdateSessionLocationView
+from apps.identity.views.api_views import (
+    UpdateSessionLocationView,
+    PublicConfigView
+)
 from apps.identity.views.security_views import SecureDeviceView
 
 # -------------------------------

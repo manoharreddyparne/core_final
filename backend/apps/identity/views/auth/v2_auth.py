@@ -12,6 +12,7 @@ from apps.identity.serializers.v2_auth import (
     FacultyLoginSerializer
 )
 from apps.identity.utils.activation import generate_activation_token, verify_activation_token, get_activation_url
+from apps.identity.utils.turnstile import verify_turnstile_token
 from apps.auip_tenant.models import Client
 from apps.auip_institution.models import PreSeededRegistry, AuthorizedAccount
 
@@ -105,6 +106,11 @@ class StudentLoginView(generics.GenericAPIView):
         institution_id = serializer.validated_data['institution_id']
         identifier = serializer.validated_data['identifier']
         password = serializer.validated_data['password']
+        turnstile_token = request.data.get('turnstile_token')
+        
+        # 🛡️ SECURITY: Human Verification
+        if not verify_turnstile_token(turnstile_token):
+            return Response({"detail": "Human verification failed."}, status=status.HTTP_403_FORBIDDEN)
         
         client = get_object_or_404(Client, id=institution_id)
         
@@ -170,6 +176,11 @@ class FacultyLoginView(generics.GenericAPIView):
         institution_id = serializer.validated_data['institution_id']
         email = serializer.validated_data['email']
         password = serializer.validated_data['password']
+        turnstile_token = request.data.get('turnstile_token')
+        
+        # 🛡️ SECURITY: Human Verification
+        if not verify_turnstile_token(turnstile_token):
+            return Response({"detail": "Human verification failed."}, status=status.HTTP_403_FORBIDDEN)
         
         client = get_object_or_404(Client, id=institution_id)
         

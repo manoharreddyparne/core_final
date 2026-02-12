@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { useLoginV2VM } from "../hooks/useLoginV2VM";
 import { useInstitutions } from "../hooks/useInstitutions";
+import { v2AuthApi } from "../api/v2AuthApi";
 import { InstitutionSelector, TurnstileWidget } from "../components";
 import {
     ShieldCheck,
@@ -27,11 +28,25 @@ export default function FacultyLogin() {
         isLoading,
         emailHint,
         handleFacultyLogin,
-        handleVerifyMFA
+        handleVerifyMFA,
+        turnstileToken,
+        setTurnstileToken
     } = useLoginV2VM();
 
     const { institutions, isLoading: loadingInstitutions } = useInstitutions();
-    const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+    const [siteKey, setSiteKey] = useState<string>("");
+
+    React.useEffect(() => {
+        const fetchConfig = async () => {
+            try {
+                const config = await v2AuthApi.getPublicConfig();
+                setSiteKey(config.turnstile_site_key);
+            } catch (err) {
+                console.error("Failed to load public config", err);
+            }
+        };
+        fetchConfig();
+    }, []);
 
     const onInitLogin = (e: React.FormEvent) => {
         e.preventDefault();
@@ -110,6 +125,7 @@ export default function FacultyLogin() {
                                 </div>
 
                                 <TurnstileWidget
+                                    siteKey={siteKey}
                                     onSuccess={(token: string) => setTurnstileToken(token)}
                                     onExpire={() => setTurnstileToken(null)}
                                 />

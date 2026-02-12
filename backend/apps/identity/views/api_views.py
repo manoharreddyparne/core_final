@@ -1,6 +1,8 @@
 # users/views/api_views.py
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.response import Response
+from django.conf import settings
 from apps.identity.utils.session_utils import success_response
 from apps.identity.models import LoginSession
 import logging
@@ -40,3 +42,20 @@ class UpdateSessionLocationView(APIView):
         except Exception as e:
             logger.exception("Failed to update session location")
             return success_response("Failed to update location", status_code=500)
+
+
+class PublicConfigView(APIView):
+    """
+    Returns public-safe application configuration.
+    Used by frontend to get Turnstile site key, app name, etc.
+    """
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request):
+        return Response({
+            "turnstile_site_key": settings.TURNSTILE_SITE_KEY,
+            "turnstile_enabled": settings.TURNSTILE_ENABLED,
+            "app_name": "AUIP Platform",
+            "environment": "development" if settings.DEBUG else "production"
+        })
