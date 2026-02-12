@@ -9,6 +9,8 @@ import SuperAdminLogin from "../../features/auth/pages/SuperAdminLogin";
 import StudentRegistration from "../../features/auth/pages/StudentRegistration";
 import Dashboard from "../../features/dashboard/pages/Dashboard";
 import ActivatePage from "../../features/auth/pages/Activate";
+import AdminRecovery from "../../features/auth/pages/AdminRecovery";
+import { PageNotFound } from "../../components/PageNotFound";
 import CoreStudentAdmin from "../../features/dashboard/pages/CoreStudentAdmin";
 import InstitutionAdmin from "../../features/dashboard/pages/InstitutionAdmin";
 import { RegisterUniversity } from "../../features/auth/pages/RegisterUniversity";
@@ -77,6 +79,15 @@ export const AppRoutes = () => {
         element={
           <PublicRoute>
             <SuperAdminLogin />
+          </PublicRoute>
+        }
+      />
+
+      <Route
+        path="/auth/infrastructure-status"
+        element={
+          <PublicRoute>
+            <AdminRecovery />
           </PublicRoute>
         }
       />
@@ -239,7 +250,7 @@ export const AppRoutes = () => {
       />
 
       {/* ------- CATCH-ALL ------- */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<PageNotFound />} />
     </Routes>
   );
 };

@@ -56,7 +56,7 @@ from apps.identity.views.auth.v2_auth import (
 from apps.identity.views.public.tenants import PublicInstitutionListView
 from apps.identity.views.public.registration import InstitutionRegistrationView
 
-from apps.identity.views.admin.jit_verify import VerifyAdminTicketView
+from apps.identity.views.admin.jit_verify import VerifyAdminTicketView, RequestAdminAccessView
 
 # -------------------------------
 # CURRENT USER
@@ -124,6 +124,7 @@ urlpatterns = [
     path("auth/v2/faculty/login/", FacultyLoginView.as_view(), name="v2-faculty-login"),
     path("auth/v2/faculty/mfa/", FacultyMFAVerifyView.as_view(), name="v2-faculty-mfa"),
     path("auth/admin/verify-ticket/", VerifyAdminTicketView.as_view(), name="admin-verify-ticket"),
+    path("auth/admin/request-access/", RequestAdminAccessView.as_view(), name="admin-request-access"),
     path("public/institutions/", PublicInstitutionListView.as_view(), name="public-institution-list"),
     path("public/register/", InstitutionRegistrationView.as_view(), name="institution-register"),
 

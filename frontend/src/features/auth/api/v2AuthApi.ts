@@ -111,5 +111,22 @@ export const v2AuthApi = {
     verifyAdminTicket: async (ticket: string): Promise<{ valid: boolean }> => {
         const res = await apiClient.post<{ valid: boolean }>("auth/admin/verify-ticket/", { ticket });
         return res.data;
+    },
+
+    /**
+     * SuperAdmin: Final Login Handshake.
+     * Enforces JIT ticket verification and burning.
+     */
+    adminLogin: async (data: any): Promise<ApiResponse<AuthResponse>> => {
+        const res = await apiClient.post<ApiResponse<AuthResponse>>("admin/login/", data);
+        return res.data;
+    },
+
+    /**
+     * SuperAdmin: Request a new JIT link via root email.
+     */
+    requestAdminAccess: async (email: string): Promise<{ detail: string }> => {
+        const res = await apiClient.post<{ detail: string }>("auth/admin/request-access/", { email });
+        return res.data;
     }
 };

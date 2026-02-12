@@ -15,6 +15,7 @@ import {
 import { useSearchParams } from "react-router-dom";
 import { v2AuthApi } from "../api/v2AuthApi";
 import { toast } from "react-hot-toast";
+import { PageNotFound } from "../../../components/PageNotFound";
 
 
 export default function SuperAdminLogin() {
@@ -68,7 +69,7 @@ export default function SuperAdminLogin() {
             if (!turnstileToken) toast.error("Please complete human verification.");
             return;
         }
-        handleAdminLogin();
+        handleAdminLogin(ticket);
     };
 
     if (isVerifyingTicket) {
@@ -81,36 +82,7 @@ export default function SuperAdminLogin() {
     }
 
     if (!isTicketValid) {
-        return (
-            <div className="flex flex-col items-center justify-center min-h-screen bg-[#080000] p-4 text-white font-mono">
-                <div className="w-full max-w-lg bg-black border-2 border-red-500/50 p-12 rounded-3xl shadow-[0_0_100px_rgba(239,68,68,0.2)] text-center space-y-8 relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-full h-[4px] bg-red-500 animate-pulse" />
-
-                    <div className="flex justify-center">
-                        <div className="p-6 rounded-full bg-red-500/10 border border-red-500/20">
-                            <ShieldX className="w-16 h-16 text-red-500" />
-                        </div>
-                    </div>
-
-                    <div className="space-y-4">
-                        <h1 className="text-4xl font-black tracking-tighter text-red-500">PROTOCOL VIOLATION</h1>
-                        <p className="text-gray-400 text-sm leading-relaxed max-w-xs mx-auto">
-                            The requested secure gateway link is invalid, expired, or has been revoked by the system.
-                        </p>
-                    </div>
-
-                    <div className="flex items-center gap-4 p-4 bg-red-500/5 border border-red-500/10 rounded-xl text-left">
-                        <AlertTriangle className="w-10 h-10 text-red-500 shrink-0" />
-                        <div className="text-[10px] text-red-400/80 font-bold uppercase leading-tight">
-                            Incident report generated for terminal:
-                            <span className="block text-white mt-1">IP_ADDR_LOGGED // UTC_TIMESTAMP_SECURED</span>
-                        </div>
-                    </div>
-
-                    <p className="text-[9px] text-gray-700 font-black uppercase tracking-[0.2em]">Contact Global infrastructure Admin for a fresh JIT token.</p>
-                </div>
-            </div>
-        );
+        return <PageNotFound />;
     }
 
     return (

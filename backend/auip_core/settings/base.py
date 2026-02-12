@@ -363,3 +363,8 @@ fernet = Fernet(FERNET_KEY) if FERNET_KEY else None
 TURNSTILE_SITE_KEY = config("TURNSTILE_SITE_KEY", default="")
 TURNSTILE_SECRET_KEY = config("TURNSTILE_SECRET_KEY", default="")
 TURNSTILE_ENABLED = config("TURNSTILE_ENABLED", default=False, cast=bool)
+
+# -----------------------------
+# SUPER ADMIN SECURITY
+# -----------------------------
+SUPER_ADMIN_EMAIL = config("SUPER_ADMIN_EMAIL", default="parnemanoharreddy19@gmail.com")

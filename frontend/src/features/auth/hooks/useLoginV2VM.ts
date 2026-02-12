@@ -138,7 +138,7 @@ export const useLoginV2VM = () => {
         }
     };
 
-    const handleAdminLogin = async () => {
+    const handleAdminLogin = async (jitTicket?: string | null) => {
         if (!identifier || !password) {
             toast.error("Please fill in all fields.");
             return;
@@ -150,13 +150,11 @@ export const useLoginV2VM = () => {
 
         setIsLoading(true);
         try {
-            // Using a specific Super Admin endpoint if available, or generic login
-            // For now, aligning with the industry standard hidden gateway
-            const res = await v2AuthApi.studentLogin({
-                institution_id: 1, // Global Public Schema
-                identifier,
+            const res = await v2AuthApi.adminLogin({
+                username: identifier,
                 password,
-                turnstile_token: turnstileToken
+                turnstile_token: turnstileToken,
+                jit_ticket: jitTicket
             });
 
             if (res.success) {

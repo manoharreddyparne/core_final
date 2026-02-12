@@ -3,6 +3,7 @@ import hmac
 import hashlib
 import base64
 from django.conf import settings
+from django.core.cache import cache
 
 def generate_jit_admin_ticket(expires_in=900): # 15 minutes
     """
@@ -19,10 +20,24 @@ def generate_jit_admin_ticket(expires_in=900): # 15 minutes
     raw_payload = f"{expiry}:{signature}"
     return base64.urlsafe_b64encode(raw_payload.encode()).decode().rstrip("=")
 
+def burn_jit_admin_ticket(ticket):
+    """
+    Marks a ticket as used to prevent replay attacks.
+    """
+    # Simply cache the ticket string with a timeout equal to the max expiry (15 mins)
+    cache.set(f"burned_jit_{ticket}", True, 900)
+
 def verify_jit_admin_ticket(ticket):
     """
-    Verifies the JIT ticket and returns True if valid.
+    Verifies the JIT ticket and returns True if valid and NOT used.
     """
+    if not ticket:
+        return False
+        
+    # Check if ticket was already burned
+    if cache.get(f"burned_jit_{ticket}"):
+        return False
+
     try:
         # Restore padding
         missing_padding = len(ticket) % 4

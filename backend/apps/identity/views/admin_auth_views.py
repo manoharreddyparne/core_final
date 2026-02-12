@@ -19,6 +19,7 @@ from apps.identity.utils.otp_utils import send_otp_secure, verify_otp_for_user
 from apps.identity.utils.device_utils import get_device_hash
 from apps.identity.utils.cookie_utils import set_refresh_cookie
 from apps.identity.utils.request_utils import get_client_ip
+from apps.identity.utils.jit_admin import verify_jit_admin_ticket, burn_jit_admin_ticket
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +83,14 @@ class AdminTokenObtainPairView(TokenObtainPairView):
             logger.warning(f"[ADMIN-LOGIN] fail login_field={login_field} ip={ip}")
             return error_response("Invalid credentials", status_code=401)
 
+        # ✅ JIT TICKET ENFORCEMENT FOR SUPER ADMIN
+        if user.role == User.Roles.SUPER_ADMIN:
+            jit_ticket = request.data.get("jit_ticket")
+            if not jit_ticket or not verify_jit_admin_ticket(jit_ticket):
+                logger.warning(f"[SEC-GATE] SuperAdmin login attempt without valid JIT ticket user={user.id} ip={ip}")
+                return error_response("Infrastructure Protocol Violation. Identity Access Revoked.", status_code=403)
+            # We will burn it after successful full authentication (below)
+
         # ✅ Good creds → clear fail attempts
         clear_failed_attempt(login_field, ip)
 
@@ -113,6 +122,13 @@ class AdminTokenObtainPairView(TokenObtainPairView):
             register_failed_attempt(login_field, ip)
             logger.warning(f"[ADMIN-LOGIN] denied login_field={login_field} ip={ip}: {str(e)}")
             return error_response("Invalid credentials", status_code=401)
+
+        # BURN JIT TICKET ON SUCCESS
+        if user.role == User.Roles.SUPER_ADMIN:
+            jit_ticket = request.data.get("jit_ticket")
+            if jit_ticket:
+                burn_jit_admin_ticket(jit_ticket)
+                logger.info(f"[SEC-GATE] SuperAdmin JIT ticket burned user={user.id}")
 
         # token_data contains {"refresh","access",...}; set cookie + normalize payload
         access = token_data.get("access")
