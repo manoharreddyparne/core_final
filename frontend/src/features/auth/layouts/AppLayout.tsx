@@ -13,7 +13,8 @@ import {
     ChevronRight,
     PanelLeftClose,
     PanelLeftOpen,
-    KeyRound
+    KeyRound,
+    Building2
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import axios from "axios";
@@ -46,9 +47,9 @@ export const AppLayout = () => {
 
     const navItems = [
         { to: "/student-dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["student"] },
-        { to: "/admin-dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["admin"] },
+        { to: "/admin-dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["admin", "inst_admin", "super_admin"] },
+        { to: "/superadmin/institutions", label: "Institutions", icon: Building2, roles: ["super_admin"] },
         { to: "/profile", label: "My Profile", icon: User, roles: ["all"] },
-        // Active Sessions moved to settings only
     ];
 
     const settingsSubItems = [
@@ -262,10 +263,10 @@ export const AppLayout = () => {
     );
 
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
+        <div className="min-h-screen bg-[#0b1120] text-foreground flex flex-col md:flex-row font-sans">
             {/* Mobile Header */}
-            <div className="md:hidden bg-white border-b border-gray-200 p-4 flex items-center justify-between sticky top-0 z-20">
-                <div className="font-bold text-lg text-blue-600">ExamPortal</div>
+            <div className="md:hidden bg-background border-b border-border p-4 flex items-center justify-between sticky top-0 z-20">
+                <div className="font-bold text-lg text-primary">AUIP <span className="text-white italic">Platform</span></div>
                 <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
                     {isMobileMenuOpen ? <X /> : <Menu />}
                 </button>
@@ -273,14 +274,14 @@ export const AppLayout = () => {
 
             {/* Sidebar */}
             <aside className={`
-                fixed inset-y-0 left-0 z-30 bg-white border-r border-gray-200 transform transition-all duration-300 ease-in-out md:translate-x-0 md:static md:h-screen flex flex-col
+                fixed inset-y-0 left-0 z-30 bg-black/40 backdrop-blur-2xl border-r border-white/5 transform transition-all duration-300 ease-in-out md:translate-x-0 md:static md:h-screen flex flex-col
                 ${isMobileMenuOpen ? "translate-x-0 w-64 shadow-2xl" : "-translate-x-full md:translate-x-0"}
-                ${isSidebarCollapsed ? "md:w-20" : "md:w-64"}
+                ${isSidebarCollapsed ? "md:w-20" : "md:w-72"}
             `}>
 
                 {/* Brand + Collapse Toggle */}
-                <div className={`p-6 border-b border-gray-100 hidden md:flex items-center ${isSidebarCollapsed ? "justify-center" : "justify-between"}`}>
-                    {!isSidebarCollapsed && <h2 className="text-2xl font-bold text-blue-600">ExamPortal</h2>}
+                <div className={`p-6 border-b border-white/5 hidden md:flex items-center ${isSidebarCollapsed ? "justify-center" : "justify-between"}`}>
+                    {!isSidebarCollapsed && <h2 className="text-2xl font-black tracking-tighter text-white">AUIP <span className="text-primary italic">Platform</span></h2>}
                     <button
                         onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
                         className="text-gray-400 hover:text-blue-600 transition-colors"
@@ -291,14 +292,14 @@ export const AppLayout = () => {
                 </div>
 
                 {/* User Info */}
-                <div className={`p-6 flex items-center gap-3 bg-gray-50/50 ${isSidebarCollapsed ? "justify-center" : ""}`}>
-                    <div className="shrink-0 w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold cursor-default" title={user?.username}>
+                <div className={`p-6 mt-4 flex items-center gap-3 bg-white/5 mx-4 rounded-3xl ${isSidebarCollapsed ? "justify-center px-0" : ""}`}>
+                    <div className="shrink-0 w-10 h-10 rounded-2xl premium-gradient flex items-center justify-center text-white font-bold cursor-default" title={user?.username}>
                         {user?.username?.charAt(0).toUpperCase()}
                     </div>
                     {!isSidebarCollapsed && (
                         <div className="overflow-hidden">
-                            <p className="font-medium text-gray-900 truncate">{user?.username}</p>
-                            <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                            <p className="font-bold text-sm text-white truncate">{user?.username}</p>
+                            <p className="text-[10px] text-primary uppercase font-black tracking-widest">{user?.role}</p>
                         </div>
                     )}
                 </div>
@@ -312,10 +313,10 @@ export const AppLayout = () => {
                             onClick={() => setIsMobileMenuOpen(false)}
                             title={isSidebarCollapsed ? item.label : ""}
                             className={({ isActive }) =>
-                                `flex items-center gap-3 px-3 py-3 rounded-lg transition-all font-medium mb-1
+                                `flex items-center gap-3 px-4 py-3 rounded-2xl transition-all font-bold mb-2
                                 ${isActive
-                                    ? "bg-blue-50 text-blue-600 shadow-sm"
-                                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                                    ? "bg-primary text-white shadow-xl shadow-primary/20"
+                                    : "text-gray-400 hover:bg-white/5 hover:text-white"
                                 }
                                 ${isSidebarCollapsed ? "justify-center" : ""}
                                 `

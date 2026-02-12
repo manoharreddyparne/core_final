@@ -1,121 +1,77 @@
-// ✅ FINAL — Zero-Trust Session Bootstrap
+// ✅ PRODUCTION — Zero-Trust Session Bootstrap
 // src/features/auth/context/AuthProvider/useSessionBootstrap.ts
+//
+// Architecture:
+//   • Backend is the SOLE source of truth for session validity
+//   • Refresh token lives in HttpOnly cookie — JS NEVER sees it
+//   • On cold boot, we call /session/bootstrap/ ONCE
+//   • Backend checks the HttpOnly cookie:
+//       200 + access → session valid → hydrate
+//       401         → no session / expired → show login
+//   • No JS-readable marker cookies, no local hacks
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { setAccessToken, clearAccessToken } from "../../utils/tokenStorage";
 import { bootstrapSession } from "../../api/bootstrapApi";
 import type { User } from "../../api/types";
 
-/**
- * 🔐 useSessionBootstrap
- * --------------------------------------------------
- * Purpose:
- *   Restore + validate session using HttpOnly refresh.
- *
- * Guarantee:
- *   ✅ Backend drives truth — FE trusts NOTHING locally
- *   ✅ If backend OK → we hydrate access + user
- *   ✅ If backend FAIL → we wipe + return null
- *
- * SSR-safe & idempotent:
- *   -> skip duplicate bootstrap calls
- */
 export const useSessionBootstrap = () => {
   const [bootstrapping, setBootstrapping] = useState(true);
   const [bootstrapped, setBootstrapped] = useState(false);
   const [user, setUser] = useState<User | null>(null);
 
-  // ✅ avoid duplicate parallel executions
-  const isRunning = useRef(false);
+  // Prevent duplicate parallel calls (React strict-mode safe)
+  const hasRun = useRef(false);
 
   /**
    * refreshSession()
    * ------------------------------------------------
-   * Returns:
-   *   true  → restored
-   *   false → invalid / expired
+   * Calls backend bootstrap endpoint ONCE.
+   * Returns: true → session restored, false → no session
    */
   const refreshSession = useCallback(async (): Promise<boolean> => {
-    if (isRunning.current) return false;
-
-    // 🕵️ Check for presence marker before hitting backend
-    // REMOVED: We don't trust the JS cookie. We trust the HttpOnly cookie.
-    // const hasMarker = document.cookie.includes("refresh_token_present=1");
-    // if (!hasMarker) {
-    //   setBootstrapping(false);
-    //   setBootstrapped(true);
-    //   return false;
-    // }
-
-    isRunning.current = true;
+    if (hasRun.current) return false;
+    hasRun.current = true;
     setBootstrapping(true);
-    // ... rest of the code
 
     try {
-      const res = await bootstrapSession(); // backend trust source
+      const res = await bootstrapSession();
 
-      /**
-       * ✅ SUCCESS SHAPE:
-       *   {
-       *     access: string,
-       *     refresh_token_present: true,
-       *     user: { ... }
-       *   }
-       */
-      if (res && typeof res === "object" && res.access) {
-        // secure memory-access hydration
+      // ✅ Backend returned a valid session
+      if (res?.success && res.access && res.user) {
         setAccessToken(res.access);
-
-        if (res.user) {
-          setUser(res.user);
-        } else {
-          // server returned access but no user → reject session
-          clearAccessToken();
-          setUser(null);
-          setBootstrapped(false);
-          return false;
-        }
-
-        setBootstrapped(true);
+        setUser(res.user);
         return true;
       }
 
-      // ❌ Backend implicitly says NO
+      // ❌ Backend said no (missing token, expired, invalid)
       clearAccessToken();
       setUser(null);
-      setBootstrapped(false);
       return false;
-    } catch (err: any) {
-      const status = err?.response?.status;
-
-      // 401/403 → refresh invalid, wipe
-      if (status === 401 || status === 403) {
-        clearAccessToken();
-        setUser(null);
-      }
-
+    } catch {
+      // ❌ Network error or unexpected failure
+      clearAccessToken();
+      setUser(null);
       return false;
     } finally {
-      // ✅ ATTEMPT FINISHED
+      // ✅ ALWAYS complete — UI can now render login or dashboard
       setBootstrapped(true);
       setBootstrapping(false);
-      isRunning.current = false;
     }
   }, []);
 
-  // 🔁 Cold start auto-bootstrap
+  // 🔁 Auto-bootstrap on mount (once only)
   useEffect(() => {
-    // Only skip if already running or fully bootstrapped
-    if (isRunning.current || bootstrapped) return;
-
-    void refreshSession();
-  }, [refreshSession, bootstrapped]);
+    if (!hasRun.current) {
+      void refreshSession();
+    }
+  }, [refreshSession]);
 
   return {
     user,
     bootstrapping,
     bootstrapped,
     refreshSession,
-    setUser,        // ✅ expose so VM/User context can update identity
+    setUser,
   };
 };

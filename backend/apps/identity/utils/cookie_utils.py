@@ -31,11 +31,9 @@ def set_refresh_cookie(
     Sets the HttpOnly refresh cookie.
     Only the browser & server use this; JS cannot access it.
 
-    ✅ Correct flags:
-        - HttpOnly
-        - Secure (prod)
-        - SameSite=Lax
-        - Wide path
+    ✅ STRICT HttpOnly — ZERO JS-visible cookies
+    ✅ Secure (prod) / Lax SameSite
+    ✅ Backend is the sole source of session truth
     """
     logger.info(
         f"[COOKIE] Setting {REFRESH_COOKIE_NAME}: SameSite={REFRESH_COOKIE_SAMESITE}, Secure={REFRESH_COOKIE_SECURE}"
@@ -49,17 +47,6 @@ def set_refresh_cookie(
         httponly=REFRESH_COOKIE_HTTPONLY,
         samesite=REFRESH_COOKIE_SAMESITE,
     )
-    
-    # ✅ UX Marker: Non-HttpOnly cookie to let frontend know session exists
-    response.set_cookie(
-        key="refresh_token_present",
-        value="1",
-        max_age=max_age,
-        path=REFRESH_COOKIE_PATH,
-        secure=REFRESH_COOKIE_SECURE,
-        httponly=False,  # Accessible to JS
-        samesite=REFRESH_COOKIE_SAMESITE,
-    )
 
 
 def clear_refresh_cookie(response: Response):
@@ -71,9 +58,8 @@ def clear_refresh_cookie(response: Response):
 
 
 def clear_session_cookies(response: Response):
-    """Clear all session cookies."""
+    """Clear the HttpOnly refresh cookie."""
     response.delete_cookie(REFRESH_COOKIE_NAME, path=REFRESH_COOKIE_PATH)
-    response.delete_cookie("refresh_token_present", path=REFRESH_COOKIE_PATH)
 
 
 # ------------------------------------------------------------

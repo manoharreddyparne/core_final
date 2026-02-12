@@ -9,7 +9,7 @@ from apps.identity.serializers.auth_serializers import (
     CustomTokenObtainPairSerializer,
 )
 from apps.identity.services.token_service import create_login_session_safe
-from apps.identity.models.core_models import User
+from apps.identity.models.core_models import User, CoreStudent
 
 logger = logging.getLogger(__name__)
 
@@ -48,22 +48,33 @@ def handle_login(
         serializer_cls = DynamicSerializer         # type: ignore
 
     # -------------------------------------------------------
-    # Validate credentials
+    # Validate credentials or bypass for OTP
     # -------------------------------------------------------
-    serializer = serializer_cls(
-        data={
-            "username": user.username,
-            "password": password,
-        },
-        context={"request": request},
-    )
+    if password is not None:
+        serializer = serializer_cls(
+            data={
+                "username": user.username,
+                "password": password,
+            },
+            context={"request": request},
+        )
 
-    # Wrong password / wrong role → AuthenticationFailed
-    serializer.is_valid(raise_exception=True)
+        # Wrong password / wrong role → AuthenticationFailed
+        serializer.is_valid(raise_exception=True)
 
-    validated = serializer.validated_data
-    access_token = validated.get("access")
-    refresh_token = validated.get("refresh")
+        validated = serializer.validated_data
+        access_token = validated.get("access")
+        refresh_token = validated.get("refresh")
+    else:
+        # OTP authenticated success - manual token generation
+        from rest_framework_simplejwt.tokens import RefreshToken
+        refresh = RefreshToken.for_user(user)
+        access_token = str(refresh.access_token)
+        refresh_token = str(refresh)
+        validated = {
+            "access": access_token,
+            "refresh": refresh_token
+        }
 
     # -------------------------------------------------------
     # Persist login traces

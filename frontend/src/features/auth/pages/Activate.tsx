@@ -1,54 +1,37 @@
-// ✅ src/features/auth/pages/Activate.tsx
-
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useSearchParams, useNavigate, Link } from "react-router-dom";
-import { validateActivationToken, activateStudentAccount, type StudentActivationData } from "../api/activationApi";
+import { v2AuthApi } from "../api/v2AuthApi";
 import { toast } from "react-hot-toast";
-import { Loader2, CheckCircle2, AlertCircle, ShieldCheck } from "lucide-react";
+import {
+    Loader2,
+    CheckCircle2,
+    AlertCircle,
+    ShieldCheck,
+    Lock,
+    KeyRound,
+    ArrowRight
+} from "lucide-react";
 
 export default function Activate() {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const token = searchParams.get("token");
 
-    const [loading, setLoading] = useState(true);
-    const [student, setStudent] = useState<StudentActivationData | null>(null);
-    const [error, setError] = useState<string | null>(null);
-
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
-    const [username, setUsername] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [success, setSuccess] = useState(false);
 
-    useEffect(() => {
-        if (!token) {
-            setError("Invalid or missing activation token.");
-            setLoading(false);
-            return;
-        }
-
-        const init = async () => {
-            try {
-                const res = await validateActivationToken(token);
-                if (res.success && res.data) {
-                    setStudent(res.data);
-                    setUsername(res.data.roll_number); // Default username to roll number
-                } else {
-                    setError(res.message || "Failed to validate token.");
-                }
-            } catch (err: any) {
-                setError(err.response?.data?.message || "Token validation failed. It may be expired or already used.");
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        init();
-    }, [token]);
-
     const handleActivate = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!token) {
+            toast.error("Invalid activation link.");
+            return;
+        }
+        if (password.length < 8) {
+            toast.error("Password must be at least 8 characters.");
+            return;
+        }
         if (password !== confirmPassword) {
             toast.error("Passwords do not match.");
             return;
@@ -56,165 +39,145 @@ export default function Activate() {
 
         setSubmitting(true);
         try {
-            const res = await activateStudentAccount({
-                token: token!,
-                password,
-                username
+            const res = await v2AuthApi.activateAccount({
+                token,
+                password
             });
             if (res.success) {
                 setSuccess(true);
-                toast.success("Account activated! Redirecting to login...");
+                toast.success("Account activated successfully!");
                 setTimeout(() => navigate("/login"), 3000);
             } else {
-                toast.error(res.message || "Activation failed.");
+                toast.error(res.detail || "Activation failed.");
             }
         } catch (err: any) {
-            toast.error(err.response?.data?.message || "Something went wrong during activation.");
+            toast.error(err.response?.data?.detail || "Something went wrong during activation.");
         } finally {
             setSubmitting(false);
         }
     };
 
-    if (loading) {
-        return (
-            <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
-                <Loader2 className="w-10 h-10 text-blue-600 animate-spin mb-4" />
-                <p className="text-gray-600 font-medium">Validating your invitation...</p>
-            </div>
-        );
-    }
-
     if (success) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4">
-                <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 text-center border border-green-100">
-                    <div className="flex justify-center mb-6">
-                        <div className="bg-green-100 p-4 rounded-full">
-                            <CheckCircle2 className="w-12 h-12 text-green-600" />
+            <div className="flex flex-col items-center justify-center min-h-screen bg-[#0a0a0b] p-4 text-white">
+                <div className="w-full max-w-md glass p-10 text-center rounded-[3rem] space-y-8 animate-in zoom-in-95 duration-500">
+                    <div className="flex justify-center">
+                        <div className="w-24 h-24 rounded-[2.5rem] premium-gradient flex items-center justify-center text-white shadow-2xl shadow-primary/40 animate-bounce">
+                            <CheckCircle2 className="w-12 h-12" />
                         </div>
                     </div>
-                    <h1 className="text-3xl font-bold text-gray-900 mb-2">Success!</h1>
-                    <p className="text-gray-600 mb-8">
-                        Your account for <span className="font-semibold">{student?.institution}</span> has been activated.
-                        You can now log in using your official email and the password you just set.
-                    </p>
+                    <div>
+                        <h1 className="text-3xl font-black mb-2">Activation <span className="text-primary italic">Complete</span></h1>
+                        <p className="text-gray-400 text-sm">
+                            Your account has been successfully verified. You can now use your new password to log in.
+                        </p>
+                    </div>
                     <Link
                         to="/login"
-                        className="inline-block w-full py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200"
+                        className="flex items-center justify-center gap-2 w-full py-4 premium-gradient text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-primary/25 hover:scale-105 transition-all"
                     >
                         Go to Login
+                        <ArrowRight className="w-5 h-5" />
                     </Link>
                 </div>
             </div>
         );
     }
 
-    if (error) {
+    if (!token) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4">
-                <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 text-center border border-red-100">
-                    <div className="flex justify-center mb-6">
-                        <div className="bg-red-100 p-4 rounded-full">
-                            <AlertCircle className="w-12 h-12 text-red-600" />
+            <div className="flex flex-col items-center justify-center min-h-screen bg-[#0a0a0b] p-4">
+                <div className="w-full max-w-md glass p-10 text-center rounded-[3rem] space-y-8 animate-in slide-in-from-top-4 duration-500">
+                    <div className="flex justify-center">
+                        <div className="w-20 h-20 rounded-[2rem] bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500">
+                            <AlertCircle className="w-10 h-10" />
                         </div>
                     </div>
-                    <h1 className="text-2xl font-bold text-gray-900 mb-2">Invalid Activation Link</h1>
-                    <p className="text-gray-600 mb-8">{error}</p>
-                    <div className="space-y-3">
-                        <Link
-                            to="/login"
-                            className="inline-block w-full py-3 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-colors"
-                        >
-                            Back to Login
-                        </Link>
-                        <p className="text-sm text-gray-500">
-                            If you think this is a mistake, please contact your University SPOC.
-                        </p>
+                    <div>
+                        <h1 className="text-2xl font-black text-white uppercase tracking-tight">Invalid <span className="text-red-500 italic">Link</span></h1>
+                        <p className="text-gray-500 text-sm mt-2">The activation link is missing or malformed.</p>
                     </div>
+                    <Link
+                        to="/login"
+                        className="inline-block w-full py-4 glass border-white/5 text-white rounded-2xl font-bold hover:bg-white/5 transition-all text-xs uppercase tracking-widest"
+                    >
+                        Return to Portal
+                    </Link>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="flex items-center justify-center min-h-screen bg-slate-50 p-4 font-inter">
-            <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-200">
-                <div className="bg-blue-600 p-8 text-white text-center">
-                    <ShieldCheck className="w-12 h-12 mx-auto mb-4 opacity-90" />
-                    <h1 className="text-2xl font-bold">Activate Your Account</h1>
-                    <p className="text-blue-100 text-sm mt-1">{student?.institution}</p>
-                </div>
-
-                <div className="p-8">
-                    <div className="mb-8 p-4 bg-slate-50 rounded-xl border border-slate-100">
-                        <div className="flex justify-between text-sm mb-1">
-                            <span className="text-slate-500">Name</span>
-                            <span className="font-semibold text-slate-900">{student?.full_name}</span>
-                        </div>
-                        <div className="flex justify-between text-sm mb-1">
-                            <span className="text-slate-500">Email</span>
-                            <span className="font-semibold text-slate-900">{student?.email}</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                            <span className="text-slate-500">Department</span>
-                            <span className="font-semibold text-slate-900">{student?.department}</span>
+        <div className="flex items-center justify-center min-h-screen bg-[#0a0a0b] p-4 font-inter text-white">
+            <div className="w-full max-w-md space-y-8 animate-in fade-in duration-1000">
+                <div className="text-center space-y-2">
+                    <div className="flex justify-center mb-6">
+                        <div className="w-20 h-20 rounded-[2.5rem] bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+                            <ShieldCheck className="w-10 h-10" />
                         </div>
                     </div>
+                    <h1 className="text-3xl font-black tracking-tight text-white uppercase">
+                        Account <span className="text-primary italic">Initialization</span>
+                    </h1>
+                    <p className="text-muted-foreground text-[10px] uppercase tracking-[0.2em] font-black">
+                        Set your secure access credentials
+                    </p>
+                </div>
 
-                    <form onSubmit={handleActivate} className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1.5">Username</label>
-                            <input
-                                type="text"
-                                value={username}
-                                onChange={(e) => setUsername(e.target.value)}
-                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                                placeholder="Choose a username"
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1.5">New Password</label>
-                            <input
-                                type="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                                placeholder="Min 8 characters"
-                                minLength={8}
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1.5">Confirm Password</label>
-                            <input
-                                type="password"
-                                value={confirmPassword}
-                                onChange={(e) => setConfirmPassword(e.target.value)}
-                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                                placeholder="Repeat password"
-                                required
-                            />
+                <div className="glass p-8 rounded-[3rem] space-y-8 relative overflow-hidden">
+                    <form onSubmit={handleActivate} className="space-y-6">
+                        <div className="space-y-4">
+                            <div className="space-y-1 px-1">
+                                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-2 flex items-center gap-2">
+                                    <Lock className="w-3 h-3" />
+                                    New Security Password
+                                </label>
+                                <input
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    className="w-full px-5 py-4 bg-white/5 border border-white/10 rounded-2xl text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium"
+                                    placeholder="Min. 8 characters"
+                                    minLength={8}
+                                    required
+                                />
+                            </div>
+
+                            <div className="space-y-1 px-1">
+                                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-2 flex items-center gap-2">
+                                    <KeyRound className="w-3 h-3" />
+                                    Confirm Password
+                                </label>
+                                <input
+                                    type="password"
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    className="w-full px-5 py-4 bg-white/5 border border-white/10 rounded-2xl text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium"
+                                    placeholder="Repeat password"
+                                    required
+                                />
+                            </div>
                         </div>
 
                         <button
                             type="submit"
                             disabled={submitting}
-                            className="w-full py-4 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2 mt-4"
+                            className="w-full py-5 premium-gradient text-white rounded-2xl font-black uppercase tracking-widest shadow-2xl shadow-primary/30 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:grayscale flex items-center justify-center gap-3"
                         >
                             {submitting ? (
                                 <>
                                     <Loader2 className="w-5 h-5 animate-spin" />
-                                    Activating...
+                                    Finalizing Setup...
                                 </>
                             ) : (
-                                "Finish Activation"
+                                "ACTIVATE ACCOUNT"
                             )}
                         </button>
                     </form>
 
-                    <p className="text-center text-xs text-slate-400 mt-6 mt-6 leading-relaxed">
-                        By activating, you agree to the AUIP Platform Terms of Service and Academic Integrity Policy.
+                    <p className="text-[10px] text-gray-600 font-bold uppercase tracking-widest leading-relaxed text-center">
+                        By activating, you agree to the institutional <br /> data governance policies.
                     </p>
                 </div>
             </div>

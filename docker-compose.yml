@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # PostgreSQL Database
   postgres:
@@ -41,7 +39,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: auip-backend
-    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+    command: sh -c "python manage.py runserver 0.0.0.0:8000"
     volumes:
       - ./backend:/app
       - backend_static:/app/static

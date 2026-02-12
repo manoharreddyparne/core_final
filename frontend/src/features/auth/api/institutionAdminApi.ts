@@ -40,3 +40,18 @@ export const updateStudentAcademic = async (stu_ref: string, data: any): Promise
     );
     return res.data;
 };
+export const bulkUploadStudents = async (file: File): Promise<ApiResponse<any>> => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await apiClient.post<ApiResponse<any>>(
+        "/admin/bulk-seed-students/",
+        formData,
+        {
+            headers: {
+                ...authHeaders(),
+                "Content-Type": "multipart/form-data"
+            }
+        }
+    );
+    return res.data;
+};

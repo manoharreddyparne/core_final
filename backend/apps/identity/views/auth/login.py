@@ -1,5 +1,6 @@
-# users/views/auth/login.py
+import requests
 import logging
+from django.conf import settings
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.core.cache import cache
@@ -69,13 +70,38 @@ class CustomTokenObtainPairView(APIView):
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)
 
+    def verify_turnstile(self, token):
+        if not settings.TURNSTILE_ENABLED:
+            return True
+        if not token:
+            return False
+        
+        try:
+            response = requests.post(
+                "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+                data={
+                    "secret": settings.TURNSTILE_SECRET_KEY,
+                    "response": token,
+                },
+                timeout=5
+            )
+            return response.json().get("success", False)
+        except Exception as e:
+            logger.error(f"[TURNSTILE] Validation error: {e}")
+            return False
+
     def post(self, request, *args, **kwargs):
         identifier = request.data.get("identifier") or request.data.get("username")
         password = request.data.get("password") or ""
+        turnstile_token = request.data.get("turnstile_token")
         ip = get_client_ip(request)
 
         if not identifier or not password:
             return error_response("identifier + password required", status_code=400)
+
+        # ✅ Human Verification (Cloudflare Turnstile)
+        if not self.verify_turnstile(turnstile_token):
+            return error_response("Human verification failed. Please try again.", status_code=403)
 
         attempts_key, cooldown_key = make_login_cache_keys(identifier, ip)
         failed_attempts = cache.get(attempts_key, 0)

@@ -10,7 +10,7 @@ from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser
 from django.db import transaction
 
-from apps.identity.models.core import CoreStudent
+from apps.identity.models.core_models import CoreStudent
 from apps.identity.serializers.core_serializers import (
     CoreStudentBulkUploadSerializer,
     BulkUploadResponseSerializer
@@ -64,13 +64,27 @@ class BulkStudentUploadView(APIView):
                                 validated_data[field] = None
                         
                         from apps.identity.utils.tenant_utils import get_user_institution
+                        from apps.identity.utils.multitenancy import schema_context
                         institution = get_user_institution(request.user)
                         
-                        CoreStudent.objects.create(
-                            **validated_data,
-                            institution=institution,
-                            seeded_by=request.user.email
-                        )
+                        if not institution:
+                            return error_response("Institution context not found for user.", status_code=status.HTTP_400_BAD_REQUEST)
+
+                        # Check if schema exists, if not, fallback to public (or handle error)
+                        context_manager = schema_context(institution.schema_name) if institution.schema_name else None
+                        
+                        def create_student():
+                            return CoreStudent.objects.create(
+                                **validated_data,
+                                institution=institution,
+                                seeded_by=request.user.email
+                            )
+
+                        if context_manager:
+                            with context_manager:
+                                create_student()
+                        else:
+                            create_student()
                         successful += 1
                         created_refs.append(validated_data['stu_ref'])
                     except Exception as e:

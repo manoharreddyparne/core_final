@@ -53,10 +53,8 @@ const ProtectedRoute = ({ children, allowedRoles }: Props) => {
     allowedRoles &&
     !allowedRoles.includes(user.role?.toLowerCase() as any)
   ) {
-    const fallback =
-      user.role?.toLowerCase() === "student"
-        ? "/student-dashboard"
-        : "/admin-dashboard";
+    const role = user.role?.toLowerCase();
+    const fallback = role === "student" ? "/student-dashboard" : "/admin-dashboard";
 
     return <Navigate to={fallback} replace />;
   }

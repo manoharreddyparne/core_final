@@ -24,7 +24,12 @@ ALLOWED_HOSTS = config(
 # -----------------------------
 # INSTALLED APPS
 # -----------------------------
-INSTALLED_APPS = [
+# -----------------------------
+# MULTI-TENANCY (Django-Tenants)
+# -----------------------------
+SHARED_APPS = (
+    "django_tenants",  # mandatory
+    "apps.auip_tenant", # holds the schema table
     "daphne",  # ✅ MUST be first for ASGI/Channels
     "django.contrib.admin",
     "django.contrib.auth",
@@ -34,18 +39,22 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django.contrib.sites",
     "channels",
-]
+    # Core Shared Services
+    "apps.identity", # SuperAdmin & Global Users live here
+    "apps.analytics", # Global Analytics
+)
 
-# AUIP Service Apps (Feature-Based Architecture)
-LOCAL_APPS = [
-    # Core Services
-    "apps.identity",
+TENANT_APPS = (
+    "django.contrib.contenttypes",
+    "django.contrib.auth", # Tenants might need their own auth context
+    "apps.auip_institution", # Tenant Specific Data (Students, Faculty)
     "apps.academic",
     "apps.quizzes",
     "apps.attempts",
     "apps.anti_cheat",
-    "apps.analytics",
-]
+)
+
+INSTALLED_APPS = list(SHARED_APPS) + [app for app in TENANT_APPS if app not in SHARED_APPS]
 
 THIRD_PARTY_APPS = [
     "rest_framework",
@@ -58,9 +67,17 @@ THIRD_PARTY_APPS = [
     "dj_rest_auth.registration",
     "rest_framework.authtoken",
     "rest_framework_simplejwt.token_blacklist",
+    "django_redis",
 ]
 
-INSTALLED_APPS += LOCAL_APPS + THIRD_PARTY_APPS
+INSTALLED_APPS += THIRD_PARTY_APPS
+
+TENANT_MODEL = "auip_tenant.Client"
+TENANT_DOMAIN_MODEL = "auip_tenant.Domain"
+
+DATABASE_ROUTERS = (
+    "django_tenants.routers.TenantSyncRouter",
+)
 
 # -----------------------------
 # SITE / AUTH
@@ -77,6 +94,7 @@ AUTHENTICATION_BACKENDS = (
 # MIDDLEWARE
 # -----------------------------
 MIDDLEWARE = [
+    "django_tenants.middleware.main.TenantMainMiddleware", # ✅ Dependency for Multi-Tenancy
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -86,6 +104,7 @@ MIDDLEWARE = [
     "allauth.account.middleware.AccountMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "apps.identity.middleware.AccessTokenSessionMiddleware",
+    "apps.identity.middleware_csp.CSPMiddleware", # ✅ Advanced CSP Management
 ]
 
 # -----------------------------
@@ -206,7 +225,7 @@ ASGI_APPLICATION = "auip_core.asgi.application"
 # -----------------------------
 DATABASES = {
     "default": {
-        "ENGINE": config("DB_ENGINE", default="django.db.backends.postgresql"),
+        "ENGINE": "django_tenants.postgresql_backend",
         "NAME": config("DB_NAME"),
         "USER": config("DB_USER"),
         "PASSWORD": config("DB_PASSWORD"),
@@ -238,6 +257,7 @@ USE_TZ = True
 # STATIC / MEDIA
 # -----------------------------
 STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
@@ -335,3 +355,11 @@ CACHES = {
 }
 FERNET_KEY = config("FERNET_KEY", default=None)
 fernet = Fernet(FERNET_KEY) if FERNET_KEY else None
+
+# -----------------------------
+# CLOUDFLARE TURNSTILE (CloudFlare.com Security)
+# -----------------------------
+# Used to verify humans during login/registration
+TURNSTILE_SITE_KEY = config("TURNSTILE_SITE_KEY", default="")
+TURNSTILE_SECRET_KEY = config("TURNSTILE_SECRET_KEY", default="")
+TURNSTILE_ENABLED = config("TURNSTILE_ENABLED", default=False, cast=bool)

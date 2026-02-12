@@ -12,12 +12,13 @@ import type { ApiResponse, AuthResponse } from "./types";
 ============================================================ */
 export const loginAdminOrTeacher = async (
   username: string,
-  password: string
+  password: string,
+  turnstileToken?: string
 ): Promise<AuthResponse> => {
   try {
     const res = await apiClient.post<ApiResponse<AuthResponse>>(
       "/admin/login/",
-      { username, password }
+      { username, password, turnstile_token: turnstileToken }
     );
 
     const raw = res.data?.data;

@@ -3,13 +3,15 @@
 import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
 import { getCoreStudents, inviteStudent, type CoreStudent } from "../../auth/api/institutionAdminApi";
-import { Loader2, UserPlus, Search, Filter, GraduationCap, LayoutGrid, List as ListIcon, Mail, Edit3 } from "lucide-react";
+import { Loader2, UserPlus, Search, Filter, GraduationCap, LayoutGrid, List as ListIcon, Mail, Edit3, Plus, CheckCircle } from "lucide-react";
+import { BulkSeedModal } from "../components/BulkSeedModal";
 
 export default function CoreStudentAdmin() {
     const [students, setStudents] = useState<CoreStudent[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     const [viewMode, setViewMode] = useState<"grid" | "list">("list");
+    const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
 
     // Stats
     const [stats, setStats] = useState({ total: 0, active: 0, invited: 0, seeded: 0 });
@@ -58,60 +60,59 @@ export default function CoreStudentAdmin() {
     );
 
     return (
-        <div className="p-6 max-w-7xl mx-auto space-y-6 animate-in fade-in duration-500">
+        <div className="space-y-8 animate-in fade-in duration-700">
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Student Management</h1>
-                    <p className="text-slate-500 mt-1">Manage institutional student records and activation flow.</p>
+                    <h1 className="text-4xl font-black text-white px-1">Student <span className="text-primary">Management</span></h1>
+                    <p className="text-muted-foreground mt-1 px-1">Institutional record tracking & activation command center.</p>
                 </div>
                 <div className="flex items-center gap-3">
                     <button
                         onClick={fetchStudents}
-                        className="p-2.5 text-slate-500 hover:bg-white hover:shadow-sm border border-transparent hover:border-slate-200 rounded-xl transition-all"
+                        className="p-3 bg-white/5 border border-white/10 text-primary rounded-2xl hover:bg-white/10 transition-all"
                     >
                         <Loader2 className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
                     </button>
-                    <div className="h-8 w-px bg-slate-200 mx-1 hidden md:block" />
-                    <button className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 shadow-lg shadow-blue-100 transition-all">
-                        <UserPlus className="w-4 h-4" />
-                        <span>Seed Student</span>
+                    <button className="flex items-center gap-2 px-6 py-3 premium-gradient text-white font-bold rounded-2xl shadow-xl shadow-primary/20 hover:scale-105 transition-all">
+                        <Plus className="w-5 h-5" />
+                        <span>Seed Batch</span>
                     </button>
                 </div>
             </div>
 
             {/* Stats Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard label="Total Students" value={stats.total} icon={<GraduationCap className="text-blue-600" />} />
-                <StatCard label="Active" value={stats.active} icon={<CheckCircle className="text-green-600" />} color="green" />
-                <StatCard label="Invited" value={stats.invited} icon={<Mail className="text-amber-600" />} color="amber" />
-                <StatCard label="Seeded" value={stats.seeded} icon={<Filter className="text-slate-600" />} color="slate" />
+                <StatCard label="Total Students" value={stats.total} icon={<GraduationCap className="text-white" />} />
+                <StatCard label="Active Users" value={stats.active} icon={<CheckCircle className="text-green-400" />} color="green" />
+                <StatCard label="Invited" value={stats.invited} icon={<Mail className="text-amber-400" />} color="amber" />
+                <StatCard label="Pending" value={stats.seeded} icon={<Filter className="text-white" />} color="slate" />
             </div>
 
             {/* Toolbar */}
-            <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-                <div className="relative w-full md:w-96">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <div className="flex flex-col md:flex-row gap-4 items-center justify-between glass p-5 rounded-3xl">
+                <div className="relative w-full md:w-96 group">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-primary transition-colors" />
                     <input
                         type="text"
-                        placeholder="Search by name, roll, or ref..."
+                        placeholder="Search by name, roll or ref..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-sm"
+                        className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-2xl text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                     />
                 </div>
 
-                <div className="flex items-center gap-2 self-end md:self-auto">
-                    <div className="flex p-1 bg-slate-100 rounded-lg">
+                <div className="flex items-center gap-3">
+                    <div className="flex p-1 bg-white/5 border border-white/5 rounded-2xl">
                         <button
                             onClick={() => setViewMode("list")}
-                            className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                            className={`p-2 rounded-xl transition-all ${viewMode === 'list' ? 'bg-primary text-white shadow-lg' : 'text-gray-500 hover:text-white'}`}
                         >
                             <ListIcon className="w-4 h-4" />
                         </button>
                         <button
                             onClick={() => setViewMode("grid")}
-                            className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                            className={`p-2 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-primary text-white shadow-lg' : 'text-gray-500 hover:text-white'}`}
                         >
                             <LayoutGrid className="w-4 h-4" />
                         </button>
@@ -119,68 +120,68 @@ export default function CoreStudentAdmin() {
                 </div>
             </div>
 
-            {/* Table/List */}
+            {/* Content Area */}
             {loading && students.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-24 bg-white rounded-2xl border border-dashed border-slate-300">
-                    <Loader2 className="w-8 h-8 text-blue-500 animate-spin mb-4" />
-                    <p className="text-slate-500 font-medium">Loading institutional data...</p>
+                <div className="flex flex-col items-center justify-center py-32 glass rounded-[3rem]">
+                    <Loader2 className="w-10 h-10 text-primary animate-spin mb-4" />
+                    <p className="text-muted-foreground font-bold tracking-widest text-xs uppercase">Initializing Hub...</p>
                 </div>
             ) : filteredStudents.length === 0 ? (
-                <div className="text-center py-20 bg-white rounded-2xl border border-slate-200">
-                    <div className="bg-slate-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Search className="w-8 h-8 text-slate-300" />
+                <div className="text-center py-24 glass rounded-[3rem]">
+                    <div className="bg-white/5 w-20 h-20 rounded-[2rem] flex items-center justify-center mx-auto mb-6 border border-white/10">
+                        <Search className="w-10 h-10 text-gray-700" />
                     </div>
-                    <h3 className="text-lg font-semibold text-slate-900">No students found</h3>
-                    <p className="text-slate-500">Try adjusting your search criteria or check filters.</p>
+                    <h3 className="text-2xl font-black text-white">No matches found</h3>
+                    <p className="text-muted-foreground mt-2">Try adjusting your search filters.</p>
                 </div>
             ) : viewMode === 'list' ? (
-                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="glass rounded-[2.5rem] overflow-hidden">
                     <table className="w-full text-left">
-                        <thead className="bg-slate-50 border-b border-slate-200">
+                        <thead className="bg-white/5 border-b border-white/5">
                             <tr>
-                                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Student</th>
-                                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Reference</th>
-                                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Academic</th>
-                                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
-                                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
+                                <th className="px-8 py-5 text-[10px] font-black text-primary uppercase tracking-widest">Identity</th>
+                                <th className="px-8 py-5 text-[10px] font-black text-primary uppercase tracking-widest">Reference</th>
+                                <th className="px-8 py-5 text-[10px] font-black text-primary uppercase tracking-widest">Academic</th>
+                                <th className="px-8 py-5 text-[10px] font-black text-primary uppercase tracking-widest">Status</th>
+                                <th className="px-8 py-5 text-[10px] font-black text-primary uppercase tracking-widest text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100">
+                        <tbody className="divide-y divide-white/5">
                             {filteredStudents.map((s) => (
-                                <tr key={s.stu_ref} className="hover:bg-slate-50 transition-colors group">
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm">
+                                <tr key={s.stu_ref} className="hover:bg-white/5 transition-colors group border-white/5">
+                                    <td className="px-8 py-5">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-12 h-12 rounded-2xl bg-white/5 text-primary flex items-center justify-center font-black text-sm border border-white/10 group-hover:bg-primary group-hover:text-white transition-all">
                                                 {s.full_name.charAt(0)}
                                             </div>
                                             <div>
-                                                <p className="font-semibold text-slate-900">{s.full_name}</p>
-                                                <p className="text-xs text-slate-400 font-mono">{s.roll_number}</p>
+                                                <p className="font-bold text-white group-hover:text-primary transition-colors">{s.full_name}</p>
+                                                <p className="text-[10px] text-gray-500 font-mono tracking-widest uppercase">{s.roll_number}</p>
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4">
-                                        <span className="text-sm font-medium text-slate-600 bg-slate-100 px-2 py-1 rounded-md">{s.stu_ref}</span>
+                                    <td className="px-8 py-5">
+                                        <span className="text-xs font-mono font-bold text-gray-400 bg-white/5 px-3 py-1.5 rounded-xl border border-white/10 uppercase">{s.stu_ref}</span>
                                     </td>
-                                    <td className="px-6 py-4 text-sm text-slate-600">
-                                        <p>{s.department}</p>
-                                        <p className="text-xs text-slate-400">Sem {s.current_semester} • Batch {s.batch_year}</p>
+                                    <td className="px-8 py-5 text-sm">
+                                        <p className="font-bold text-gray-300">{s.department}</p>
+                                        <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-black">Sem {s.current_semester} • Batch {s.batch_year}</p>
                                     </td>
-                                    <td className="px-6 py-4">
+                                    <td className="px-8 py-5">
                                         <StatusBadge status={s.status} />
                                     </td>
-                                    <td className="px-6 py-4 text-right">
-                                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <td className="px-8 py-5 text-right">
+                                        <div className="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-all">
                                             {s.status === 'SEEDED' && (
                                                 <button
                                                     onClick={() => handleInvite(s.stu_ref)}
-                                                    className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                                                    className="p-2.5 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-xl border border-primary/20 transition-all"
                                                     title="Send Invitation"
                                                 >
                                                     <Mail className="w-4 h-4" />
                                                 </button>
                                             )}
-                                            <button className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg transition-all" title="Edit Metrics">
+                                            <button className="p-2.5 bg-white/5 text-gray-500 hover:text-white rounded-xl border border-white/10 transition-all">
                                                 <Edit3 className="w-4 h-4" />
                                             </button>
                                         </div>
@@ -193,42 +194,44 @@ export default function CoreStudentAdmin() {
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     {filteredStudents.map(s => (
-                        <div key={s.stu_ref} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all relative overflow-hidden group">
+                        <div key={s.stu_ref} className="glass p-8 rounded-[3rem] space-y-6 hover:border-primary/50 transition-all group relative overflow-hidden">
                             {/* status line */}
-                            <div className={`absolute top-0 left-0 w-full h-1 ${getStatusColor(s.status)}`} />
+                            <div className={`absolute top-0 left-0 w-full h-1.5 opacity-40 ${getStatusColor(s.status)}`} />
 
-                            <div className="flex justify-between items-start mb-4">
-                                <div className="w-12 h-12 rounded-xl bg-slate-50 text-slate-700 flex items-center justify-center font-bold text-lg">
+                            <div className="flex justify-between items-start">
+                                <div className="w-14 h-14 rounded-2xl bg-white/5 text-primary flex items-center justify-center font-black text-xl border border-white/10 group-hover:premium-gradient group-hover:text-white transition-all">
                                     {s.full_name.charAt(0)}
                                 </div>
                                 <StatusBadge status={s.status} />
                             </div>
 
-                            <h3 className="font-bold text-slate-900 text-lg">{s.full_name}</h3>
-                            <p className="text-sm text-slate-500 font-mono mb-4">{s.roll_number}</p>
+                            <div className="space-y-1">
+                                <h3 className="text-xl font-black text-white group-hover:text-primary transition-colors">{s.full_name}</h3>
+                                <p className="text-xs text-gray-500 font-mono font-bold tracking-widest">{s.roll_number}</p>
+                            </div>
 
-                            <div className="space-y-2 mb-6 text-sm text-slate-600">
-                                <div className="flex justify-between">
-                                    <span className="text-slate-400">Dept</span>
-                                    <span className="font-medium">{s.department}</span>
+                            <div className="grid grid-cols-2 gap-4 pt-6 border-t border-white/5">
+                                <div>
+                                    <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest mb-1">Department</p>
+                                    <p className="text-sm font-bold text-gray-300">{s.department}</p>
                                 </div>
-                                <div className="flex justify-between">
-                                    <span className="text-slate-400">Ref</span>
-                                    <span className="font-medium">{s.stu_ref}</span>
+                                <div>
+                                    <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest mb-1">Reference</p>
+                                    <p className="text-sm font-mono font-bold text-gray-300">{s.stu_ref}</p>
                                 </div>
                             </div>
 
-                            <div className="flex gap-2 pt-4 border-t border-slate-50">
+                            <div className="flex gap-3 pt-6">
                                 {s.status === 'SEEDED' && (
                                     <button
                                         onClick={() => handleInvite(s.stu_ref)}
-                                        className="flex-1 py-2 px-3 bg-blue-50 text-blue-600 rounded-lg text-sm font-semibold hover:bg-blue-100 transition-colors flex items-center justify-center gap-2"
+                                        className="flex-1 py-3 px-4 premium-gradient text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2"
                                     >
                                         <Mail className="w-4 h-4" />
-                                        Invite
+                                        Send Invite
                                     </button>
                                 )}
-                                <button className="p-2 border border-slate-200 text-slate-500 rounded-lg hover:bg-slate-50 transition-colors">
+                                <button className="p-3 bg-white/5 text-gray-500 rounded-2xl border border-white/10 hover:text-white transition-all">
                                     <Edit3 className="w-4 h-4" />
                                 </button>
                             </div>
@@ -236,27 +239,33 @@ export default function CoreStudentAdmin() {
                     ))}
                 </div>
             )}
+
+            <BulkSeedModal
+                isOpen={isBulkModalOpen}
+                onClose={() => setIsBulkModalOpen(false)}
+                onSuccess={fetchStudents}
+            />
         </div>
     );
 }
 
 function StatCard({ label, value, icon, color = "blue" }: any) {
     const colorClasses: any = {
-        blue: "bg-blue-50 border-blue-100",
-        green: "bg-green-50 border-green-100",
-        amber: "bg-amber-50 border-amber-100",
-        slate: "bg-slate-50 border-slate-100",
+        blue: "bg-primary/20 text-primary border-primary/30",
+        green: "bg-green-400/20 text-green-400 border-green-400/30",
+        amber: "bg-amber-400/20 text-amber-400 border-amber-400/30",
+        slate: "bg-white/5 text-gray-400 border-white/10",
     };
 
     return (
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="flex items-center gap-4 mb-3">
-                <div className={`p-2.5 rounded-xl ${colorClasses[color]}`}>
-                    {icon}
-                </div>
-                <span className="text-slate-500 text-sm font-medium">{label}</span>
+        <div className="glass p-6 rounded-[2.5rem] space-y-4 flex flex-col items-center text-center">
+            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border shadow-xl ${colorClasses[color]}`}>
+                {icon}
             </div>
-            <div className="text-3xl font-black text-slate-900 tracking-tight">{value}</div>
+            <div>
+                <p className="text-muted-foreground text-[10px] font-black uppercase tracking-[0.2em] mb-1">{label}</p>
+                <p className="text-3xl font-black text-white tracking-tighter">{value}</p>
+            </div>
         </div>
     );
 }
@@ -284,10 +293,4 @@ function getStatusColor(status: string) {
         case 'SUSPENDED': return 'bg-red-500';
         default: return 'bg-slate-200';
     }
-}
-
-function CheckCircle(props: any) {
-    return (
-        <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-check-circle-2"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" /><path d="m9 12 2 2 4-4" /></svg>
-    );
 }

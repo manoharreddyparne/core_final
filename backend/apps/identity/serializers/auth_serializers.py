@@ -13,7 +13,7 @@ from cryptography.fernet import Fernet, InvalidToken
 from rest_framework import serializers
 from django.db.models import Q
 
-from apps.identity.models.core_models import User
+from apps.identity.models.core_models import User, CoreStudent
 from apps.identity.models.auth_models import BlacklistedAccessToken
 from apps.identity.utils import get_client_ip
 

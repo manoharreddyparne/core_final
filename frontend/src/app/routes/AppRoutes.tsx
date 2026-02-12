@@ -3,10 +3,15 @@
 
 import { Routes, Route, Navigate } from "react-router-dom";
 
-import LoginPage from "../../features/auth/pages/Login";
+import StudentLogin from "../../features/auth/pages/StudentLogin";
+import FacultyLogin from "../../features/auth/pages/FacultyLogin";
+import SuperAdminLogin from "../../features/auth/pages/SuperAdminLogin";
+import StudentRegistration from "../../features/auth/pages/StudentRegistration";
 import Dashboard from "../../features/dashboard/pages/Dashboard";
 import ActivatePage from "../../features/auth/pages/Activate";
 import CoreStudentAdmin from "../../features/dashboard/pages/CoreStudentAdmin";
+import InstitutionAdmin from "../../features/dashboard/pages/InstitutionAdmin";
+import { RegisterUniversity } from "../../features/auth/pages/RegisterUniversity";
 import { AppLayout } from "../../features/auth/layouts/AppLayout";
 
 import ProtectedRoute from "../../features/auth/components/ProtectedRoute";
@@ -38,19 +43,63 @@ import { useAuth } from "../../features/auth/context/AuthProvider/AuthProvider";
 export const AppRoutes = () => {
   const { user, bootstrapping } = useAuth();
 
-  const landing =
-    user?.role?.toLowerCase() === "admin"
-      ? "/admin-dashboard"
-      : "/student-dashboard";
+  const role = user?.role?.toLowerCase();
+  const landing = role === "student" ? "/student-dashboard" : "/admin-dashboard";
 
   return (
     <Routes>
       {/* ------- PUBLIC ------- */}
       <Route
         path="/login"
+        element={<Navigate to="/auth/student/login" replace />}
+      />
+
+      <Route
+        path="/auth/student/login"
         element={
           <PublicRoute>
-            <LoginPage />
+            <StudentLogin />
+          </PublicRoute>
+        }
+      />
+
+      <Route
+        path="/auth/faculty/login"
+        element={
+          <PublicRoute>
+            <FacultyLogin />
+          </PublicRoute>
+        }
+      />
+
+      <Route
+        path="/auth/secure-gateway"
+        element={
+          <PublicRoute>
+            <SuperAdminLogin />
+          </PublicRoute>
+        }
+      />
+
+      <Route
+        path="/auth/student/register"
+        element={
+          <PublicRoute>
+            <StudentRegistration />
+          </PublicRoute>
+        }
+      />
+
+      <Route
+        path="/activate-request"
+        element={<Navigate to="/auth/student/register" replace />}
+      />
+
+      <Route
+        path="/register-university"
+        element={
+          <PublicRoute>
+            <RegisterUniversity />
           </PublicRoute>
         }
       />
@@ -93,8 +142,17 @@ export const AppRoutes = () => {
         <Route
           path="/admin-dashboard"
           element={
-            <ProtectedRoute allowedRoles={["admin"]}>
+            <ProtectedRoute allowedRoles={["admin", "inst_admin", "super_admin"]}>
               <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/superadmin/institutions"
+          element={
+            <ProtectedRoute allowedRoles={["super_admin"]}>
+              <InstitutionAdmin />
             </ProtectedRoute>
           }
         />
@@ -175,7 +233,7 @@ export const AppRoutes = () => {
               <p className="text-gray-500">Checking session...</p>
             </div>
           ) : (
-            <Navigate to="/login" replace />
+            <Navigate to="/auth/student/login" replace />
           )
         }
       />

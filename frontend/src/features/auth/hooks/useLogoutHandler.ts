@@ -29,21 +29,12 @@ export const useLogoutHandler = (setUser: (user: User | null) => void) => {
   const navigate = useNavigate();
 
   /**
-   * 🧽 Hard-wipe FE token surface
-   * Does NOT touch HttpOnly refresh — backend owns that
+   * 🧽 Clear FE memory state
+   * Backend's POST /logout/ handles clearing the HttpOnly cookie.
+   * JS must never touch cookies.
    */
   const clearFrontendTokens = useCallback(() => {
     clearAccessToken();
-
-    // kill FE-touchable token hints
-    document.cookie.split(";").forEach((cookie) => {
-      const [raw] = cookie.split("=");
-      const name = raw.trim();
-
-      if (/refresh/i.test(name) || name === "refresh_token_present") {
-        document.cookie = `${name}=; Path=/; Max-Age=0; SameSite=Lax`;
-      }
-    });
   }, []);
 
   /**

@@ -5,11 +5,12 @@ from apps.identity.constants import DEFAULT_IP
 
 def get_device_hash(ip: str, user_agent: str, salt: str = "") -> str:
     """
-    Normalize device fingerprint to UA + salt only.
-    IP is intentionally ignored for stability.
+    Fingerprint device using IP + User-Agent + Salt.
+    Strictly binds token to the physical machine and network context.
     """
     ua = user_agent or "unknown"
-    raw = f"static:{ua}:{salt or ''}"
+    addr = ip or "unknown"
+    raw = f"{addr}:{ua}:{salt or ''}"
     return sha256(raw.encode()).hexdigest()
 
 def is_local_dev(ip: str) -> bool:

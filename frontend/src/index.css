@@ -1,12 +1,59 @@
-/* src/index.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* optional global */
-html, body, #root {
-  height: 100%;
+@layer base {
+  :root {
+    /* Premium Palette: Obsidian & Cobalt */
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
+    --card: 222 47% 11%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 222 47% 11%;
+    --secondary: 217 32% 17%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217 32% 17%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 217 32% 17%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217 32% 17%;
+    --input: 217 32% 17%;
+    --ring: 224 76% 48%;
+    --radius: 0.75rem;
+  }
+
+  /* Light mode overrides (Optional/Future) */
+  .light {
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+    --primary: 221 83% 53%;
+    /* ... add more if needed */
+  }
 }
-body {
-  @apply bg-gray-50 font-sans;
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-[#0b1120] text-foreground font-sans selection:bg-primary/30;
+    background-image: 
+      radial-gradient(at 0% 0%, hsla(217, 91%, 60%, 0.05) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, hsla(217, 91%, 60%, 0.05) 0px, transparent 50%);
+    min-height: 100vh;
+  }
+}
+
+/* Glassmorphism Utilities */
+.glass {
+  @apply bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl;
+}
+
+.premium-gradient {
+  background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
 }

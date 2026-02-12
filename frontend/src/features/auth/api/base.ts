@@ -1,5 +1,11 @@
-// ✅ FINAL — Zero-trust Axios + helper utilities
+// ✅ PRODUCTION — Zero-Trust Axios Client
 // src/features/auth/api/base.ts
+//
+// Architecture:
+//   • Access token: memory-only (never in cookies/storage)
+//   • Refresh token: HttpOnly cookie (JS NEVER touches it)
+//   • Silent refresh: on 401, call /session/bootstrap/ ONCE
+//   • No JS-readable marker cookies — backend is sole truth
 
 import axios from "axios";
 import {
@@ -15,11 +21,11 @@ import {
 export const API_BASE_URL =
   import.meta.env.VITE_BACKEND_URL
     ? `${import.meta.env.VITE_BACKEND_URL}/api/users/`
-    : `http://localhost:8000/api/users/`; // ✅ Force localhost for cookie alignment
+    : `http://localhost:8000/api/users/`;
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  withCredentials: true, // ✅ allow refresh cookie
+  withCredentials: true, // ✅ sends HttpOnly refresh cookie automatically
 });
 
 /* ===================================
@@ -32,52 +38,105 @@ export const authHeaders = () => {
 };
 
 /* ===================================
-   🍪 CLIENT-SIDE REFRESH HELPERS
-   — NOT REAL REFRESH TOKEN STORAGE —
+   🔄 SILENT REFRESH INTERCEPTOR
+   ─────────────────────────────────
+   On 401 → try /session/bootstrap/ ONCE
+   If bootstrap also fails → clear state, reject
+   
+   ⛔ NEVER retry bootstrap/login/logout endpoints
+      to prevent infinite 401 loops
 =================================== */
 
-/** FE marker only — actual refresh is httpOnly + server managed */
-export const getRefreshCookieName = () => "refresh_token_v2";
+let isRefreshing = false;
+let failedQueue: { resolve: (v: any) => void; reject: (e: any) => void }[] = [];
 
-/**
- * ✅ Remove FE-side artifacts only
- * backend httpOnly cookie stays controlled from server
- */
-export const clearRefreshTokenCookies = (): void => {
-  document.cookie.split(";").forEach((cookie) => {
-    const [raw] = cookie.split("=");
-    const name = raw.trim();
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) prom.reject(error);
+    else prom.resolve(token);
+  });
+  failedQueue = [];
+};
 
-    if (/refresh/i.test(name) || name === "refresh_token_present") {
-      // Best-effort clear
-      document.cookie = `${name}=; path=/; max-age=0`;
+// Endpoints that must NEVER trigger silent refresh
+const SKIP_REFRESH_URLS = [
+  "session/bootstrap",
+  "/login/",
+  "/logout/",
+  "/auth/otp/",
+];
+
+apiClient.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    const url = originalRequest?.url || "";
+
+    // ⛔ Skip auth endpoints — prevents infinite 401 loop
+    const isAuthEndpoint = SKIP_REFRESH_URLS.some((u) => url.includes(u));
+
+    if (
+      error.response?.status === 401 &&
+      !originalRequest._retry &&
+      !isAuthEndpoint
+    ) {
+      if (isRefreshing) {
+        // Queue this request until refresh completes
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        }).then((token) => {
+          originalRequest.headers["Authorization"] = "Bearer " + token;
+          return apiClient(originalRequest);
+        });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
       try {
-        document.cookie = `${name}=; path=/; domain=${window.location.hostname}; max-age=0`;
-      } catch {
-        /* ignore */
+        const res = await apiClient.get("session/bootstrap/");
+        const newAccess = res.data?.data?.access;
+
+        if (newAccess) {
+          setAccessToken(newAccess);
+          apiClient.defaults.headers.common["Authorization"] = `Bearer ${newAccess}`;
+          processQueue(null, newAccess);
+          return apiClient(originalRequest);
+        }
+
+        // No access token in response → session truly expired
+        processQueue(new Error("No access token"), null);
+        clearAccessToken();
+        return Promise.reject(error);
+      } catch (refreshError) {
+        processQueue(refreshError, null);
+        clearAccessToken();
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
       }
     }
-  });
-};
 
-/**
- * ⚠️ FE SHOULD NOT SET REFRESH TOKEN.
- * But backend rotation endpoint sometimes returns refresh for legacy clients.
- *
- * We:
- *   ✅ DO NOT store refresh anywhere
- *   ✅ Set only presence marker → UX helper
- */
-export const setRefreshCookieFromResponse = (res: any): void => {
-  const refresh = res?.data?.data?.refresh;
-  if (!refresh) return;
-
-  // ✅ never store refresh in JS
-  const maxAge = 30 * 24 * 3600; // 30 days
-  document.cookie = `refresh_token_present=1; path=/; max-age=${maxAge}`;
-};
+    return Promise.reject(error);
+  }
+);
 
 /* ===================================
    RE-EXPORT low-level storage
 =================================== */
 export { setAccessToken, getAccessToken, clearAccessToken };
+
+/* ===================================
+   🚫 DEPRECATED NO-OP STUBS
+   ─────────────────────────────────
+   Backend now manages ALL cookies via HttpOnly Set-Cookie headers.
+   These exist only for backward-compatibility with existing imports.
+   They intentionally do NOTHING — JS must never touch cookies.
+=================================== */
+
+/** @deprecated Backend sets refresh cookie via Set-Cookie header. This is a no-op. */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export const setRefreshCookieFromResponse = (_res: any): void => { };
+
+/** @deprecated Backend clears cookies on logout. This is a no-op. */
+export const clearRefreshTokenCookies = (): void => { };

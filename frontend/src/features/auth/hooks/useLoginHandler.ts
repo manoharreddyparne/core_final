@@ -1,12 +1,10 @@
-// ✅ FINAL — ENTERPRISE-GRADE
-// src/features/auth/hooks/useLoginHandler.ts
-
+// ✅ src/features/auth/hooks/useLoginHandler.ts
 import { useCallback, useRef, useState } from "react";
 
 /* ===========================
    API
 =========================== */
-import { loginUser } from "../api/studentApi";
+import { loginUser, requestStudentOTP, verifyStudentOTP } from "../api/studentApi";
 import {
   loginAdminOrTeacher,
   verifyAdminOTP,
@@ -38,7 +36,7 @@ export const useLoginHandler = (
   const [cooldowns, setCooldowns] = useState<Record<string, number>>({});
 
   /* Temp store for OTP */
-  const otpRef = useRef<{ userId: number; password: string } | null>(null);
+  const otpRef = useRef<{ userId?: number; identifier?: string; password?: string } | null>(null);
 
   /* -------------------------------
      COOLDOWN MGMT
@@ -54,16 +52,16 @@ export const useLoginHandler = (
   );
 
   /* -------------------------------
-     LOGIN
+     LOGIN / REQUEST OTP
   -------------------------------- */
   const login = useCallback(
-    async (identifier: string, password: string): Promise<LoginResult> => {
+    async (identifier: string, password?: string, turnstileToken?: string): Promise<LoginResult> => {
       const username = identifier.trim();
 
-      if (!username || !password) {
+      if (!username) {
         return {
           success: false,
-          message: "Missing username/email or password",
+          message: "Missing identifier",
           role,
         };
       }
@@ -79,33 +77,42 @@ export const useLoginHandler = (
       }
 
       try {
-        // Call API by role
-        const res: AuthResponse =
-          role === "student"
-            ? await loginUser(username, password)
-            : await loginAdminOrTeacher(username, password);
+        let res: AuthResponse;
+
+        if (role === "student") {
+          // Student flow: OTP Request
+          res = await requestStudentOTP(username, turnstileToken);
+          if (res.success) {
+            // Backend sends generic success, we trigger OTP view
+            otpRef.current = { identifier: username };
+            return { ...res, success: true, require_otp: true, role };
+          }
+        } else {
+          // Admin flow: Password + optional 2FA
+          if (!password) {
+            return { success: false, message: "Password required for admin", role };
+          }
+          res = await loginAdminOrTeacher(username, password, turnstileToken);
+        }
 
         // Cooldown (if backend instructs)
         if (res.cooldown) {
           setCooldown(username, res.cooldown);
         }
 
-        // 🔐 OTP required?
+        // 🔐 OTP required (for Admin 2FA)
         if (res.require_otp && res.user_id) {
           otpRef.current = { userId: res.user_id, password };
           return { ...res, role };
         }
 
-        // ✅ Full login OK
+        // ✅ Full login OK (usually for Admin if 2FA disabled)
         if (res.success && res.access) {
           setAccessToken(res.access);
-
-          // bootstrap + setUser
           const boot = await bootstrapSession();
           setUser(boot?.user ?? null);
-
           otpRef.current = null;
-        } else {
+        } else if (!res.require_otp) {
           // ❌ Failed login
           clearAccessToken();
           setUser(null);
@@ -114,17 +121,10 @@ export const useLoginHandler = (
         return { ...res, role };
       } catch (err: any) {
         const e = err?.response?.data;
-
-        if (e?.cooldown) {
-          setCooldown(username, e.cooldown);
-        }
-
         return {
           success: false,
-          message: e?.message ?? "Login failed.",
+          message: e?.message ?? "Authentication failed.",
           cooldown: e?.cooldown,
-          require_otp: e?.require_otp,
-          user_id: e?.user_id,
           role,
         };
       }
@@ -141,58 +141,44 @@ export const useLoginHandler = (
       otp: string,
       password?: string
     ): Promise<LoginResult> => {
-      // Students don’t use OTP
-      if (role === "student") {
-        return {
-          success: false,
-          message: "OTP not required for students.",
-          require_otp: false,
-          role,
-        };
-      }
-
-      const refPw = password ?? otpRef.current?.password;
-      if (!refPw) {
-        return {
-          success: false,
-          message: "Missing password for OTP.",
-          require_otp: true,
-          user_id: userId,
-          role,
-        };
-      }
 
       try {
-        const res = await verifyAdminOTP(userId, otp, refPw);
+        let res: AuthResponse;
 
-        if (!res.access) {
-          throw new Error("OTP verification returned no access token");
+        if (role === "student") {
+          const identifier = otpRef.current?.identifier;
+          if (!identifier) {
+            return { success: false, message: "Session expired. Please request OTP again.", role };
+          }
+          res = await verifyStudentOTP(identifier, otp);
+        } else {
+          const refPw = password ?? otpRef.current?.password;
+          if (!refPw) {
+            return {
+              success: false,
+              message: "Missing password for OTP.",
+              require_otp: true,
+              user_id: userId,
+              role,
+            };
+          }
+          res = await verifyAdminOTP(userId, otp, refPw);
         }
 
-        setAccessToken(res.access);
+        if (res.success && res.access) {
+          setAccessToken(res.access);
+          const boot = await bootstrapSession();
+          setUser(boot?.user ?? null);
+          otpRef.current = null;
+          return { ...res, require_otp: false, role };
+        }
 
-        // bootstrap + setUser
-        const boot = await bootstrapSession();
-        setUser(boot?.user ?? null);
-
-        otpRef.current = null;
-
-        return {
-          ...res,
-          require_otp: false,
-          user_id: userId,
-          role,
-        };
+        return { ...res, role };
       } catch (err: any) {
-        otpRef.current = null;
         const e = err?.response?.data;
-
         return {
           success: false,
           message: e?.message ?? "OTP verification failed.",
-          cooldown: e?.cooldown,
-          require_otp: true,
-          user_id: userId,
           role,
         };
       }
@@ -200,9 +186,6 @@ export const useLoginHandler = (
     [role, setUser]
   );
 
-  /* -------------------------------
-     EXPORT
-  -------------------------------- */
   return {
     login,
     verifyOTP,

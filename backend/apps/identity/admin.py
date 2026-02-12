@@ -3,7 +3,7 @@ Admin interface for Core Student model
 """
 
 from django.contrib import admin
-from apps.identity.models.core import CoreStudent
+from apps.identity.models.core_models import CoreStudent
 
 
 @admin.register(CoreStudent)

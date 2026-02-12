@@ -43,7 +43,17 @@ from apps.identity.views.admin.teacher_detail_views import AdminTeacherDetailVie
 from apps.identity.views.admin.bulk_upload import BulkStudentUploadView
 from apps.identity.views.admin.core_student_views import CoreStudentAdminViewSet
 from apps.identity.views.admin.institution_views import InstitutionViewSet
-from apps.identity.views.auth.activate import StudentActivationView
+from apps.identity.views.auth.v2_auth import (
+    IdentityCheckView,
+    ActivationCompleteView,
+    StudentLoginView,
+    FacultyLoginView,
+    FacultyMFAVerifyView
+)
+from apps.identity.views.public.tenants import PublicInstitutionListView
+from apps.identity.views.public.registration import InstitutionRegistrationView
+
+from apps.identity.views.admin.jit_verify import VerifyAdminTicketView
 
 # -------------------------------
 # CURRENT USER
@@ -105,7 +115,14 @@ urlpatterns = [
     path("session/bootstrap/", SessionBootstrapView.as_view(), name="session_bootstrap"),
     path("token/secure/", CustomTokenSecureView.as_view(), name="token_secure"),
     path("token/verify/", CustomTokenVerifyView.as_view(), name="token_verify"),
-    path("auth/activate/", StudentActivationView.as_view(), name="student-activate"),
+    path("auth/v2/check-identity/", IdentityCheckView.as_view(), name="v2-check-identity"),
+    path("auth/v2/activate/", ActivationCompleteView.as_view(), name="v2-activate"),
+    path("auth/v2/student/login/", StudentLoginView.as_view(), name="v2-student-login"),
+    path("auth/v2/faculty/login/", FacultyLoginView.as_view(), name="v2-faculty-login"),
+    path("auth/v2/faculty/mfa/", FacultyMFAVerifyView.as_view(), name="v2-faculty-mfa"),
+    path("auth/admin/verify-ticket/", VerifyAdminTicketView.as_view(), name="admin-verify-ticket"),
+    path("public/institutions/", PublicInstitutionListView.as_view(), name="public-institution-list"),
+    path("public/register/", InstitutionRegistrationView.as_view(), name="institution-register"),
 
     # ============================
     # DEVICE / SESSION MANAGEMENT

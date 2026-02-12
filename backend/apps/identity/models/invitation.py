@@ -6,7 +6,7 @@ import uuid
 from django.db import models
 from django.utils import timezone
 from datetime import timedelta
-from apps.identity.models.core import CoreStudent
+from apps.identity.models.core_models import CoreStudent
 
 
 class StudentInvitation(models.Model):

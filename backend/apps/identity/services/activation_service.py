@@ -8,7 +8,7 @@ from django.conf import settings
 from django.template.loader import render_to_string
 from django.utils import timezone
 from apps.identity.models.invitation import StudentInvitation
-from apps.identity.models.core import CoreStudent
+from apps.identity.models.core_models import CoreStudent
 
 
 class NotificationService:

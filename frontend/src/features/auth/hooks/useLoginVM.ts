@@ -21,6 +21,7 @@ export const useLoginVM = (defaultRole: "student" | "admin" = "student") => {
   /* form state */
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState<string | undefined>();
 
   /* OTP */
   const [otp, setOTP] = useState("");
@@ -75,7 +76,7 @@ export const useLoginVM = (defaultRole: "student" | "admin" = "student") => {
 
     try {
       const started = Date.now();
-      const res = await login(username.trim(), password);
+      const res = await login(username.trim(), password, turnstileToken);
 
       // ✅ OTP PATH
       if (res.require_otp && res.user_id) {
@@ -177,5 +178,6 @@ export const useLoginVM = (defaultRole: "student" | "admin" = "student") => {
     /* actions */
     doLogin,
     doVerifyOTP,
+    setTurnstileToken,
   };
 };

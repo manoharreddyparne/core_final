@@ -7,9 +7,9 @@ from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from apps.identity.models.core import CoreStudent
+from apps.identity.models.core_models import CoreStudent
 from apps.identity.serializers.core_serializers import CoreStudentSerializer
-from apps.identity.permissions import IsAdminRole
+from apps.identity.permissions import IsAdminOrTeacher
 from apps.identity.utils.tenant_utils import get_user_institution
 from apps.identity.utils.response_utils import success_response, error_response
 
@@ -17,16 +17,22 @@ logger = logging.getLogger(__name__)
 
 class CoreStudentAdminViewSet(viewsets.ModelViewSet):
     """
-    Institution Admin:
-      CRUD for pre-seeded students.
-      Strictly filtered by institutional context.
+    Institution Admin & Teachers:
+      READ access for all authorized personnel.
+      CRUD (Create/Update/Delete) restricted to Admins.
     """
     serializer_class = CoreStudentSerializer
-    permission_classes = [IsAdminRole]
+    permission_classes = [IsAdminOrTeacher]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['stu_ref', 'roll_number', 'full_name', 'official_email']
     ordering_fields = ['stu_ref', 'full_name', 'batch_year']
     lookup_field = 'stu_ref'
+
+    def get_permissions(self):
+        from apps.identity.permissions import IsAdminRole
+        if self.action in ['create', 'update', 'partial_update', 'destroy', 'send_invitation']:
+            return [IsAdminRole()]
+        return [IsAdminOrTeacher()]
 
     def get_queryset(self):
         user = self.request.user

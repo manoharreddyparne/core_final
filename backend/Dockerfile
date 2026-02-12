@@ -28,7 +28,7 @@ COPY . .
 RUN mkdir -p /app/logs /app/media /app/static
 
 # Collect static files (for production)
-RUN python manage.py collectstatic --noinput || true
+RUN DJANGO_SETTINGS_MODULE=auip_core.settings.development python manage.py collectstatic --noinput || true
 
 # Expose port
 EXPOSE 8000

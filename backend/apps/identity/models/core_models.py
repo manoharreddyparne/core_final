@@ -98,6 +98,95 @@ class TeacherProfile(models.Model):
 
 
 # --------------------------
+# Core Student Model
+# --------------------------
+class CoreStudent(models.Model):
+    """
+    Institution-seeded student academic data.
+    Authoritative student data managed by the institution.
+    """
+    class IdentityState(models.TextChoices):
+        SEEDED = "SEEDED", "Seeded"
+        INVITED = "INVITED", "Invited"
+        VERIFIED = "VERIFIED", "Verified"
+        ACTIVE = "ACTIVE", "Active"
+        SUSPENDED = "SUSPENDED", "Suspended"
+
+    # Core Identity (Provided by Institution)
+    stu_ref = models.CharField(
+        max_length=50, 
+        primary_key=True, 
+        help_text="Unique student reference (e.g., 2021-CS-001)", 
+        verbose_name="Student Reference"
+    )
+    
+    DEPARTMENT_CHOICES = [
+        ('CSE', 'Computer Science and Engineering'),
+        ('IT', 'Information Technology'),
+        ('ECE', 'Electronics and Communication Engineering'),
+        ('EEE', 'Electrical and Electronics Engineering'),
+        ('MECH', 'Mechanical Engineering'),
+        ('CIVIL', 'Civil Engineering'),
+        ('OTHER', 'Other'),
+    ]
+    roll_number = models.CharField(max_length=50, db_index=True, unique=True)
+    full_name = models.CharField(max_length=255, verbose_name="Full Name")
+    official_email = models.EmailField(unique=True, db_index=True, verbose_name="Official Email")
+    
+    # Institution Link
+    institution = models.ForeignKey(
+        'identity.Institution', 
+        on_delete=models.CASCADE, 
+        related_name='core_students',
+        null=True, 
+        blank=True
+    )
+    
+    # Academic Details
+    department = models.CharField(max_length=100, blank=True)
+    batch_year = models.IntegerField(null=True, blank=True)
+    current_semester = models.IntegerField(null=True, blank=True)
+    
+    # Performance Metrics (Secure Database)
+    cgpa = models.DecimalField(max_digits=3, decimal_places=2, null=True, blank=True)
+    tenth_percentage = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    twelfth_percentage = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    attendance_percentage = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    
+    # State Machine
+    status = models.CharField(
+        max_length=20, 
+        choices=IdentityState.choices, 
+        default=IdentityState.SEEDED,
+        db_index=True
+    )
+    is_activated = models.BooleanField(default=False)
+    
+    # Metadata
+    seeded_at = models.DateTimeField(auto_now_add=True)
+    seeded_by = models.CharField(max_length=255, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    # Placement Eligibility
+    is_eligible_for_placement = models.BooleanField(default=False)
+    placement_eligibility_reason = models.TextField(blank=True)
+
+    def __str__(self):
+        return f"{self.full_name} ({self.stu_ref})"
+
+    class Meta:
+        ordering = ["stu_ref"]
+        db_table = 'core_students'
+        verbose_name = 'Core Student'
+        verbose_name_plural = 'Core Students'
+        indexes = [
+            models.Index(fields=["roll_number"]),
+            models.Index(fields=["status"]),
+            models.Index(fields=["institution"]),
+        ]
+
+
+# --------------------------
 # Student Profile
 # --------------------------
 class StudentProfile(models.Model):

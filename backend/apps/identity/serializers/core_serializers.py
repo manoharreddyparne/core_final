@@ -3,7 +3,7 @@ Serializers for Core Student model
 """
 
 from rest_framework import serializers
-from apps.identity.models.core import CoreStudent
+from apps.identity.models.core_models import CoreStudent
 
 
 class CoreStudentSerializer(serializers.ModelSerializer):

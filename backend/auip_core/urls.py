@@ -37,4 +37,7 @@ urlpatterns = [
 
     # Optional dj-rest-auth endpoints (token refresh, login/logout fallback)
     path('api/auth/', include('dj_rest_auth.urls')),
+
+    # Institution Selector (Public)
+    path('api/v1/institutions/', include('apps.auip_tenant.urls')),
 ]

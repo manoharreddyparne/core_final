@@ -124,3 +124,11 @@ def rotate_hmac_key(new_key_id: str, new_key_value: str) -> None:
 def normalize_token_value(token: str) -> str:
     """Decode URL-encoded token and strip whitespace."""
     return unquote(token).strip() if token else ""
+
+
+def mask_email(email: str) -> str:
+    """Mask email for privacy, e.g., 'jo***@example.com'."""
+    if not email or '@' not in email:
+        return email
+    parts = email.split('@')
+    return f"{parts[0][:2]}***@{parts[1]}"

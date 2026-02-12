@@ -73,7 +73,7 @@ class AdminTokenObtainPairView(TokenObtainPairView):
         # ---------- User lookup (admin+teacher only) ----------
         user = User.objects.filter(
             Q(username__iexact=login_field) | Q(email__iexact=login_field),
-            role__in=[User.Roles.ADMIN, User.Roles.TEACHER],
+            role__in=[User.Roles.SUPER_ADMIN, User.Roles.INSTITUTION_ADMIN, User.Roles.ADMIN, User.Roles.TEACHER],
         ).first()
 
         # Avoid enumeration/timing leaks: generic error on bad creds/role mismatch

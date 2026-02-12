@@ -11,30 +11,15 @@
 let memoryAccessToken: string | null = null;
 const SESSION_KEY = "secure_memory_access_token";
 
-/** ✅ set token (memory + ephemeral fallback) */
+/** ✅ set token (memory only) */
 export const setAccessToken = (token: string): void => {
   if (!token || typeof token !== "string") return;
   memoryAccessToken = token;
-  try {
-    sessionStorage.setItem(SESSION_KEY, token);
-  } catch {
-    /* ignore storage errors */
-  }
 };
 
-/** ✅ get token (memory first → fallback) */
+/** ✅ get token (memory only) */
 export const getAccessToken = (): string | null => {
-  if (memoryAccessToken) return memoryAccessToken;
-  try {
-    const token = sessionStorage.getItem(SESSION_KEY);
-    if (token) {
-      memoryAccessToken = token; // hydrate
-      return token;
-    }
-  } catch {
-    /* ignore */
-  }
-  return null;
+  return memoryAccessToken;
 };
 
 /** ❌ nuke all access tokens */

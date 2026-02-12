@@ -55,11 +55,11 @@ def blacklist_refresh_jti(refresh_jti: str, user: Optional[User] = None) -> bool
 # -------------------------------
 def _expected_fingerprint(session: LoginSession, ip: str, user_agent: str) -> str:
     """
-    Build the expected fingerprint. We bind to UA+salt and *ignore IP*
-    for real-world UX stability. Local-dev bypass remains elsewhere.
+    Build the expected fingerprint. 
+    Industry-level approach: Bind to UA + IP + Salt for maximum perimeter security.
     """
-    # Ignore IP for fingerprinting; use a static marker for consistency.
-    return get_device_hash("static", user_agent or "unknown", salt=session.device_salt)
+    # Use both IP and UA for strict binding as requested by user
+    return get_device_hash(ip or "unknown", user_agent or "unknown", salt=session.device_salt)
 
 
 def verify_session_fingerprint(session: LoginSession, ip: str, user_agent: str):
@@ -127,9 +127,9 @@ def create_login_session_safe(
                 except Exception:
                     pass
 
-        # Build UA+salt fingerprint (IP intentionally ignored for UX stability)
+        # Build UA+IP+salt fingerprint for strict machine binding
         salt = LoginSession.make_device_salt()
-        fingerprint = get_device_hash("static", user_agent, salt=salt)
+        fingerprint = get_device_hash(ip, user_agent, salt=salt)
 
         # 🧹 Deactivate existing active sessions with the same refresh JTI
         # Mark as rotated instead of scary force logout, since this is a normal lifecycle event.
