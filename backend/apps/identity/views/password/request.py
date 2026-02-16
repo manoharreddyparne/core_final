@@ -68,7 +68,19 @@ class ResetPasswordRequestView(APIView):
 
         # ---------------- EMAIL LOOKUP ----------------
         email = serializer.validated_data.get("email", "").lower()
-        user = User.objects.filter(email__iexact=email).first()
+        role_context = request.data.get("role_context")
+        
+        user_qs = User.objects.filter(email__iexact=email)
+        
+        # If role context is provided (e.g. from a specific portal), restrict lookup
+        if role_context == "student":
+            user_qs = user_qs.filter(role=User.Roles.STUDENT)
+        elif role_context == "admin":
+            user_qs = user_qs.filter(role__in=[User.Roles.SUPER_ADMIN, User.Roles.ADMIN, User.Roles.INSTITUTION_ADMIN])
+        elif role_context == "teacher":
+            user_qs = user_qs.filter(role=User.Roles.TEACHER)
+            
+        user = user_qs.first()
 
         if not user:
             fail_count += 1
@@ -82,6 +94,7 @@ class ResetPasswordRequestView(APIView):
                     f"Too many failed attempts. IP {ip} blocked for {BLOCK_DURATION_MINUTES} mins.",
                     errors={"ip": ip, "locked_until": locked_until, "cooldown": BLOCK_DURATION_MINUTES * 60},
                 )
+            # Generic message to avoid role probing
             return password_error("Please enter a valid registered email.", errors={"ip": ip, "cooldown": 0})
 
         # ---------------- RATE LIMIT PER EMAIL+IP ----------------

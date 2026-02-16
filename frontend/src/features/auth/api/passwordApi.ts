@@ -4,7 +4,6 @@
 import {
   apiClient,
   authHeaders,
-  setRefreshCookieFromResponse,
 } from "./base";
 
 import { setAccessToken } from "../utils/tokenStorage";
@@ -31,8 +30,8 @@ export const changePassword = async (
 
     const data = (res?.data?.data ?? {}) as PasswordChangeResponse;
 
+
     if (data.access) setAccessToken(data.access);
-    setRefreshCookieFromResponse(res);
 
     return {
       ...data,
@@ -55,12 +54,13 @@ export const changePassword = async (
    🔁 RESET PASSWORD REQUEST
 =================================== */
 export const resetPasswordRequest = async (
-  email: string
+  email: string,
+  roleContext?: string
 ): Promise<ResetPasswordRequestDetail> => {
   try {
     const res = await apiClient.post<ApiResponse<ResetPasswordRequestDetail>>(
       "/reset-password-request/",
-      { email }
+      { email, role_context: roleContext }
     );
 
     const data = (res?.data?.data ?? {}) as ResetPasswordRequestDetail;
@@ -104,8 +104,8 @@ export const resetPasswordConfirm = async (
 
     const data = (res?.data?.data ?? {}) as ResetPasswordConfirmResponse;
 
+
     if (data.access) setAccessToken(data.access);
-    setRefreshCookieFromResponse(res);
 
     return {
       ...data,

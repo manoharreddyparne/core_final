@@ -95,6 +95,7 @@ class LoginSession(models.Model):
     last_seen_at = models.DateTimeField(auto_now=True)
     last_seen_location = models.JSONField(blank=True, null=True)
     expires_at = models.DateTimeField(blank=True, null=True)
+    last_secure_check = models.DateTimeField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
 
     class Meta:
@@ -189,7 +190,7 @@ class RememberedDevice(models.Model):
         on_delete=models.CASCADE,
         related_name="remembered_devices"
     )
-    device_hash = models.CharField(max_length=128, unique=True)
+    device_hash = models.CharField(max_length=128)
     trusted = models.BooleanField(default=False)
     last_active = models.DateTimeField(auto_now=True)
     # Device and Location Info
@@ -202,6 +203,7 @@ class RememberedDevice(models.Model):
     class Meta:
         verbose_name = "Remembered Device"
         verbose_name_plural = "Remembered Devices"
+        unique_together = ('user', 'device_hash')
 
     def __str__(self):
         return f"{self.user.email} - {'Trusted' if self.trusted else 'Untrusted'}"

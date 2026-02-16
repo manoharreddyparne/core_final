@@ -14,6 +14,7 @@ import { PageNotFound } from "../../components/PageNotFound";
 import CoreStudentAdmin from "../../features/dashboard/pages/CoreStudentAdmin";
 import InstitutionAdmin from "../../features/dashboard/pages/InstitutionAdmin";
 import { RegisterUniversity } from "../../features/auth/pages/RegisterUniversity";
+import { LandingPage } from "../../features/dashboard/pages/LandingPage";
 import { AppLayout } from "../../features/auth/layouts/AppLayout";
 
 import ProtectedRoute from "../../features/auth/components/ProtectedRoute";
@@ -50,6 +51,18 @@ export const AppRoutes = () => {
 
   return (
     <Routes>
+      {/* ------- DEFAULT LANDING -------- */}
+      <Route
+        path="/"
+        element={
+          user ? (
+            <Navigate to={landing} replace />
+          ) : (
+            <LandingPage />
+          )
+        }
+      />
+
       {/* ------- PUBLIC ------- */}
       <Route
         path="/login"
@@ -232,22 +245,6 @@ export const AppRoutes = () => {
         </Route>
       </Route>
 
-      {/* ------- DEFAULT LANDING -------- */}
-      <Route
-        path="/"
-        element={
-          user ? (
-            <Navigate to={landing} replace />
-          ) : bootstrapping ? (
-            // Wait for bootstrap before redirecting to login
-            <div className="flex h-screen items-center justify-center">
-              <p className="text-gray-500">Checking session...</p>
-            </div>
-          ) : (
-            <Navigate to="/auth/student/login" replace />
-          )
-        }
-      />
 
       {/* ------- CATCH-ALL ------- */}
       <Route path="*" element={<PageNotFound />} />

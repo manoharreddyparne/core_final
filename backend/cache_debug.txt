@@ -1,0 +1,9 @@
+--- NEW SESSION ---
+KEY_GEN: raw='otp:6:0.0.0.0:my_secret_salt' hashed='5167bd8c92ef1f3b21bd17cccbf7c9e1eec789a1cee61a8e26b0a40aa9f590b4' salt='my_secret_salt'
+SET: key=5167bd8c92ef1f3b21bd17cccbf7c9e1eec789a1cee61a8e26b0a40aa9f590b4 res=None conn={'parser_class': <class 'redis._parsers.resp2._RESP2Parser'>, 'host': '127.0.0.1', 'port': 6379, 'db': 0, 'password': None}
+KEY_GEN: raw='otp:6:0.0.0.0:my_secret_salt' hashed='5167bd8c92ef1f3b21bd17cccbf7c9e1eec789a1cee61a8e26b0a40aa9f590b4' salt='my_secret_salt'
+GET: key=5167bd8c92ef1f3b21bd17cccbf7c9e1eec789a1cee61a8e26b0a40aa9f590b4 found=False conn={'parser_class': <class 'redis._parsers.resp2._RESP2Parser'>, 'host': '127.0.0.1', 'port': 6379, 'db': 0, 'password': None}
+KEY_GEN: raw='otp:6:default:my_secret_salt' hashed='4e0492933f6d6ebfa1ef7d8f1c063d9967d53edd7a14b303d00a5bceb682a869' salt='my_secret_salt'
+SET: key=4e0492933f6d6ebfa1ef7d8f1c063d9967d53edd7a14b303d00a5bceb682a869 res=True conn={'parser_class': <class 'redis._parsers.resp2._RESP2Parser'>, 'host': 'redis', 'port': 6379, 'db': 0, 'password': None}
+KEY_GEN: raw='otp:6:0.0.0.0:my_secret_salt' hashed='5167bd8c92ef1f3b21bd17cccbf7c9e1eec789a1cee61a8e26b0a40aa9f590b4' salt='my_secret_salt'
+GET: key=5167bd8c92ef1f3b21bd17cccbf7c9e1eec789a1cee61a8e26b0a40aa9f590b4 found=False conn={'parser_class': <class 'redis._parsers.resp2._RESP2Parser'>, 'host': 'redis', 'port': 6379, 'db': 0, 'password': None}

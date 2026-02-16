@@ -7,11 +7,11 @@ from rest_framework.permissions import IsAuthenticated
 
 from apps.identity.models import LoginSession, User
 from apps.identity.services.token_service import send_session_ws_event, logout_all_sessions_secure
-from apps.identity.utils.session_utils import success_response, get_location, parse_device_info
+from apps.identity.utils.request_utils import get_client_ip, get_location, parse_device_info
+from apps.identity.utils.response_utils import success_response, error_response
 from apps.identity.utils.cookie_utils import clear_session_cookies
 
 logger = logging.getLogger(__name__)
-REFRESH_COOKIE_PATH = getattr(settings, "REFRESH_COOKIE_PATH", "/")
 
 # -------------------------------
 # LIST USER SESSIONS / DEVICES
@@ -145,6 +145,7 @@ class SessionValidateView(APIView):
         jti = getattr(request.auth, 'get', lambda x, y: None)('jti', None)
         
         if not jti:
+            logger.warning(f"[SESSION-VAL] ❌ No JTI in token for user {user.email}")
             return success_response("No session identifier found", data={
                 "is_valid": False,
                 "was_logged_out": True,
@@ -155,6 +156,7 @@ class SessionValidateView(APIView):
             session = LoginSession.objects.filter(user=user, jti=jti).first()
             
             if not session:
+                logger.warning(f"[SESSION-VAL] ⚠️ Session NOT FOUND in DB: {jti} for user {user.email}")
                 return success_response("Session not found", data={
                     "is_valid": False,
                     "was_logged_out": True,
@@ -162,6 +164,7 @@ class SessionValidateView(APIView):
                 })
             
             if not session.is_active:
+                logger.warning(f"[SESSION-VAL] 🛑 Session INACTIVE in DB: {jti} (IP: {session.ip_address})")
                 return success_response("Session inactive", data={
                     "is_valid": False,
                     "was_logged_out": True,
@@ -175,6 +178,6 @@ class SessionValidateView(APIView):
                 "expires_at": session.expires_at
             })
             
-        except Exception:
-            logger.exception("Failed to validate session")
+        except Exception as e:
+            logger.exception(f"Failed to validate session: {e}")
             return success_response("Failed to validate session", status_code=500)

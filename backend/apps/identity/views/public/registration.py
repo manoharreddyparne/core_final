@@ -9,6 +9,7 @@ from rest_framework.permissions import AllowAny
 from django.utils.text import slugify
 from apps.identity.models.institution import Institution
 from apps.identity.utils.response_utils import success_response, error_response
+from apps.identity.utils.turnstile import verify_turnstile_token
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +21,11 @@ class InstitutionRegistrationView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
+        turnstile_token = request.data.get("turnstile_token")
+        if not verify_turnstile_token(turnstile_token):
+            logger.warning(f"[Institution-Registration] Rejected: Invalid Turnstile token")
+            return error_response("Human verification failed.", code=status.HTTP_400_BAD_REQUEST)
+
         data = request.data
         name = data.get("name")
         domain = data.get("domain")
@@ -27,15 +33,15 @@ class InstitutionRegistrationView(APIView):
 
         if not name or not domain or not contact_email:
             return error_response("Name, domain, and contact email are required.", 
-                                 status_code=status.HTTP_400_BAD_REQUEST)
+                                 code=status.HTTP_400_BAD_REQUEST)
 
         if Institution.objects.filter(name=name).exists():
             return error_response("An institution with this name already exists.", 
-                                 status_code=status.HTTP_400_BAD_REQUEST)
+                                 code=status.HTTP_400_BAD_REQUEST)
 
         if Institution.objects.filter(domain=domain).exists():
             return error_response("An institution with this domain already exists.", 
-                                 status_code=status.HTTP_400_BAD_REQUEST)
+                                 code=status.HTTP_400_BAD_REQUEST)
 
         try:
             slug = slugify(name)

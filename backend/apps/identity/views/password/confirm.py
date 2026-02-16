@@ -78,8 +78,8 @@ class ResetPasswordConfirmView(APIView):
         )
 
         # Clear server-side refresh cookies
-        resp.delete_cookie(REFRESH_COOKIE_NAME, path=REFRESH_COOKIE_PATH, domain=None)
-        resp.delete_cookie("refresh_token_present", path=REFRESH_COOKIE_PATH, domain=None)
+        from apps.identity.utils.cookie_utils import clear_session_cookies
+        clear_session_cookies(resp)
 
         logger.info(f"✅ Password reset confirmed for user {user.id} from IP {ip}")
         return resp

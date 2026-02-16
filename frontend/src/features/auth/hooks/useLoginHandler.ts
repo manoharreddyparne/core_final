@@ -9,7 +9,7 @@ import {
   loginAdminOrTeacher,
   verifyAdminOTP,
 } from "../api/adminApi";
-import { bootstrapSession } from "../api/bootstrapApi";
+import { hydratePassport } from "../api/passportApi";
 
 /* ===========================
    TOKEN
@@ -109,7 +109,7 @@ export const useLoginHandler = (
         // ✅ Full login OK (usually for Admin if 2FA disabled)
         if (res.success && res.access) {
           setAccessToken(res.access);
-          const boot = await bootstrapSession();
+          const boot = await hydratePassport();
           setUser(boot?.user ?? null);
           otpRef.current = null;
         } else if (!res.require_otp) {
@@ -139,7 +139,8 @@ export const useLoginHandler = (
     async (
       userId: number,
       otp: string,
-      password?: string
+      password?: string,
+      rememberDevice?: boolean
     ): Promise<LoginResult> => {
 
       try {
@@ -162,12 +163,12 @@ export const useLoginHandler = (
               role,
             };
           }
-          res = await verifyAdminOTP(userId, otp, refPw);
+          res = await verifyAdminOTP(userId, otp, refPw, rememberDevice);
         }
 
         if (res.success && res.access) {
           setAccessToken(res.access);
-          const boot = await bootstrapSession();
+          const boot = await hydratePassport();
           setUser(boot?.user ?? null);
           otpRef.current = null;
           return { ...res, require_otp: false, role };

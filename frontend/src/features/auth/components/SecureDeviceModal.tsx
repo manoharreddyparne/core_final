@@ -28,10 +28,6 @@ export const SecureDeviceModal = ({ open, onOpenChange, status, data }: SecureDe
 
     return (
         <Dialog open={open} onOpenChange={(newOpen) => {
-            // Don't allow closing if showing "already secured" message
-            if (!newOpen && alreadySecured) {
-                return; // Prevent closing
-            }
             onOpenChange(newOpen);
         }}>
             <DialogContent className="sm:max-w-md bg-white">

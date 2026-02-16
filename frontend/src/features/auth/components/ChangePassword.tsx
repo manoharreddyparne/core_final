@@ -83,21 +83,27 @@ const ChangePassword = () => {
       if (!user?.first_time_login && !user?.need_password_reset) {
         if (oldPassword === newPassword) {
           addToast("New password cannot be the same as old.", "error");
+          setLoading(false);
           return;
         }
       }
 
-      const msg = await changePassword(oldPassword, newPassword);
-      addToast(msg ?? "Password changed successfully ✅", "success");
+      // changePassword now returns { success: boolean, message: string } or similar if updated
+      // but current hook returns msg: string. Let's update usePasswordHandler next.
+      // For now, let's fix the catch block and useToast correctly.
+      const result: any = await changePassword(oldPassword, newPassword);
 
-      // success → stay put, or optionally clear form
-      setOldPassword("");
-      setNewPassword("");
-      // navigate(...) <--- REMOVED to keep user on settings page
+      if (result === false || (typeof result === 'object' && result?.success === false)) {
+        addToast(result?.message || "Failed to change password ❌", "error");
+      } else {
+        addToast(typeof result === 'string' ? result : (result?.message || "Password changed successfully ✅"), "success");
+        setOldPassword("");
+        setNewPassword("");
+      }
     } catch (err: any) {
       const data = err?.response?.data || err;
-      if (data?.message) addToast(data.message, "error");
-      else addToast("Something went wrong ❌", "error");
+      const errorMsg = data?.message || data?.detail || "Something went wrong ❌";
+      addToast(errorMsg, "error");
     } finally {
       setLoading(false);
     }
@@ -111,22 +117,20 @@ const ChangePassword = () => {
         </h3>
 
         <form className="space-y-6" onSubmit={handleSubmit}>
-          {/* old password ONLY if not forced reset */}
-          {!user?.first_time_login && !user?.need_password_reset && (
-            <div className="relative">
-              <input
-                type="password"
-                value={oldPassword}
-                onChange={(e) => setOldPassword(e.target.value)}
-                placeholder=" "
-                required
-                className="peer w-full p-4 rounded-2xl bg-gray-800 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 text-white text-lg"
-              />
-              <label className="absolute left-4 top-4 text-gray-400 pointer-events-none transition-all text-sm peer-focus:-top-2 peer-focus:text-cyan-400 peer-focus:text-xs peer-placeholder-shown:top-4 peer-placeholder-shown:text-gray-400">
-                Old Password
-              </label>
-            </div>
-          )}
+          {/* Always show old password for authenticated password changes */}
+          <div className="relative">
+            <input
+              type="password"
+              value={oldPassword}
+              onChange={(e) => setOldPassword(e.target.value)}
+              placeholder=" "
+              required
+              className="peer w-full p-4 rounded-2xl bg-gray-800 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 text-white text-lg"
+            />
+            <label className="absolute left-4 top-4 text-gray-400 pointer-events-none transition-all text-sm peer-focus:-top-2 peer-focus:text-cyan-400 peer-focus:text-xs peer-placeholder-shown:top-4 peer-placeholder-shown:text-gray-400">
+              Old Password
+            </label>
+          </div>
 
           <div className="relative">
             <input
@@ -146,10 +150,10 @@ const ChangePassword = () => {
                 <div className="w-full bg-gray-800 rounded-full h-2 overflow-hidden">
                   <div
                     className={`h-2 transition-all duration-500 ${strengthPercentage <= 40
-                        ? "bg-red-500"
-                        : strengthPercentage < 80
-                          ? "bg-yellow-400"
-                          : "bg-green-500"
+                      ? "bg-red-500"
+                      : strengthPercentage < 80
+                        ? "bg-yellow-400"
+                        : "bg-green-500"
                       }`}
                     style={{ width: `${strengthPercentage}%` }}
                   />

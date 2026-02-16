@@ -16,12 +16,30 @@ class BaseSocialLoginView(SocialLoginView):
     def _handle_first_time_login(self, user):
         return getattr(user, "first_time_login", False) or getattr(user, "need_password_reset", False)
 
-    def _safe_login_session(self, user, response):
-        create_login_session_safe(
+    def _safe_login_session(self, user, response, ip, ua):
+        access = response.data.get("access_token") or response.data.get("access")
+        refresh = response.data.get("refresh_token") or response.data.get("refresh")
+        
+        if not access or not refresh:
+            return
+
+        # 1. Create DB Login Session
+        session = create_login_session_safe(
             user=user,
-            access_token=response.data.get("access_token"),
-            refresh_token=response.data.get("refresh_token"),
+            access_token=access,
+            refresh_token=refresh,
+            ip=ip,
+            user_agent=ua,
         )
+
+        # 2. Generate and set Fragments
+        from apps.identity.utils.cookie_utils import set_quantum_shield, set_logged_in_cookie
+        from apps.identity.services.quantum_shield import QuantumShieldService
+        
+        fragments = QuantumShieldService.fragment_token(str(refresh))
+        
+        set_quantum_shield(response, fragments)
+        set_logged_in_cookie(response, "true")
 
     def post(self, request, *args, **kwargs):
         ip = request.META.get("REMOTE_ADDR", "")
@@ -38,7 +56,8 @@ class BaseSocialLoginView(SocialLoginView):
                         status=403,
                     )
 
-                self._safe_login_session(user, response)
+                ua = request.META.get("HTTP_USER_AGENT", "unknown")
+                self._safe_login_session(user, response, ip, ua)
                 logger.info(f"{self.__class__.__name__} successful for {user.email} from IP: {ip}")
 
             return response

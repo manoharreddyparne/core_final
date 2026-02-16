@@ -6,14 +6,13 @@ from rest_framework.routers import DefaultRouter
 # -------------------------------
 # AUTH / TOKEN / LOGOUT
 # -------------------------------
-from apps.identity.views.auth.login import CustomTokenObtainPairView
 from apps.identity.views.auth.logout import LogoutView, LogoutAllView
 from apps.identity.views.auth.token import CustomTokenSecureView, CustomTokenVerifyView
+from apps.identity.views.auth.passport import PassportView
 
 # -------------------------------
 # SESSION MANAGEMENT
 # -------------------------------
-from apps.identity.views.token_refresh import SessionBootstrapView
 from apps.identity.views.device_sessions import (
     SessionListView,
     SessionLogoutView,
@@ -57,6 +56,7 @@ from apps.identity.views.public.tenants import PublicInstitutionListView
 from apps.identity.views.public.registration import InstitutionRegistrationView
 
 from apps.identity.views.admin.jit_verify import VerifyAdminTicketView, RequestAdminAccessView
+from apps.identity.views.admin.search_views import GlobalAdvancedSearchView
 
 # -------------------------------
 # CURRENT USER
@@ -77,6 +77,7 @@ from apps.identity.views.password.confirm import ResetPasswordConfirmView
 from apps.identity.views.admin_auth_views import (
     AdminTokenObtainPairView,
     AdminVerifyOTPView,
+    AdminResendOTPView,
 )
 
 # -------------------------------
@@ -109,22 +110,22 @@ router.register(r"superadmin/institutions", InstitutionViewSet, basename="instit
 # URLPATTERNS
 # -------------------------------
 urlpatterns = [
-    # ============================
     # JWT AUTH
-    # ============================
-    path("login/", CustomTokenObtainPairView.as_view(), name="token_obtain"),
+    # NOTE: /login/ (V1) is deprecated in favor of /auth/v2/student/login/
     path("logout/", LogoutView.as_view(), name="auth_logout"),
     path("logout-all/", LogoutAllView.as_view(), name="auth_logout_all"),
-    path("session/bootstrap/", SessionBootstrapView.as_view(), name="session_bootstrap"),
     path("token/secure/", CustomTokenSecureView.as_view(), name="token_secure"),
     path("token/verify/", CustomTokenVerifyView.as_view(), name="token_verify"),
+    path("auth/passport/", PassportView.as_view(), name="auth_passport"),
     path("auth/v2/check-identity/", IdentityCheckView.as_view(), name="v2-check-identity"),
     path("auth/v2/activate/", ActivationCompleteView.as_view(), name="v2-activate"),
     path("auth/v2/student/login/", StudentLoginView.as_view(), name="v2-student-login"),
     path("auth/v2/faculty/login/", FacultyLoginView.as_view(), name="v2-faculty-login"),
     path("auth/v2/faculty/mfa/", FacultyMFAVerifyView.as_view(), name="v2-faculty-mfa"),
+    path("auth/config/", PublicConfigView.as_view(), name="auth-config"),
     path("auth/admin/verify-ticket/", VerifyAdminTicketView.as_view(), name="admin-verify-ticket"),
     path("auth/admin/request-access/", RequestAdminAccessView.as_view(), name="admin-request-access"),
+    path("superadmin/global-search/", GlobalAdvancedSearchView.as_view(), name="superadmin-global-search"),
     path("public/institutions/", PublicInstitutionListView.as_view(), name="public-institution-list"),
     path("public/register/", InstitutionRegistrationView.as_view(), name="institution-register"),
 
@@ -192,6 +193,7 @@ urlpatterns = [
     # ============================
     path("admin/login/", AdminTokenObtainPairView.as_view(), name="admin_login"),
     path("admin/verify-otp/", AdminVerifyOTPView.as_view(), name="admin_verify_otp"),
+    path("admin/resend-otp/", AdminResendOTPView.as_view(), name="admin_resend_otp"),
 
     # ============================
     # SOCIAL LOGIN

@@ -106,6 +106,15 @@ export const v2AuthApi = {
     },
 
     /**
+     * Admin/Teacher: Verify OTP (Step 2).
+     * Requires password for re-authentication (backend requirement).
+     */
+    verifyAdminOTP: async (data: { user_id: number; otp: string; password: string; remember_device: boolean; jit_ticket?: string | null }): Promise<ApiResponse<AuthResponse>> => {
+        const res = await apiClient.post<ApiResponse<AuthResponse>>("admin/verify-otp/", data);
+        return res.data;
+    },
+
+    /**
      * SuperAdmin: Verify JIT Access Ticket.
      */
     verifyAdminTicket: async (ticket: string): Promise<{ valid: boolean }> => {
@@ -125,8 +134,24 @@ export const v2AuthApi = {
     /**
      * SuperAdmin: Request a new JIT link via root email.
      */
-    requestAdminAccess: async (email: string): Promise<{ detail: string }> => {
-        const res = await apiClient.post<{ detail: string }>("auth/admin/request-access/", { email });
+    requestAdminAccess: async (email: string, turnstile_token: string): Promise<{ detail: string }> => {
+        const res = await apiClient.post<{ detail: string }>("auth/admin/request-access/", { email, turnstile_token });
+        return res.data;
+    },
+
+    /**
+     * SuperAdmin/Admin: Resend OTP with cooldown.
+     */
+    resendAdminOTP: async (user_id: number): Promise<{ detail: string; cooldown?: number }> => {
+        const res = await apiClient.post<{ detail: string; cooldown?: number }>("admin/resend-otp/", { user_id });
+        return res.data;
+    },
+
+    /**
+     * Public: Register a new institution (University).
+     */
+    registerInstitution: async (data: any): Promise<ApiResponse<{ slug: string }>> => {
+        const res = await apiClient.post<ApiResponse<{ slug: string }>>("public/register/", data);
         return res.data;
     }
 };

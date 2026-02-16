@@ -141,7 +141,7 @@ export const ResetPasswordRequestForm = () => {
 
     setLoading(true);
     try {
-      const res = await resetPasswordRequest(trimmed);
+      const res = await resetPasswordRequest(trimmed, "student");
 
       const ip = res.ip ?? trimmed;
       const cooldownSeconds = res.cooldown ?? 0;
@@ -225,8 +225,8 @@ export const ResetPasswordRequestForm = () => {
           {loading
             ? "Sending..."
             : activeCooldown
-            ? `Wait: ${formatTime(cooldownRemaining)}`
-            : "Send Reset Link"}
+              ? `Wait: ${formatTime(cooldownRemaining)}`
+              : "Send Reset Link"}
         </button>
       </form>
 
@@ -237,10 +237,9 @@ export const ResetPasswordRequestForm = () => {
             key={t.id}
             className={`relative px-8 py-6 rounded-3xl shadow-2xl text-white font-extrabold text-center text-lg transition-all duration-200
               ${t.leaving ? "opacity-0 -translate-y-6 scale-95" : "opacity-100"}
-              ${
-                t.type === "error"
-                  ? "bg-gradient-to-r from-red-500 via-pink-500 to-purple-500"
-                  : "bg-gradient-to-r from-green-400 via-teal-400 to-cyan-400"
+              ${t.type === "error"
+                ? "bg-gradient-to-r from-red-500 via-pink-500 to-purple-500"
+                : "bg-gradient-to-r from-green-400 via-teal-400 to-cyan-400"
               }`}
           >
             {t.message}

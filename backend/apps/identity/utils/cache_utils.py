@@ -4,6 +4,7 @@ from apps.identity.constants import CACHE_KEY_SALT
 
 
 def make_cache_key(prefix: str, identifier: str, ip: str) -> str:
+    from apps.identity.constants import CACHE_KEY_SALT
     raw = f"{prefix}:{identifier.lower()}:{ip}:{CACHE_KEY_SALT}"
     return sha256(raw.encode()).hexdigest()
 

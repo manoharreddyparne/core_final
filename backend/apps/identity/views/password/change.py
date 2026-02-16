@@ -10,7 +10,7 @@ from apps.identity.services.token_service import rotate_tokens_secure
 from apps.identity.utils.request_utils import get_client_ip
 from apps.identity.utils.response_utils import password_error, password_success
 from apps.identity.utils.general_utils import serialize_user
-from apps.identity.utils.cookie_utils import set_refresh_cookie
+from apps.identity.utils.cookie_utils import set_quantum_shield
 
 logger = logging.getLogger(__name__)
 
@@ -59,38 +59,48 @@ class ChangePasswordView(APIView):
 
         ip = get_client_ip(request) or "0.0.0.0"
         user_agent = request.META.get("HTTP_USER_AGENT", "")
-        old_refresh = request.COOKIES.get("refresh_token")
 
-        # Rotate tokens if refresh cookie exists
+        # ✅ CRITICAL FIX: After password change, old refresh tokens are often invalidated 
+        # by the password change itself (Django's session invalidation or hash change). 
+        # We manually issue FRESH tokens for the session rather than "rotating" the old one.
         try:
-            if old_refresh:
-                rotated = rotate_tokens_secure(user=user, old_refresh=old_refresh, ip=ip, user_agent=user_agent)
-                new_refresh, new_access = rotated["refresh"], rotated["access"]
+            from rest_framework_simplejwt.tokens import RefreshToken
+            from apps.identity.models import LoginSession
+            from django.utils import timezone
 
-                resp = password_success(
-                    "Password updated successfully.",
-                    data={"access": new_access, "user": serialize_user(user)}
-                )
-                # Set refresh cookie via helper
-                set_refresh_cookie(resp, str(new_refresh))
-
-                # Clear first_time_login / need_password_reset flags
-                if getattr(user, "need_password_reset", False) or getattr(user, "first_time_login", False):
-                    user.need_password_reset = False
-                    user.first_time_login = False
-                    user.save(update_fields=["need_password_reset", "first_time_login"])
-
-                logger.info(f"✅ Password changed and tokens rotated for user {user.id} from IP {ip}")
-                return resp
-
-            # If no refresh cookie, frontend needs to re-login
-            logger.info(f"Password changed but no refresh cookie present for user {user.id}")
-            return password_success(
-                "Password changed. Please log in again to refresh your session.", data={}
+            # Create fresh tokens
+            refresh = RefreshToken.for_user(user)
+            
+            # Create a new login session record for this device
+            session = LoginSession.objects.create(
+                user=user,
+                refresh_jti=refresh["jti"],
+                ip_address=ip,
+                user_agent=user_agent,
+                is_active=True,
+                expires_at=timezone.now() + timezone.timedelta(days=7) # Standard duration
             )
 
+            resp = password_success(
+                "Password updated successfully.",
+                data={"access": str(refresh.access_token), "user": serialize_user(user)}
+            )
+            # Set 4-part Quantum Shield cookies
+            from apps.identity.services.quantum_shield import QuantumShieldService
+            fragments = QuantumShieldService.fragment_token(str(refresh))
+            set_quantum_shield(resp, fragments)
+
+            # Clear first_time_login / need_password_reset flags
+            if getattr(user, "need_password_reset", False) or getattr(user, "first_time_login", False):
+                user.need_password_reset = False
+                user.first_time_login = False
+                user.save(update_fields=["need_password_reset", "first_time_login"])
+
+            logger.info(f"✅ Password changed and NEW session issued for user {user.id} from IP {ip}")
+            return resp
+
         except Exception as e:
-            logger.exception(f"Password change token rotation failed for user {user.id}: {e}")
+            logger.exception(f"Password change session renewal failed for user {user.id}: {e}")
             return password_success(
-                "Password changed, but we couldn't refresh your session. Please log in again.", data={}
+                "Password changed, but we couldn't automatically renew your session. Please log in again.", data={}
             )

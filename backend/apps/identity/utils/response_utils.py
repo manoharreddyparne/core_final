@@ -16,7 +16,7 @@ def success_response(message: str, data=None, code=status.HTTP_200_OK):
         status=code,
     )
 
-def error_response(message: str, code=status.HTTP_400_BAD_REQUEST, errors=None):
+def error_response(message: str, code=status.HTTP_400_BAD_REQUEST, errors=None, data=None):
     """
     Unified error response format for frontend toasts.
     """
@@ -25,6 +25,7 @@ def error_response(message: str, code=status.HTTP_400_BAD_REQUEST, errors=None):
             "success": False,
             "message": message,
             "errors": errors or {},
+            "data": data or {},
         },
         status=code,
     )

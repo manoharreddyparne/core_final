@@ -1,24 +1,23 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: https://challenges.cloudflare.com https://accounts.google.com; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://accounts.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: https://challenges.cloudflare.com; connect-src 'self' ws://localhost:8000 http://localhost:8000 https://challenges.cloudflare.com https://accounts.google.com;">
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>exam-portal-frontend</title>
 
-    <!-- ✅ Google Identity Services (required for popup auth-code) -->
-    <script
-      src="https://accounts.google.com/gsi/client"
-      async
-      defer
-    ></script>
-  </head>
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://accounts.google.com data: blob: about:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://challenges.cloudflare.com; img-src 'self' data: blob: https://challenges.cloudflare.com https://lh3.googleusercontent.com https:; connect-src 'self' ws://localhost:8000 http://localhost:8000 https://challenges.cloudflare.com https://accounts.google.com https://*.cloudflare.com; frame-src 'self' https://challenges.cloudflare.com about: data: blob:; worker-src 'self' blob: https://challenges.cloudflare.com;">
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AUIP-PORTAL</title>
 
-  <body>
-    <div id="root"></div>
+  <!-- ✅ Google Identity Services (required for popup auth-code) -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
 
-    <!-- Vite App -->
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<body>
+  <div id="root"></div>
+
+  <!-- Vite App -->
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+
 </html>

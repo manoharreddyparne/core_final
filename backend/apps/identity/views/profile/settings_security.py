@@ -11,10 +11,9 @@ from apps.identity.services.token_service import (
     logout_all_sessions_secure,
     logout_single_session_secure,
 )
-from apps.identity.utils.session_utils import get_location, parse_device_info
+from apps.identity.utils.request_utils import get_client_ip, get_location, parse_device_info
 from apps.identity.utils.response_utils import success_response, error_response
 from apps.identity.utils.cookie_utils import clear_session_cookies
-from apps.identity.utils.request_utils import get_client_ip
 
 logger = logging.getLogger(__name__)
 

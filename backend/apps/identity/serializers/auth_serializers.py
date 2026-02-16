@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 # -------------------------------
 # Security & Lockout Constants
 # -------------------------------
-LOGIN_COOLDOWN_SECONDS = getattr(settings, "AUTH_LOGIN_COOLDOWN_SECONDS", 10)
+LOGIN_COOLDOWN_SECONDS = getattr(settings, "AUTH_LOGIN_COOLDOWN_SECONDS", 0)
 MAX_FAILED_ATTEMPTS = getattr(settings, "AUTH_MAX_FAILED_ATTEMPTS", 5)
 LOCKOUT_MINUTES = getattr(settings, "AUTH_LOCKOUT_MINUTES", 5)
 
@@ -130,7 +130,7 @@ class CustomTokenObtainPairSerializer(BaseRoleTokenSerializer):
     allowed_roles = [User.Roles.STUDENT]
 
 class AdminTokenObtainPairSerializer(BaseRoleTokenSerializer):
-    allowed_roles = [User.Roles.ADMIN, User.Roles.TEACHER]
+    allowed_roles = [User.Roles.ADMIN, User.Roles.TEACHER, User.Roles.SUPER_ADMIN, User.Roles.INSTITUTION_ADMIN]
 
 # ---------------- Token Verify
 class SafeTokenVerifySerializer(TokenVerifySerializer):

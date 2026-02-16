@@ -6,6 +6,7 @@ export interface ApiResponse<T = any> {
   success: boolean;
   message?: string;
   data?: T;
+  stage?: string; // ✅ Top-level stage indicator
 }
 
 /* ============================================
@@ -57,6 +58,7 @@ export interface AuthResponse {
 
   cooldown?: number;
   locked_until?: string | null;
+  stage?: string; // ✅ State machine stage (e.g. SECURE_SESSION, OTP_CHALLENGE)
 }
 
 /* ============================================

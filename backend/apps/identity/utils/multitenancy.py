@@ -8,37 +8,42 @@ from contextlib import contextmanager
 
 logger = logging.getLogger(__name__)
 
-def create_institution_schema(schema_name):
+from apps.auip_tenant.models import Client, Domain
+
+def create_institution_schema(schema_name, name=None, domain=None):
     """
-    Creates a new PostgreSQL schema for an institution.
+    Creates a new Tenant (Client) and Domain using django-tenants.
+    This triggers automatic schema creation and migration of all TENANT_APPS.
     """
     if not schema_name:
         raise ValueError("schema_name must be provided")
 
-    # Sanitize schema name (should be lowercase, alphanumeric, starts with letter)
-    # Already handled by slugify + prefix in view, but extra safety:
+    # Sanitize schema_name
     schema_name = "".join(c for c in schema_name if c.isalnum() or c == "_").lower()
+    
+    # Use Client.objects to trigger django-tenants management
+    # This creates the schema and runs migrations for all TENANT_APPS (AcademicRegistry, etc.)
+    client, created = Client.objects.get_or_create(
+        schema_name=schema_name,
+        defaults={'name': name or schema_name}
+    )
 
-    with connection.cursor() as cursor:
-        try:
-            # Check if schema exists
-            cursor.execute(f"SELECT schema_name FROM information_schema.schemata WHERE schema_name = %s", [schema_name])
-            if cursor.fetchone():
-                logger.warning(f"Schema {schema_name} already exists.")
-                return False
+    if created:
+        logger.info(f"[Multi-Tenancy] New Client record created for schema: {schema_name}")
+        # Create a domain record for this tenant
+        # Note: If no domain is provided, we use a subdomain-like string based on name
+        final_domain = domain or f"{schema_name}.localhost"
+        Domain.objects.get_or_create(
+            domain=final_domain,
+            tenant=client,
+            defaults={'is_primary': True}
+        )
+        logger.info(f"[Multi-Tenancy] Domain {final_domain} assigned to {schema_name}")
+    else:
+        logger.warning(f"[Multi-Tenancy] Client with schema {schema_name} already exists.")
 
-            logger.info(f"Creating schema: {schema_name}")
-            cursor.execute(f"CREATE SCHEMA {schema_name}")
-            
-            # TODO: Clone table structures from public schema or run migrations
-            # For Sprint 1, we focus on the creation itself.
-            # In a full PRO version, we'd use django-tenants or similar.
-            # Here we follow the custom professional approach requested.
-            
-            return True
-        except Exception as e:
-            logger.error(f"Failed to create schema {schema_name}: {str(e)}")
-            raise
+    return created
+
 
 @contextmanager
 def schema_context(schema_name):

@@ -202,18 +202,36 @@ def rotate_tokens_secure(
     new_refresh = RefreshToken.for_user(user)
     new_access = new_refresh.access_token
 
-    # Create a fresh session tied to the new pair
-    create_login_session_safe(user, str(new_access), str(new_refresh), ip, user_agent)
+    # Build Quantum Shield fragments from new refresh token
+    from apps.identity.services.quantum_shield import QuantumShieldService
+    refresh_str = str(new_refresh)
+    parts = refresh_str.split('.')
+    header_payload = f"{parts[0]}.{parts[1]}"
+    signature = parts[2]
+    mid = len(header_payload) // 2
 
-    # Deactivate previous session and blacklist its refresh
-    session.is_active = False
-    session.save(update_fields=["is_active"])
+    # ✅ Update session with new refresh JTI
+    from django.utils import timezone
+    session.is_active = True
+    session.refresh_jti = new_refresh.get("jti")  # Update to new refresh JTI
+    session.expires_at = timezone.now() + timezone.timedelta(days=7)
+    session.save(update_fields=["is_active", "refresh_jti", "expires_at"])
+    
     blacklist_refresh_jti(old.get("jti"), user=user)
+    send_session_ws_event(user.id, "rotated", session_id=session.id, jti=session.jti)
 
-    # Send a gentle "rotated" event (not a force logout) for better UX
-    send_session_ws_event(user.id, "rotated", session.id)
+    fragments = {
+        QuantumShieldService.SEGMENT_T: header_payload[:mid],
+        QuantumShieldService.SEGMENT_ID: str(session.id),
+        QuantumShieldService.SEGMENT_P: header_payload[mid:],
+        QuantumShieldService.SEGMENT_S: signature
+    }
 
-    return {"refresh": str(new_refresh), "access": str(new_access)}
+    return {
+        "access": str(new_access),
+        "refresh": refresh_str,
+        "fragments": fragments
+    }
 
 
 # -------------------------------

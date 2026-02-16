@@ -9,7 +9,7 @@ from apps.identity.authentication import SafeJWTAuthentication
 from apps.identity.services.token_service import rotate_tokens_secure
 from apps.identity.utils.request_utils import get_client_ip
 from apps.identity.utils.response_utils import success_response
-from apps.identity.utils.cookie_utils import set_refresh_cookie
+from apps.identity.utils.cookie_utils import set_quantum_shield, set_logged_in_cookie
 
 logger = logging.getLogger(__name__)
 
@@ -31,13 +31,12 @@ class CustomTokenSecureView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        # Pull refresh from body OR cookie
-        old_refresh = (
-            request.data.get("refresh")
-            or request.COOKIES.get(REFRESH_COOKIE_NAME)
-        )
+        # Reconstruct refresh from segments
+        from apps.identity.services.quantum_shield import QuantumShieldService
+        old_refresh, _ = QuantumShieldService.reconstruct_token(request.COOKIES)
+
         if not old_refresh:
-            return Response({"detail": "Refresh token required"}, status=400)
+            return Response({"detail": "Shield segments missing or corrupted"}, status=400)
 
         user_id = request.user.id
         ip = get_client_ip(request)
@@ -75,8 +74,9 @@ class CustomTokenSecureView(APIView):
                 },
             )
 
-            # ✅ New Refresh → Set cookie
-            set_refresh_cookie(resp, str(rotated_tokens["refresh"]))
+            # ✅ New Refresh → Set 4-segment fragments
+            set_quantum_shield(resp, rotated_tokens.get("fragments", {}))
+            set_logged_in_cookie(resp, "true")
 
             cache.delete(bf_key)
 

@@ -49,7 +49,7 @@ Ensure both backend and frontend are running:
 1. Navigate to [http://localhost:3000/login](http://localhost:3000/login).
 2. Select **Administrator / Educator** from the portal tabs.
 3. Login with:
-   - **Email**: `admin@auip-platform.com`
+   - **Email**: `parnemanoharreddy19@gmail.com`
    - **Password**: `Admin@123`
 4. **Verification Points**:
    - [ ] Do you see the "Obsidian & Cobalt" dark theme?

@@ -18,23 +18,19 @@ DEBUG = True
 #     }
 # }
 
-# Use local Redis for Docker Dev
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {
-            "hosts": [("redis", 6379)],
-        },
-    }
-}
+# Use environment-aware Redis (from base.py)
+# Only override if you need specific dev-only settings
+# CHANNEL_LAYERS is already set in base.py using REDIS_URL
 
+# CACHES is already set in base.py using REDIS_URL
+# We just ensure it doesn't ignore exceptions in dev if we want to debug
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://redis:6379/0",
+        "LOCATION": config("REDIS_URL", default="redis://127.0.0.1:6379/0"),
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
-            "IGNORE_EXCEPTIONS": True,
+            "IGNORE_EXCEPTIONS": False,
         },
     }
 }

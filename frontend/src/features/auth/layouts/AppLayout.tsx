@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
     LayoutDashboard,
@@ -14,20 +14,21 @@ import {
     PanelLeftClose,
     PanelLeftOpen,
     KeyRound,
-    Building2
+    Building2,
+    Search
 } from "lucide-react";
 import { toast } from "react-hot-toast";
-import axios from "axios";
 
 import { useAuth } from "../context/AuthProvider/AuthProvider";
 import { Button } from "@/components/ui/button";
-import { API_BASE_URL } from "../api/base";
-import { getAccessToken, setAccessToken } from "../utils/tokenStorage";
+import { apiClient } from "../api/base";
+import { getAccessToken, setAccessToken, hasAccessToken } from "../utils/tokenStorage";
 import { SecureDeviceModal } from "../components/SecureDeviceModal";
 import { ForcedLogoutModal } from "../components/ForcedLogoutModal";
+import { GlobalSearch } from "../../dashboard/components/GlobalSearch";
 
 export const AppLayout = () => {
-    const { user, logout } = useAuth();
+    const { user, logout, bootstrapping, bootstrapped } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -44,6 +45,39 @@ export const AppLayout = () => {
     // Forced Logout Modal State
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     const [logoutCountdown, setLogoutCountdown] = useState(5);
+    const [logoutReason, setLogoutReason] = useState<string | undefined>(undefined);
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const lastValidationRef = useRef<number>(0);
+
+    // 🛡️ LOADING GATE: Don't render ANYTHING until we know the auth status
+    if (bootstrapping && !bootstrapped) {
+        return (
+            <div className="fixed inset-0 bg-[#0b1120] flex flex-col items-center justify-center z-[100] gap-8">
+                <div className="relative">
+                    <div className="w-24 h-24 border-t-4 border-b-4 border-primary/30 rounded-full animate-spin" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-12 h-12 border-t-4 border-primary rounded-full animate-spin" />
+                    </div>
+                </div>
+                <div className="space-y-2 text-center">
+                    <h2 className="text-2xl font-black text-white tracking-widest uppercase">AUIP <span className="text-primary italic font-black">Secure</span></h2>
+                    <p className="text-[10px] text-gray-500 font-black uppercase tracking-[0.3em]">Initializing Encrypted Session...</p>
+                </div>
+            </div>
+        );
+    }
+
+    // Cmd/Ctrl + K shortcut for global search
+    useEffect(() => {
+        const handleSearchShortcut = (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                e.preventDefault();
+                setIsSearchOpen(true);
+            }
+        };
+        window.addEventListener('keydown', handleSearchShortcut);
+        return () => window.removeEventListener('keydown', handleSearchShortcut);
+    }, []);
 
     const navItems = [
         { to: "/student-dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["student"] },
@@ -58,16 +92,19 @@ export const AppLayout = () => {
         { to: "/settings/sessions", label: "Device Management", icon: Smartphone },
     ];
 
+    const filteredNav = navItems.filter(item =>
+        item.roles.includes("all") || (user?.role && item.roles.includes(user.role.toLowerCase()))
+    );
+
     const handleSecureDevice = async () => {
         setSecureModalOpen(true);
         setSecureStatus("loading");
         const startTime = Date.now();
 
         try {
-            const token = getAccessToken();
-            const res = await axios.post(`${API_BASE_URL}secure-device/`, {}, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            // ✅ Use apiClient (interceptors handle auth)
+            // relative path: "secure-device/" -> base + "secure-device/"
+            const res = await apiClient.post("secure-device/", {});
 
             // If already secured, show immediately (no animation wait)
             if (res.data.data?.already_secured) {
@@ -120,7 +157,8 @@ export const AppLayout = () => {
 
                 // Show modal if JTIs match OR if no JTI provided (fallback to show modal)
                 if (!loggedOutJti || loggedOutJti === currentJti) {
-                    console.log("[AppLayout] ✅ Showing logout modal");
+                    console.log("[AppLayout] ✅ Showing logout modal | reason:", detail?.reason);
+                    setLogoutReason(detail?.reason);
                     setShowLogoutModal(true);
                     setLogoutCountdown(5);
                 } else {
@@ -140,46 +178,51 @@ export const AppLayout = () => {
         };
     }, []);
 
-    // Session validation - check if session is still active (for offline logout detection)
+    // Session validation - "Heartbeat" only on Tab Wakeup/Focus
     useEffect(() => {
         const checkSessionValidity = async () => {
             try {
-                const response = await axios.get(`${API_BASE_URL}sessions/validate/`);
+                // 🛑 Block if no token yet or not bootstrapped
+                if (!bootstrapped || !hasAccessToken() || !user) return;
+
+                // ✅ Use apiClient to check pulse
+                const response = await apiClient.get("sessions/validate/");
                 const data = response.data?.data;
 
                 if (data && !data.is_valid && data.was_logged_out) {
-                    console.log("[Session Validation] Session was invalidated:", data.reason);
-
-                    // Dispatch event to show logout modal
+                    console.info("[Heartbeat] Session was invalidated remotely:", data.reason);
                     window.dispatchEvent(new CustomEvent('session_invalidated', {
                         detail: { reason: data.reason }
                     }));
                 }
             } catch (error) {
-                // Ignore errors - might be network issue
-                console.log("[Session Validation] Check failed:", error);
+                console.debug("[Heartbeat] Pulse check failed (network/auth)", error);
             }
         };
 
-        // Check on visibility change (tab focus)
         const handleVisibilityChange = () => {
-            if (!document.hidden && user) {
-                console.log("[Session Validation] Tab visible - checking session");
+            // Only check if becoming visible AND it's been at least 10 seconds since last check
+            const now = Date.now();
+            if (!document.hidden && bootstrapped && user && (now - lastValidationRef.current > 10000)) {
+                console.debug("[Heartbeat] Tab woke up - checking session pulse");
+                lastValidationRef.current = now;
                 checkSessionValidity();
             }
         };
 
         document.addEventListener('visibilitychange', handleVisibilityChange);
 
-        // Initial check on mount
-        if (user) {
-            checkSessionValidity();
-        }
+        // OPTIONAL: One initial check 2 seconds after mount to catch stale state, 
+        // but rely on WebSocket for real-time.
+        const initialTimer = setTimeout(() => {
+            if (bootstrapped && user) checkSessionValidity();
+        }, 2000);
 
         return () => {
             document.removeEventListener('visibilitychange', handleVisibilityChange);
+            clearTimeout(initialTimer);
         };
-    }, [user]);
+    }, [user, bootstrapped]);
 
     // Listen for session invalidated events (from offline logout detection)
     useEffect(() => {
@@ -217,21 +260,18 @@ export const AppLayout = () => {
 
     // Geolocation tracking - send location to backend via WebSocket
     useEffect(() => {
-        if (!user || !navigator.geolocation) return;
+        if (!user || !bootstrapped || !navigator.geolocation) return;
 
         const sendLocation = (position: GeolocationPosition) => {
             const { latitude, longitude } = position.coords;
 
-            // Send location update via WebSocket (if available from auth context)
-            // For now, we can send it via API
-            const token = getAccessToken();
-            if (token) {
-                axios.post(`${API_BASE_URL}sessions/update-location/`, {
+            // Send location update via API
+            if (hasAccessToken() && user) {
+                // ✅ Use apiClient (interceptors handle auth)
+                apiClient.post("sessions/update-location/", {
                     latitude,
                     longitude
-                }, {
-                    headers: { Authorization: `Bearer ${token}` }
-                }).catch(err => console.error("Failed to update location", err));
+                }).catch(err => console.debug("Failed to update location", err));
             }
         };
 
@@ -258,10 +298,6 @@ export const AppLayout = () => {
         return () => clearInterval(intervalId);
     }, [user]);
 
-    const filteredNav = navItems.filter(item =>
-        item.roles.includes("all") || (user?.role && item.roles.includes(user.role.toLowerCase()))
-    );
-
     return (
         <div className="min-h-screen bg-[#0b1120] text-foreground flex flex-col md:flex-row font-sans">
             {/* Mobile Header */}
@@ -276,7 +312,7 @@ export const AppLayout = () => {
             <aside className={`
                 fixed inset-y-0 left-0 z-30 bg-black/40 backdrop-blur-2xl border-r border-white/5 transform transition-all duration-300 ease-in-out md:translate-x-0 md:static md:h-screen flex flex-col
                 ${isMobileMenuOpen ? "translate-x-0 w-64 shadow-2xl" : "-translate-x-full md:translate-x-0"}
-                ${isSidebarCollapsed ? "md:w-20" : "md:w-72"}
+                ${isSidebarCollapsed ? "md:w-20" : "md:w-80"}
             `}>
 
                 {/* Brand + Collapse Toggle */}
@@ -410,6 +446,16 @@ export const AppLayout = () => {
             {/* Content Area */}
             <main className="flex-1 p-4 md:p-8 overflow-y-auto h-[calc(100vh-64px)] md:h-screen w-full">
                 <div className="max-w-7xl mx-auto animate-in fade-in duration-300">
+                    <div className="mb-6 flex items-center justify-between">
+                        <div className="md:invisible font-bold text-gray-500 uppercase tracking-widest text-[10px]">Portal Access</div>
+                        <button
+                            onClick={() => setIsSearchOpen(true)}
+                            className="glass px-4 py-2 rounded-2xl border-white/5 flex items-center gap-3 text-xs font-bold text-gray-400 hover:text-white hover:bg-white/10 transition-all group"
+                        >
+                            <Search className="w-4 h-4 group-hover:text-primary transition-colors" />
+                            <span>Type <span className="text-white hover:text-primary">Cmd+K</span> to search everything...</span>
+                        </button>
+                    </div>
                     <Outlet />
                 </div>
             </main>
@@ -426,7 +472,16 @@ export const AppLayout = () => {
             <ForcedLogoutModal
                 open={showLogoutModal}
                 countdown={logoutCountdown}
+                reason={logoutReason}
             />
+
+            {/* Global Search Overlay */}
+            {user && (
+                <GlobalSearch
+                    isOpen={isSearchOpen}
+                    onClose={() => setIsSearchOpen(false)}
+                />
+            )}
         </div>
     );
 };

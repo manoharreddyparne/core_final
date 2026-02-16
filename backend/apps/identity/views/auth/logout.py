@@ -15,8 +15,6 @@ from apps.identity.utils.request_utils import get_client_ip
 
 logger = logging.getLogger(__name__)
 
-REFRESH_COOKIE_NAME = "refresh_token"
-
 
 class LogoutView(APIView):
     """
@@ -35,8 +33,9 @@ class LogoutView(APIView):
         user = request.user
         ip = get_client_ip(request)
 
-        # Prefer refresh token from cookie; fallback to access jti from request.auth
-        refresh_token_str = request.COOKIES.get(REFRESH_COOKIE_NAME)
+        # Reconstruct refresh from fragments
+        from apps.identity.services.quantum_shield import QuantumShieldService
+        refresh_token_str, _ = QuantumShieldService.reconstruct_token(request.COOKIES)
         access_jti = getattr(request, "access_jti", None)
 
         try:

@@ -23,8 +23,11 @@ def send_otp_secure(user, otp: str = None) -> str:
     Generates and sends OTP to user. Returns OTP for dev/debug.
     """
     otp = otp or generate_otp()
-    key = make_cache_key("otp", str(user.id), ip="0.0.0.0")  # No IP needed for OTP caching
-    cache_set(key, hash_token_secure(otp), timeout=OTP_TTL_SECONDS)
+    # Key by user ID - Standardized for Security Gate
+    # Key by user ID - Standardized for Security Gate
+    key = make_cache_key("otp", str(user.id), ip="SEC_GATE")
+    hashed_val = hash_token_secure(otp)
+    cache_set(key, hashed_val, timeout=OTP_TTL_SECONDS)
 
     if not send_otp_to_user(user, otp):
         raise Exception(f"Failed to send OTP to {user.email}")
@@ -38,16 +41,14 @@ def verify_otp_for_user(user, otp: str) -> bool:
     """
     Verifies OTP for a user. Deletes cache on success.
     """
-    key = make_cache_key("otp", str(user.id), ip="0.0.0.0")
+    # Key by user ID - Standardized for Security Gate
+    key = make_cache_key("otp", str(user.id), ip="SEC_GATE")
     hashed = cache_get(key)
-    # Compare hash
-    # Note: cache stores hash(otp).
-    # We should return True if matches.
-    # Wait, original code:
-    # if hashed and hash_token_secure(otp) == hashed:
-    # This implies verify compares HASH of input vs STORED HASH. Correct.
     
-    if hashed and hashed == hash_token_secure(otp):
+    input_hashed = hash_token_secure(otp)
+    logger.debug(f"[OTP-DEBUG] Verifying OTP for User ID: {user.id}")
+
+    if hashed and hashed == input_hashed:
         cache_delete(key)
         logger.info(f"OTP verified for user {user.id}")
         return True
@@ -64,7 +65,7 @@ def send_otp_to_identifier(identifier: str, email: str, otp: str = None) -> str:
     """
     otp = otp or generate_otp()
     # Key by identifier (e.g., ROLL123)
-    key = make_cache_key("otp", str(identifier), ip="0.0.0.0")
+    key = make_cache_key("otp", str(identifier), ip="SEC_GATE")
     cache_set(key, hash_token_secure(otp), timeout=OTP_TTL_SECONDS)
 
     # Send valid email
@@ -84,7 +85,7 @@ def verify_otp_for_identifier(identifier: str, otp: str) -> bool:
     """
     Verifies OTP for an identifier.
     """
-    key = make_cache_key("otp", str(identifier), ip="0.0.0.0")
+    key = make_cache_key("otp", str(identifier), ip="SEC_GATE")
     hashed = cache_get(key)
     
     if hashed and hashed == hash_token_secure(otp):

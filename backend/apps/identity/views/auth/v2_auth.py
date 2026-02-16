@@ -15,6 +15,7 @@ from apps.identity.utils.activation import generate_activation_token, verify_act
 from apps.identity.utils.turnstile import verify_turnstile_token
 from apps.auip_tenant.models import Client
 from apps.auip_institution.models import PreSeededRegistry, AuthorizedAccount
+from apps.identity.utils.response_utils import success_response, error_response
 
 class IdentityCheckView(generics.GenericAPIView):
     """
@@ -24,8 +25,17 @@ class IdentityCheckView(generics.GenericAPIView):
     serializer_class = IdentityCheckSerializer
 
     def post(self, request, *args, **kwargs):
+        # ✅ Global security check
+        from apps.identity.utils.request_utils import get_client_ip
+        from apps.identity.services.security_service import is_ip_blocked, register_global_failure
+        ip = get_client_ip(request)
+        if is_ip_blocked(ip):
+            return Response({"detail": "Access Revoked. IP Blacklisted."}, status=status.HTTP_403_FORBIDDEN)
+
         serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        if not serializer.is_valid():
+            register_global_failure(ip, request.META.get('HTTP_USER_AGENT', 'unknown'), request.data.get('identifier', 'unknown'))
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
         client = serializer.validated_data['client']
         registry_entry = serializer.validated_data['registry_entry']
@@ -36,11 +46,7 @@ class IdentityCheckView(generics.GenericAPIView):
         # Log for dev, in prod this would be an email
         print(f"DEBUG: Activation Link for {registry_entry.identifier}: {activation_url}")
         
-        return Response({
-            "detail": "Identity verified. Activation link sent to registered email.",
-            "success": True,
-            # "activation_url": activation_url  # In production, ONLY send via email.
-        }, status=status.HTTP_200_OK)
+        return success_response("Identity verified. Activation link sent to registered email.")
 
 class ActivationCompleteView(generics.GenericAPIView):
     """
@@ -58,7 +64,7 @@ class ActivationCompleteView(generics.GenericAPIView):
         
         result = verify_activation_token(token)
         if not result:
-            return Response({"detail": "Invalid or expired activation link."}, status=status.HTTP_400_BAD_REQUEST)
+            return error_response("Invalid or expired activation link.", code=400)
         
         institution_id, identifier, role = result
         client = get_object_or_404(Client, id=institution_id)
@@ -67,7 +73,7 @@ class ActivationCompleteView(generics.GenericAPIView):
             registry_entry = get_object_or_404(PreSeededRegistry, identifier=identifier)
             
             if registry_entry.is_active:
-                return Response({"detail": "Account already activated."}, status=status.HTTP_400_BAD_REQUEST)
+                return error_response("Account already activated.", code=400)
             
             # Create AuthorizedAccount with localized credentials
             account, created = AuthorizedAccount.objects.get_or_create(
@@ -87,10 +93,7 @@ class ActivationCompleteView(generics.GenericAPIView):
             registry_entry.is_active = True
             registry_entry.save()
             
-        return Response({
-            "detail": "Account activated successfully. You can now log in.",
-            "success": True
-        }, status=status.HTTP_201_CREATED)
+        return success_response("Account activated successfully. You can now log in.", code=201)
 
 class StudentLoginView(generics.GenericAPIView):
     """
@@ -100,8 +103,17 @@ class StudentLoginView(generics.GenericAPIView):
     serializer_class = StudentLoginSerializer
 
     def post(self, request, *args, **kwargs):
+        # ✅ Global security check
+        from apps.identity.utils.request_utils import get_client_ip
+        from apps.identity.services.security_service import is_ip_blocked, register_global_failure, get_remaining_attempts
+        ip = get_client_ip(request)
+        if is_ip_blocked(ip):
+            return Response({"detail": "Access Revoked. IP Blacklisted."}, status=status.HTTP_403_FORBIDDEN)
+
         serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        if not serializer.is_valid():
+            register_global_failure(ip, request.META.get('HTTP_USER_AGENT', 'unknown'), request.data.get('identifier', 'unknown'))
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
         institution_id = serializer.validated_data['institution_id']
         identifier = serializer.validated_data['identifier']
@@ -109,8 +121,10 @@ class StudentLoginView(generics.GenericAPIView):
         turnstile_token = request.data.get('turnstile_token')
         
         # 🛡️ SECURITY: Human Verification
+        ua = request.META.get('HTTP_USER_AGENT', 'unknown')
         if not verify_turnstile_token(turnstile_token):
-            return Response({"detail": "Human verification failed."}, status=status.HTTP_403_FORBIDDEN)
+            register_global_failure(ip, ua, identifier)
+            return error_response("Human verification failed.", code=403)
         
         client = get_object_or_404(Client, id=institution_id)
         
@@ -127,40 +141,37 @@ class StudentLoginView(generics.GenericAPIView):
                      reg = PreSeededRegistry.objects.get(identifier=identifier, role='STUDENT')
                      account = AuthorizedAccount.objects.get(registry_ref=reg)
                  except (PreSeededRegistry.DoesNotExist, AuthorizedAccount.DoesNotExist):
-                     return Response({"detail": "Invalid credentials."}, status=status.HTTP_401_UNAUTHORIZED)
+                     return error_response("Invalid credentials.", code=401)
             
             if not check_password(password, account.password_hash):
-                return Response({"detail": "Invalid credentials."}, status=status.HTTP_401_UNAUTHORIZED)
+                attempts_left = get_remaining_attempts(ip)
+                register_global_failure(ip, ua, identifier)
+                return error_response("Invalid credentials.", code=401, data={"attempts_remaining": attempts_left - 1})
             
-            # 🛡️ SECURITY: Device Fingerprinting
-            x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-            ip = x_forwarded_for.split(',')[0] if x_forwarded_for else request.META.get('REMOTE_ADDR')
-            ua = request.META.get('HTTP_USER_AGENT', 'unknown')
+            # 🛡️ SECURITY: Centralized Login Handler (Quantum Shield + Session)
+            from apps.identity.services.auth_service import handle_login
+            from apps.identity.utils.cookie_utils import set_quantum_shield, set_logged_in_cookie
             
-            account.last_login_ip = ip
-            account.last_login_ua = ua
-            import django.utils.timezone as tz
-            account.last_login_at = tz.now()
-            account.save()
-
-            response = Response({
-                "success": True,
-                "message": "Login successful.",
-                "data": {
-                    "role": "STUDENT",
-                    "institution": client.name,
-                    "identifier": account.email
-                }
-            }, status=status.HTTP_200_OK)
-
-            # 🍪 SECURITY: Multi-Cookie Strategy (Non-HttpOnly tracker)
-            response.set_cookie(
-                'auip_authenticated', 
-                'true', 
-                max_age=3600 * 24 * 7, # 7 days
-                samesite='Lax',
-                secure=True # Only over HTTPS or localhost with secure flag
+            login_data = handle_login(
+                identity=account,
+                password=None, # Already checked above
+                ip=ip,
+                user_agent=ua,
+                request=request,
+                role_context="student"
             )
+
+            response = success_response("Login successful.", data={
+                "access": login_data["access"],
+                "role": "STUDENT",
+                "institution": client.name,
+                "identifier": account.email
+            })
+
+            # 🍪 Set Quantum Shield (4-segment cookies)
+            set_quantum_shield(response, login_data["fragments"])
+            set_logged_in_cookie(response, "true")
+            
             return response
 
 class FacultyLoginView(generics.GenericAPIView):
@@ -170,8 +181,17 @@ class FacultyLoginView(generics.GenericAPIView):
     serializer_class = FacultyLoginSerializer
 
     def post(self, request, *args, **kwargs):
+        # ✅ Global security check
+        from apps.identity.utils.request_utils import get_client_ip
+        from apps.identity.services.security_service import is_ip_blocked, register_global_failure, get_remaining_attempts
+        ip = get_client_ip(request)
+        if is_ip_blocked(ip):
+            return Response({"detail": "Access Revoked. IP Blacklisted."}, status=status.HTTP_403_FORBIDDEN)
+
         serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        if not serializer.is_valid():
+            register_global_failure(ip, request.META.get('HTTP_USER_AGENT', 'unknown'), request.data.get('email', 'unknown'))
+            return error_response("Invalid login data.", errors=serializer.errors)
         
         institution_id = serializer.validated_data['institution_id']
         email = serializer.validated_data['email']
@@ -179,8 +199,10 @@ class FacultyLoginView(generics.GenericAPIView):
         turnstile_token = request.data.get('turnstile_token')
         
         # 🛡️ SECURITY: Human Verification
+        ua = request.META.get('HTTP_USER_AGENT', 'unknown')
         if not verify_turnstile_token(turnstile_token):
-            return Response({"detail": "Human verification failed."}, status=status.HTTP_403_FORBIDDEN)
+            register_global_failure(ip, ua, email)
+            return error_response("Human verification failed.", code=403)
         
         client = get_object_or_404(Client, id=institution_id)
         
@@ -188,20 +210,21 @@ class FacultyLoginView(generics.GenericAPIView):
             try:
                 account = AuthorizedAccount.objects.get(email=email, role__in=['FACULTY', 'ADMIN'])
             except AuthorizedAccount.DoesNotExist:
-                return Response({"detail": "Invalid credentials."}, status=status.HTTP_401_UNAUTHORIZED)
+                return error_response("Invalid credentials.", code=401)
             
             if not check_password(password, account.password_hash):
-                return Response({"detail": "Invalid credentials."}, status=status.HTTP_401_UNAUTHORIZED)
+                attempts_left = get_remaining_attempts(ip)
+                register_global_failure(ip, ua, email)
+                return error_response("Invalid credentials.", code=401, data={"attempts_remaining": attempts_left - 1})
             
             # Step 1 success: Credentials valid. Trigger OTP.
             from apps.identity.utils.otp_utils import send_otp_to_identifier
             send_otp_to_identifier(account.email, account.email)
             
-            return Response({
-                "detail": "Password verified. OTP challenge required.",
+            return success_response("Password verified. OTP challenge required.", data={
                 "requires_otp": True,
                 "email_hint": account.email[:2] + "***" + account.email[account.email.find("@"):]
-            }, status=status.HTTP_200_OK)
+            })
 
 class FacultyMFAVerifyView(generics.GenericAPIView):
     """
@@ -218,39 +241,39 @@ class FacultyMFAVerifyView(generics.GenericAPIView):
             try:
                 account = AuthorizedAccount.objects.get(email=email, role__in=['FACULTY', 'ADMIN'])
             except AuthorizedAccount.DoesNotExist:
-                return Response({"detail": "Invalid session."}, status=status.HTTP_400_BAD_REQUEST)
+                return error_response("Invalid session.", code=400)
             
             from apps.identity.utils.otp_utils import verify_otp_for_identifier
             if not verify_otp_for_identifier(account.email, otp):
-                return Response({"detail": "Invalid or expired OTP."}, status=status.HTTP_400_BAD_REQUEST)
+                # Need ip, ua here
+                from apps.identity.utils.request_utils import get_client_ip
+                ip = get_client_ip(request)
+                ua = request.META.get('HTTP_USER_AGENT', 'unknown')
+                register_global_failure(ip, ua, email)
+                return error_response("Invalid or expired OTP.", code=400)
             
-            # 🛡️ SECURITY: Device Fingerprinting
-            x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-            ip = x_forwarded_for.split(',')[0] if x_forwarded_for else request.META.get('REMOTE_ADDR')
-            ua = request.META.get('HTTP_USER_AGENT', 'unknown')
+            # 🛡️ SECURITY: Centralized Login Handler (Quantum Shield + Session)
+            from apps.identity.services.auth_service import handle_login
+            from apps.identity.utils.cookie_utils import set_quantum_shield, set_logged_in_cookie
             
-            account.last_login_ip = ip
-            account.last_login_ua = ua
-            import django.utils.timezone as tz
-            account.last_login_at = tz.now()
-            account.save()
-
-            response = Response({
-                "success": True,
-                "message": "MFA Verified. Login successful.",
-                "data": {
-                    "role": account.role,
-                    "institution": client.name,
-                    "identifier": account.email
-                }
-            }, status=status.HTTP_200_OK)
-
-            # 🍪 SECURITY: Multi-Cookie Strategy (Non-HttpOnly tracker)
-            response.set_cookie(
-                'auip_authenticated', 
-                'true', 
-                max_age=3600 * 24 * 7, # 7 days
-                samesite='Lax',
-                secure=True
+            login_data = handle_login(
+                identity=account,
+                password=None, # MFA already verified
+                ip=ip,
+                user_agent=ua,
+                request=request,
+                role_context="faculty"
             )
+
+            response = success_response("Login successful.", data={
+                "access": login_data["access"],
+                "role": account.role,
+                "institution": client.name,
+                "identifier": account.email
+            })
+
+            # 🍪 Set Quantum Shield (4-segment cookies)
+            set_quantum_shield(response, login_data["fragments"])
+            set_logged_in_cookie(response, "true")
+            
             return response

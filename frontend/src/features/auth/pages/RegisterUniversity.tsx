@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { Building2, Mail, Globe, Users, Phone, MapPin, Send, CheckCircle2 } from "lucide-react";
+import { TurnstileWidget } from "../components/TurnstileWidget";
+import { v2AuthApi } from "../api/v2AuthApi";
 
 const API_BASE_URL = import.meta.env.VITE_BACKEND_URL
     ? `${import.meta.env.VITE_BACKEND_URL}/api/`
@@ -12,6 +14,28 @@ export const RegisterUniversity = () => {
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState("");
+    const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+    const [siteKey, setSiteKey] = useState("");
+
+    React.useEffect(() => {
+        const fetchConfig = async () => {
+            try {
+                const config = await v2AuthApi.getPublicConfig();
+                setSiteKey(config.turnstile_site_key);
+            } catch (err) {
+                console.error("Failed to load Turnstile config", err);
+            }
+        };
+        fetchConfig();
+    }, []);
+
+    const handleTurnstileSuccess = React.useCallback((token: string) => {
+        setTurnstileToken(token);
+    }, []);
+
+    const handleTurnstileExpire = React.useCallback(() => {
+        setTurnstileToken(null);
+    }, []);
 
     const [formData, setFormData] = useState({
         name: "",
@@ -28,14 +52,21 @@ export const RegisterUniversity = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!turnstileToken) {
+            setError("Please complete human verification.");
+            return;
+        }
         setIsLoading(true);
         setError("");
 
         try {
-            await axios.post(`${API_BASE_URL}users/public/register/`, formData);
+            await v2AuthApi.registerInstitution({
+                ...formData,
+                turnstile_token: turnstileToken
+            });
             setIsSubmitted(true);
         } catch (err: any) {
-            setError(err.response?.data?.message || "Failed to submit application. Please try again.");
+            setError(err.response?.data?.detail || "Failed to submit application. Please try again.");
         } finally {
             setIsLoading(false);
         }
@@ -192,9 +223,18 @@ export const RegisterUniversity = () => {
                             </div>
                         )}
 
+                        <div className="flex justify-center">
+                            <TurnstileWidget
+                                siteKey={siteKey}
+                                onSuccess={handleTurnstileSuccess}
+                                onExpire={handleTurnstileExpire}
+                                theme="dark"
+                            />
+                        </div>
+
                         <button
                             type="submit"
-                            disabled={isLoading}
+                            disabled={isLoading || !turnstileToken}
                             className="w-full py-5 premium-gradient text-white font-black text-xl rounded-[2rem] shadow-2xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:grayscale"
                         >
                             {isLoading ? (

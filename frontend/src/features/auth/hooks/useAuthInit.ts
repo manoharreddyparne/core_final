@@ -1,7 +1,6 @@
 // ✅ src/features/auth/hooks/useAuthInit.ts
 import { useEffect, useState, useCallback } from "react";
 
-import { clearRefreshTokenCookies } from "../api/base";
 import {
   getAccessToken,
   setAccessToken,
@@ -35,20 +34,19 @@ export const useAuthInit = () => {
       const token = getAccessToken();
 
       if (!token) {
-        console.log("⚠️ [useAuthInit] No token found → cold boot");
+        console.debug("[Auth] Cold boot sequence initiated (no RAM session).");
         setSessionRestored(false);
         setUser(null);
         return;
       }
 
       // Ensure token is mirrored into memory
-      console.log("✅ [useAuthInit] Token found → baseline restore");
+      console.debug("[Auth] Baseline RAM session restored.");
       setAccessToken(token);
       setSessionRestored(true);
     } catch (err) {
       console.warn("❌ [useAuthInit] Token restore error:", err);
       clearAccessToken();
-      clearRefreshTokenCookies();
       setUser(null);
       setSessionRestored(false);
     } finally {

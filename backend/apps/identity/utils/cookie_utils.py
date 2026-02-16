@@ -29,12 +29,10 @@ def set_refresh_cookie(
 ):
     """
     Sets the HttpOnly refresh cookie.
-    Only the browser & server use this; JS cannot access it.
-
-    ✅ STRICT HttpOnly — ZERO JS-visible cookies
-    ✅ Secure (prod) / Lax SameSite
-    ✅ Backend is the sole source of session truth
+    ❌ DEPRECATED: Use set_quantum_shield instead.
+    This helper is kept only for backward compatibility during migration.
     """
+    logger.warning("[COOKIE] ⚠️ Legacy set_refresh_cookie called! Please migrate to set_quantum_shield.")
     logger.info(
         f"[COOKIE] Setting {REFRESH_COOKIE_NAME}: SameSite={REFRESH_COOKIE_SAMESITE}, Secure={REFRESH_COOKIE_SECURE}"
     )
@@ -50,50 +48,85 @@ def set_refresh_cookie(
 
 
 def clear_refresh_cookie(response: Response):
-    """Remove refresh cookie cleanly."""
+    """
+    Remove refresh cookie cleanly.
+    ❌ DEPRECATED: Use clear_quantum_shield instead.
+    """
     response.delete_cookie(
         key=REFRESH_COOKIE_NAME,
         path=REFRESH_COOKIE_PATH,
     )
 
 
+LOGGED_IN_COOKIE_NAME = "auip_logged_in"
+
+
+def set_logged_in_cookie(response: Response, value: str = "true", max_age: int = REFRESH_COOKIE_MAX_AGE):
+    """
+    Sets a client-readable marker cookie (not HttpOnly).
+    Frontend can check this to know if a session *should* exist.
+    """
+    response.set_cookie(
+        key=LOGGED_IN_COOKIE_NAME,
+        value=value,
+        max_age=max_age,
+        path=REFRESH_COOKIE_PATH,
+        secure=REFRESH_COOKIE_SECURE,
+        httponly=False,  # ✅ JS accessible
+        samesite=REFRESH_COOKIE_SAMESITE,
+    )
+
+
+def clear_logged_in_cookie(response: Response):
+    """Remove logged-in marker."""
+    response.delete_cookie(
+        key=LOGGED_IN_COOKIE_NAME,
+        path=REFRESH_COOKIE_PATH,
+    )
+
+
 def clear_session_cookies(response: Response):
-    """Clear the HttpOnly refresh cookie."""
+    """Clear the HttpOnly refresh cookie AND the logged-in marker."""
     response.delete_cookie(REFRESH_COOKIE_NAME, path=REFRESH_COOKIE_PATH)
+    clear_logged_in_cookie(response)
+    clear_quantum_shield(response) # ✅ Sweep all segments
+
+# Alias for legacy compatibility
+invalidate_session = clear_session_cookies
 
 
 # ------------------------------------------------------------
-# INVALIDATION HELPER
+# QUANTUM SHIELD HELPERS
 # ------------------------------------------------------------
 
-def invalidate_session(session, reason="Device mismatch"):
+def set_quantum_shield(response: Response, fragments: dict, max_age: int = REFRESH_COOKIE_MAX_AGE):
     """
-    1) Marks session inactive
-    2) Blacklists refresh JTI
-    3) Raises logout event
-    4) Clears cookies
+    Sets the 4-segment Quantum Shield cookies.
     """
-    # NOTE: use public helpers; avoid internal/private patterns
-    from apps.identity.services.token_service import (
-        blacklist_refresh_jti,
-        send_session_ws_event,
-    )
+    from apps.identity.services.quantum_shield import QuantumShieldService
+    
+    for key, value in fragments.items():
+        is_public = (key == QuantumShieldService.SEGMENT_T)
+        
+        response.set_cookie(
+            key=key,
+            value=value,
+            max_age=max_age,
+            path=REFRESH_COOKIE_PATH,
+            secure=REFRESH_COOKIE_SECURE,
+            httponly=not is_public,  # ✅ JS can only read Segment T (TTL)
+            samesite="Strict" if not is_public else "Lax",
+        )
 
-    try:
-        blacklist_refresh_jti(session.refresh_jti, user=session.user)
-    except Exception:
-        pass
-
-    session.is_active = False
-    session.save(update_fields=["is_active"])
-
-    # Force the frontend to recognize logout
-    send_session_ws_event(session.user.id, "force_logout", session.id)
-
-    resp = Response(
-        {"detail": f"{reason} — session invalidated"},
-        status=401,
-    )
-
-    clear_session_cookies(resp)
-    return resp
+def clear_quantum_shield(response: Response):
+    """Wipe all 4 shield segments."""
+    from apps.identity.services.quantum_shield import QuantumShieldService
+    
+    segments = [
+        QuantumShieldService.SEGMENT_T,
+        QuantumShieldService.SEGMENT_ID,
+        QuantumShieldService.SEGMENT_P,
+        QuantumShieldService.SEGMENT_S
+    ]
+    for seg in segments:
+        response.delete_cookie(seg, path=REFRESH_COOKIE_PATH)

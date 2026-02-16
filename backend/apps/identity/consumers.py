@@ -30,13 +30,35 @@ class SessionConsumer(AsyncWebsocketConsumer):
 
         self.group_name = f"user_sessions_{self.user.id}"
         await self.channel_layer.group_add(self.group_name, self.channel_name)
+
+        # 🚀 REAL-TIME HUB: Add Super Admins to the broadcast group
+        if self.user.role == "SUPER_ADMIN":
+            self.broadcast_group = "superadmin_updates"
+            await self.channel_layer.group_add(self.broadcast_group, self.channel_name)
+            logger.info(f"Super Admin {self.user.email} joined real-time institutional hub.")
+
         await self.accept()
         logger.debug(f"WS connected for user_id={self.user.id} | session_id={self.session_id}")
 
     async def disconnect(self, close_code: int):
         if hasattr(self, "group_name"):
             await self.channel_layer.group_discard(self.group_name, self.channel_name)
+        
+        # 🚀 REAL-TIME HUB: Clean up broadcast group
+        if hasattr(self, "broadcast_group"):
+            await self.channel_layer.group_discard(self.broadcast_group, self.channel_name)
+            
         logger.debug(f"WS disconnected user_id={getattr(self.user,'id', None)} | code={close_code}")
+
+    async def institution_update(self, event: dict):
+        """Relay institution updates to the Super Admin UI."""
+        try:
+            await self.send(text_data=json.dumps({
+                "action": "institution_update",
+                "data": event.get("data", {})
+            }))
+        except Exception as e:
+            logger.warning(f"Failed to relay institution update: {e}")
 
     async def receive(self, text_data: Optional[str] = None, bytes_data: Optional[bytes] = None):
         """Handle messages from client."""
@@ -112,7 +134,8 @@ class SessionConsumer(AsyncWebsocketConsumer):
 
                 self._broadcast_to_group({
                     "action": "force_logout",
-                    "session_id": session.id
+                    "session_id": session.id,
+                    "reason": "terminated_by_admin"
                 })
         except Exception as e:
             logger.exception(f"Failed to force logout jti={jti} user_id={self.user.id}: {e}")
@@ -130,7 +153,8 @@ class SessionConsumer(AsyncWebsocketConsumer):
                 self._broadcast_to_group({
                     "action": "force_logout",
                     "session_id": session.id,
-                    "origin_session_id": origin_jti
+                    "origin_session_id": origin_jti,
+                    "reason": "terminated_by_other_device"
                 })
         except Exception as e:
             logger.exception(f"Failed to logout other devices for user_id={self.user.id}: {e}")

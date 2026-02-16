@@ -3,7 +3,7 @@ import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { googleExchangeCode } from "../api/adminApi";
-import { bootstrapSession } from "../api/bootstrapApi";
+import { hydratePassport } from "../api/passportApi";
 import { useAuth } from "../context/AuthProvider/AuthProvider";
 
 export const useGoogleLogin = () => {
@@ -20,7 +20,7 @@ export const useGoogleLogin = () => {
       }
 
       // refresh + hydrate user
-      const boot = await bootstrapSession();
+      const boot = await hydratePassport();
       setUser(boot?.user ?? null);
 
       // redirect

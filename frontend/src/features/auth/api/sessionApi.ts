@@ -4,7 +4,6 @@
 import {
   apiClient,
   authHeaders,
-  clearRefreshTokenCookies,
 } from "./base";
 
 import type { ApiResponse } from "./types";
@@ -64,9 +63,6 @@ export const logoutSession = async (
       { headers: authHeaders() }
     );
 
-    // ✅ If server cleared refresh cookie (current device)
-    clearRefreshTokenCookies();
-
     return {
       success: res?.data?.success ?? true,
       message: res?.data?.message ?? "Session logged out",
@@ -96,8 +92,6 @@ export const logoutAllSessions = async (): Promise<{
       {},
       { headers: authHeaders() }
     );
-
-    clearRefreshTokenCookies();
 
     return {
       success: res?.data?.success ?? true,

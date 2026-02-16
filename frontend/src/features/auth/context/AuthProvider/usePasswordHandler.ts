@@ -16,7 +16,7 @@ import type {
   User,
 } from "../../api/types";
 
-import { useSessionBootstrap } from "./useSessionBootstrap";
+import { useSessionHydration } from "./useSessionHydration";
 import { setAccessToken } from "../../utils/tokenStorage";
 
 /* ===================================
@@ -25,32 +25,32 @@ import { setAccessToken } from "../../utils/tokenStorage";
 export const usePasswordHandler = (
   setUser: (user: User | null) => void
 ) => {
-  const { refreshSession } = useSessionBootstrap();
+  const { hydrateSession } = useSessionHydration();
 
   /* ----------------------------
      🔁 CHANGE PASSWORD
   ---------------------------- */
   const changePassword = useCallback(
-    async (oldPwd: string, newPwd: string): Promise<string> => {
+    async (oldPwd: string, newPwd: string): Promise<any> => {
       const res = await apiChangePassword(oldPwd, newPwd);
 
       if (res?.access) {
         setAccessToken(res.access);
-        await refreshSession();
+        await hydrateSession();
         if (res?.user) setUser(res.user);
       }
 
-      return res?.message ?? "Password changed";
+      return res;
     },
-    [refreshSession, setUser]
+    [hydrateSession, setUser]
   );
 
   /* ----------------------------
      ✉️ RESET PASSWORD REQUEST
   ---------------------------- */
   const resetPasswordRequest = useCallback(
-    async (email: string): Promise<ResetPasswordRequestDetail> =>
-      await apiResetPasswordRequest(email),
+    async (email: string, roleContext?: string): Promise<ResetPasswordRequestDetail> =>
+      await apiResetPasswordRequest(email, roleContext),
     []
   );
 

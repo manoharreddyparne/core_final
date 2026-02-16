@@ -2,7 +2,12 @@ import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { API_BASE_URL } from "../../auth/api/base";
 import { getAccessToken } from "../../auth/utils/tokenStorage";
-import { Plus, Globe, Building2, MoreVertical, Search, CheckCircle2, XCircle, Clock, AlertCircle, FileText, Mail, Users, Phone, MapPin, ChevronRight, Filter } from "lucide-react";
+import {
+    Plus, Globe, Building2, MoreVertical, Search, CheckCircle2, XCircle, Clock,
+    AlertCircle, FileText, Mail, Users, Phone, MapPin, ChevronRight, Filter,
+    ArrowRight, CheckCircle
+} from "lucide-react";
+import { toast } from "react-hot-toast";
 
 export const InstitutionAdmin = () => {
     const [institutions, setInstitutions] = useState<any[]>([]);
@@ -11,11 +16,42 @@ export const InstitutionAdmin = () => {
     const [activeFilter, setActiveFilter] = useState("ALL");
     const [selectedInst, setSelectedInst] = useState<any | null>(null);
     const [isActionLoading, setIsActionLoading] = useState(false);
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [newInst, setNewInst] = useState({
+        name: "",
+        slug: "",
+        domain: "",
+        contact_email: "",
+        contact_number: "",
+        address: ""
+    });
+
+    const handleCreate = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsActionLoading(true);
+        try {
+            const token = getAccessToken();
+            await axios.post(`${API_BASE_URL}superadmin/institutions/`,
+                { ...newInst, registration_data: { source: "manual_onboarding" } },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            toast.success(`Institution ${newInst.name} onboarded successfully!`);
+            await fetchInstitutions();
+            setIsCreateModalOpen(false);
+            setNewInst({ name: "", slug: "", domain: "", contact_email: "", contact_number: "", address: "" });
+        } catch (err) {
+            console.error("Failed to create institution", err);
+            toast.error("Failed to onboard institution. Check the console for details.");
+        } finally {
+            setIsActionLoading(false);
+        }
+    };
 
     const fetchInstitutions = useCallback(async () => {
         try {
             const token = getAccessToken();
-            const res = await axios.get(`${API_BASE_URL}users/superadmin/institutions/`, {
+            // ✅ FIX: API_BASE_URL already includes "/api/users/", so we just need "superadmin/..."
+            const res = await axios.get(`${API_BASE_URL}superadmin/institutions/`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setInstitutions(res.data);
@@ -28,13 +64,34 @@ export const InstitutionAdmin = () => {
 
     useEffect(() => {
         fetchInstitutions();
+
+        // 🚀 REAL-TIME UPDATES: Listen for WebSocket events from useSessionSocket
+        const handleWsUpdate = (event: any) => {
+            const data = event.detail;
+            console.log("[Institution-Live] Received real-time update:", data);
+            fetchInstitutions();
+        };
+
+        const handleSelectFromSearch = (event: any) => {
+            const inst = event.detail;
+            setSelectedInst(inst);
+        };
+
+        window.addEventListener('institution-updated', handleWsUpdate as EventListener);
+        window.addEventListener('select-institution', handleSelectFromSearch as EventListener);
+
+        return () => {
+            window.removeEventListener('institution-updated', handleWsUpdate as EventListener);
+            window.removeEventListener('select-institution', handleSelectFromSearch as EventListener);
+        };
     }, [fetchInstitutions]);
 
     const handleAction = async (slug: string, action: string) => {
         setIsActionLoading(true);
         try {
             const token = getAccessToken();
-            await axios.post(`${API_BASE_URL}users/superadmin/institutions/${slug}/${action}/`, {}, {
+            // ✅ FIX: Remove redundant "users/"
+            await axios.post(`${API_BASE_URL}superadmin/institutions/${slug}/${action}/`, {}, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             await fetchInstitutions();
@@ -80,10 +137,17 @@ export const InstitutionAdmin = () => {
 
                 <div className="flex items-center gap-3">
                     <div className="glass px-4 py-2 rounded-2xl border-white/5 flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                        <span className="text-[10px] font-black text-white uppercase tracking-widest">Real-Time Sync</span>
+                    </div>
+                    <div className="glass px-4 py-2 rounded-2xl border-white/5 flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
                         <span className="text-xs font-bold text-white">{pendingCount} Pending Approvals</span>
                     </div>
-                    <button className="flex items-center gap-2 px-6 py-3 premium-gradient text-white font-bold rounded-2xl shadow-xl shadow-primary/20 hover:scale-105 transition-all active:scale-95">
+                    <button
+                        onClick={() => setIsCreateModalOpen(true)}
+                        className="flex items-center gap-2 px-6 py-3 premium-gradient text-white font-bold rounded-2xl shadow-xl shadow-primary/20 hover:scale-105 transition-all active:scale-95"
+                    >
                         <Plus className="w-5 h-5" />
                         Manual Register
                     </button>
@@ -109,8 +173,8 @@ export const InstitutionAdmin = () => {
                             key={f}
                             onClick={() => setActiveFilter(f)}
                             className={`px-5 py-2.5 rounded-xl text-xs transition-all border whitespace-nowrap ${activeFilter === f
-                                    ? "bg-primary/20 border-primary/40 text-primary shadow-lg shadow-primary/10"
-                                    : "bg-white/5 border-white/5 text-gray-500 hover:text-white hover:bg-white/10"
+                                ? "bg-primary/20 border-primary/40 text-primary shadow-lg shadow-primary/10"
+                                : "bg-white/5 border-white/5 text-gray-500 hover:text-white hover:bg-white/10"
                                 }`}
                         >
                             {f.charAt(0) + f.slice(1).toLowerCase().replace('_', ' ')}
@@ -130,48 +194,50 @@ export const InstitutionAdmin = () => {
                         <div
                             key={inst.id}
                             onClick={() => setSelectedInst(inst)}
-                            className={`glass p-8 rounded-[2.5rem] space-y-6 hover:border-primary/50 transition-all group relative cursor-pointer ${inst.status === "PENDING" ? "border-amber-500/20" : "border-white/5"
-                                }`}
+                            className="bg-white/5 border border-white/10 p-8 rounded-[2rem] space-y-6 hover:translate-y-[-4px] hover:border-primary/50 hover:bg-white/10 transition-all group relative cursor-pointer"
                         >
-                            {inst.status === "PENDING" && (
-                                <div className="absolute -top-3 left-8 px-3 py-1 bg-amber-500 text-black text-[10px] font-black uppercase rounded-lg shadow-lg">
-                                    New Request
-                                </div>
-                            )}
-
                             <div className="flex justify-between items-start">
-                                <div className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center text-primary border border-white/10 group-hover:premium-gradient group-hover:text-white transition-all">
-                                    <Building2 className="w-7 h-7" />
+                                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all shadow-inner">
+                                    <Building2 className="w-6 h-6" />
                                 </div>
-                                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase ${inst.status === "APPROVED" ? "bg-green-400/10 border-green-400/20 text-green-400" :
-                                        inst.status === "REJECTED" ? "bg-red-400/10 border-red-400/20 text-red-400" :
-                                            inst.status === "PENDING" ? "bg-amber-400/10 border-amber-400/20 text-amber-400" :
-                                                "bg-blue-400/10 border-blue-400/20 text-blue-400"
+                                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[9px] font-black uppercase tracking-wider ${inst.status === "APPROVED" ? "bg-green-400/10 border-green-400/20 text-green-400" :
+                                    inst.status === "REJECTED" ? "bg-red-400/10 border-red-400/20 text-red-400" :
+                                        inst.status === "PENDING" ? "bg-amber-400/10 border-amber-400/20 text-amber-400" :
+                                            "bg-blue-400/10 border-blue-400/20 text-blue-400"
                                     }`}>
-                                    {getStatusIcon(inst.status)}
+                                    <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse mr-1" />
                                     {inst.status}
                                 </div>
                             </div>
 
                             <div className="space-y-1">
-                                <h3 className="text-xl font-extrabold text-white group-hover:text-primary transition-colors">{inst.name}</h3>
-                                <p className="text-xs text-muted-foreground font-mono uppercase tracking-widest">{inst.slug}</p>
-                            </div>
-
-                            <div className="space-y-3">
-                                <div className="flex items-center gap-2 text-xs font-semibold text-gray-400">
-                                    <Globe className="w-4 h-4 text-primary/60" />
-                                    <span>{inst.domain}</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-xs font-semibold text-gray-400">
-                                    <Users className="w-4 h-4 text-primary/60" />
-                                    <span>~{inst.student_count_estimate || 0} Students</span>
+                                <h3 className="text-xl font-black text-white leading-tight">{inst.name}</h3>
+                                <div className="flex items-center gap-2 text-[10px] text-gray-500 font-black uppercase tracking-widest">
+                                    <Globe className="w-3 h-3 text-primary/40" />
+                                    {inst.domain}
                                 </div>
                             </div>
 
-                            <div className="pt-4 border-t border-white/5 flex items-center justify-between text-xs font-bold">
-                                <span className="text-gray-500 italic">View Details</span>
-                                <ChevronRight className="w-4 h-4 text-gray-700 group-hover:text-white transition-all transform group-hover:translate-x-1" />
+                            <div className="grid grid-cols-2 gap-4 py-4 border-y border-white/5">
+                                <div className="space-y-1">
+                                    <div className="text-[9px] text-gray-500 font-black uppercase tracking-tighter">Learner Base</div>
+                                    <div className="text-sm font-bold text-white flex items-center gap-1.5">
+                                        <Users className="w-3.5 h-3.5 text-primary/60" />
+                                        {inst.student_count_estimate?.toLocaleString() || 0}
+                                    </div>
+                                </div>
+                                <div className="space-y-1">
+                                    <div className="text-[9px] text-gray-500 font-black uppercase tracking-tighter">Registration</div>
+                                    <div className="text-sm font-bold text-white flex items-center gap-1.5">
+                                        <div className="w-3.5 h-1 px-1 bg-primary/20 rounded-full" />
+                                        {inst.is_manual ? 'Manual' : 'System'}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center justify-between text-[10px] text-gray-400 font-black uppercase tracking-widest pt-2">
+                                <span className="group-hover:text-primary transition-colors italic">Review Metadata</span>
+                                <ArrowRight className="w-4 h-4 text-gray-700 group-hover:text-white transform group-hover:translate-x-1 transition-all" />
                             </div>
                         </div>
                     ))
@@ -203,71 +269,116 @@ export const InstitutionAdmin = () => {
                             </button>
                         </div>
 
-                        <div className="p-10 space-y-12 pb-32">
-                            {/* Header Info */}
-                            <div className="flex items-start gap-6">
-                                <div className="w-24 h-24 rounded-[2rem] premium-gradient flex items-center justify-center text-white shadow-2xl shadow-primary/20">
-                                    <Building2 className="w-12 h-12" />
+                        <div className="p-10 space-y-10 pb-32">
+                            {/* --- IDENTITY SECTION --- */}
+                            <div className="space-y-6">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-1.5 h-6 bg-primary rounded-full shadow-lg shadow-primary/50" />
+                                    <span className="text-sm font-black text-white/40 uppercase tracking-[0.2em]">Domain Identity</span>
                                 </div>
-                                <div className="space-y-2">
-                                    <h3 className="text-3xl font-black text-white leading-tight">{selectedInst.name}</h3>
-                                    <div className="flex items-center gap-3">
-                                        <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase border ${selectedInst.status === "APPROVED" ? "bg-green-400/10 border-green-400/20 text-green-400" :
+                                <div className="glass px-8 py-10 rounded-[2.5rem] border-white/5 bg-white/[0.02] flex items-center gap-8">
+                                    <div className="w-24 h-24 rounded-[2rem] premium-gradient flex items-center justify-center text-white shadow-2xl shadow-primary/30">
+                                        <Building2 className="w-12 h-12" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <h3 className="text-3xl font-black text-white leading-tight tracking-tight">{selectedInst.name}</h3>
+                                        <div className="flex items-center gap-3">
+                                            <span className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider border ${selectedInst.status === "APPROVED" ? "bg-green-400/10 border-green-400/20 text-green-400 shadow-[0_0_20px_rgba(74,222,128,0.1)]" :
                                                 selectedInst.status === "PENDING" ? "bg-amber-400/10 border-amber-400/20 text-amber-400" :
                                                     "bg-blue-400/10 border-blue-400/20 text-blue-400"
-                                            }`}>
-                                            {selectedInst.status}
-                                        </span>
-                                        <span className="text-xs text-gray-500 font-mono italic">Created on {new Date(selectedInst.created_at).toLocaleDateString()}</span>
+                                                }`}>
+                                                <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse mr-2 inline-block" />
+                                                {selectedInst.status}
+                                            </span>
+                                            <div className="flex items-center gap-2 px-3 py-1.5 bg-black/20 rounded-xl text-[10px] text-gray-500 font-bold border border-white/5">
+                                                <Clock className="w-3 h-3" />
+                                                Registered {new Date(selectedInst.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Details Grid */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
-                                        <Globe className="w-3 h-3" /> Educational Domain
-                                    </label>
-                                    <p className="text-white font-bold text-lg">{selectedInst.domain}</p>
+                            {/* --- OPERATIONAL METRICS --- */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="glass p-6 rounded-[2rem] border-white/5 space-y-4">
+                                    <div className="flex items-center gap-2 text-[10px] font-black text-primary uppercase tracking-widest">
+                                        <Globe className="w-3.5 h-3.5" /> Web Governance
+                                    </div>
+                                    <div className="space-y-0.5">
+                                        <p className="text-white font-black text-xl tracking-tight">{selectedInst.domain}</p>
+                                        <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Authorized Academic Domain</p>
+                                    </div>
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
-                                        <Users className="w-3 h-3" /> Student Load Estimate
-                                    </label>
-                                    <p className="text-white font-bold text-lg">{selectedInst.student_count_estimate || 0} Learners</p>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
-                                        <Mail className="w-3 h-3" /> Admin Point of Contact
-                                    </label>
-                                    <p className="text-white font-bold text-lg">{selectedInst.contact_email}</p>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
-                                        <Phone className="w-3 h-3" /> Contact Number
-                                    </label>
-                                    <p className="text-white font-bold text-lg">{selectedInst.contact_number || "Not provided"}</p>
-                                </div>
-                                <div className="col-span-full space-y-2 pt-4 border-t border-white/5">
-                                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
-                                        <MapPin className="w-3 h-3" /> Registered Office/Campus
-                                    </label>
-                                    <p className="text-white font-medium italic">{selectedInst.address || "No address on record"}</p>
+                                <div className="glass p-6 rounded-[2rem] border-white/5 space-y-4">
+                                    <div className="flex items-center gap-2 text-[10px] font-black text-amber-500 uppercase tracking-widest">
+                                        <Users className="w-3.5 h-3.5" /> Learner Capacity
+                                    </div>
+                                    <div className="space-y-0.5">
+                                        <p className="text-white font-black text-xl tracking-tight">{selectedInst.student_count_estimate?.toLocaleString() || "Not specified"}</p>
+                                        <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Estimated User Pool</p>
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Raw Application Data */}
-                            {selectedInst.registration_data && (
-                                <div className="space-y-4">
-                                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
-                                        <FileText className="w-3 h-3" /> Full Application Payload
-                                    </label>
-                                    <pre className="p-6 bg-black/40 rounded-3xl border border-white/5 text-[10px] text-primary/80 font-mono overflow-x-auto">
-                                        {JSON.stringify(selectedInst.registration_data, null, 2)}
-                                    </pre>
+                            {/* --- CONTACT & GOVERNANCE --- */}
+                            <div className="space-y-6">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-1.5 h-6 bg-pink-500 rounded-full shadow-lg shadow-pink-500/50" />
+                                    <span className="text-sm font-black text-white/40 uppercase tracking-[0.2em]">Administrative Hub</span>
                                 </div>
-                            )}
+                                <div className="glass p-8 rounded-[2.5rem] border-white/5 space-y-8">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                                        <div className="space-y-2">
+                                            <div className="flex items-center gap-2 text-[9px] font-black text-gray-500 uppercase tracking-[0.15em]">
+                                                <Mail className="w-3 h-3 text-primary/60" /> Point of Contact
+                                            </div>
+                                            <p className="text-white font-bold tracking-tight text-sm truncate">{selectedInst.contact_email}</p>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <div className="flex items-center gap-2 text-[9px] font-black text-gray-500 uppercase tracking-[0.15em]">
+                                                <Phone className="w-3 h-3 text-green-500/60" /> Registry Number
+                                            </div>
+                                            <p className="text-white font-bold tracking-tight text-sm">{selectedInst.contact_number || "Confidential/Unset"}</p>
+                                        </div>
+                                    </div>
+                                    <div className="pt-6 border-t border-white/5 space-y-2">
+                                        <div className="flex items-center gap-2 text-[9px] font-black text-gray-500 uppercase tracking-[0.15em]">
+                                            <MapPin className="w-3 h-3 text-red-500/60" /> Registered Headquarters
+                                        </div>
+                                        <p className="text-white/80 font-medium italic text-sm leading-relaxed">{selectedInst.address || "Digital-Only Establishment / No Address Provided"}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* --- VERIFICATION CARD --- */}
+                            <div className="space-y-6">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-1.5 h-6 bg-blue-500 rounded-full shadow-lg shadow-blue-500/50" />
+                                    <span className="text-sm font-black text-white/40 uppercase tracking-[0.2em]">Registry verification</span>
+                                </div>
+                                <div className="glass-dark p-8 rounded-[2.5rem] border-white/5 bg-black/40 border-dashed border-2 flex flex-col gap-6">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center">
+                                                <FileText className="w-6 h-6 text-primary/40" />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-black text-white">Application Payload</p>
+                                                <p className="text-[10px] text-gray-500 font-bold uppercase">JSON Secure Archive</p>
+                                            </div>
+                                        </div>
+                                        <span className="text-[9px] font-black text-primary/40 font-mono tracking-tighter self-start">#ID_{String(selectedInst.id || "").slice(-8) || "N/A"}</span>
+                                    </div>
+
+                                    <div className="bg-black/60 rounded-3xl p-6 relative group overflow-hidden">
+                                        <div className="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        <div className="relative font-mono text-[10px] leading-relaxed text-primary/70 max-h-[200px] overflow-y-auto no-scrollbar">
+                                            {JSON.stringify(selectedInst.registration_data || selectedInst, null, 4)}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         {/* Action Bar */}

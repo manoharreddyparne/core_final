@@ -4,7 +4,6 @@
 import {
   apiClient,
   setAccessToken,
-  setRefreshCookieFromResponse,
 } from "./base";
 
 import type { ApiResponse, User } from "./types";
@@ -42,8 +41,6 @@ export const rotateTokensSecure = async (): Promise<SecureDeviceResponse> => {
 
   const data: SecureDeviceResponse = res?.data?.data ?? {};
 
-  // ✅ apply new refresh cookie if backend sent it
-  setRefreshCookieFromResponse(res);
 
   // ✅ must have access or fail
   if (data.access) {

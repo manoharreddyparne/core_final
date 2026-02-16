@@ -6,6 +6,6 @@ export * from "./adminApi";
 export * from "./passwordApi";
 export * from "./secureDeviceApi";
 export * from "./sessionApi";
-export * from "./bootstrapApi";
+export * from "./passportApi";
 export * from "./activationApi";
 export * from "./institutionAdminApi";

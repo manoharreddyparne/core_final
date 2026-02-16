@@ -74,6 +74,7 @@ INSTALLED_APPS += THIRD_PARTY_APPS
 
 TENANT_MODEL = "auip_tenant.Client"
 TENANT_DOMAIN_MODEL = "auip_tenant.Domain"
+PUBLIC_SCHEMA_URLCONF = "auip_core.urls"
 
 DATABASE_ROUTERS = (
     "django_tenants.routers.TenantSyncRouter",
@@ -94,8 +95,9 @@ AUTHENTICATION_BACKENDS = (
 # MIDDLEWARE
 # -----------------------------
 MIDDLEWARE = [
-    "django_tenants.middleware.main.TenantMainMiddleware", # ✅ Dependency for Multi-Tenancy
-    "corsheaders.middleware.CorsMiddleware",
+    "corsheaders.middleware.CorsMiddleware", # Move to top
+    "django_tenants.middleware.main.TenantMainMiddleware",
+    "apps.identity.middleware_csp.CSPMiddleware", 
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -104,21 +106,19 @@ MIDDLEWARE = [
     "allauth.account.middleware.AccountMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "apps.identity.middleware.AccessTokenSessionMiddleware",
-    "apps.identity.middleware_csp.CSPMiddleware", # ✅ Advanced CSP Management
+    "apps.identity.middleware.SilentRotationMiddleware",
 ]
 
 # -----------------------------
-# SECURITY HEADERS (Professional Standard)
+# SECURITY HEADERS (Managed via CSPMiddleware)
 # -----------------------------
-SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_BROWSER_XSS_FILTER = True
-X_FRAME_OPTIONS = "DENY"
-REFERRER_POLICY = "same-origin"
-# Permissions-Policy
-SECURE_REFERRER_POLICY = "same-origin"
+# X_FRAME_OPTIONS handled in middleware
+# REFERRER_POLICY handled in middleware
+# SECURE_CONTENT_TYPE_NOSNIFF handled in middleware
 
 # Modern Isolation Policies
-SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
+SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin-allow-popups"
 
 # -----------------------------
 # REST FRAMEWORK
@@ -136,16 +136,54 @@ REST_FRAMEWORK = {
 
 
 # -----------------------------
-# SIMPLE JWT
+# SIMPLE JWT (RS256 Configuration)
 # -----------------------------
+PRIVATE_KEY = """-----BEGIN RSA PRIVATE KEY-----
+MIIEpAIBAAKCAQEAw5W0o94M11ffKeMgwl22Judpq0TYhBMJcXQpP+Kt7T5/pZMi
+xnGNrbSCoyD75Z7Yz94o+UNqS+vVsq95Ve1W+Da6aBYBS9sAjsNYVAchy0udojhW
+4YTBAIpu7lEEYAt8Q1oQxEcvcaKPspQhW2Yl5tUA0uuJQy/F5U6rTooybEpLH6uX
+4gDtBhbwCAF2VQ4yMr5peIMoKJMVKSBaeUw4W5fM++emNGVXedxMOO7hapJaXf1N
+ytY7pkmF3vw2VfHPTmN87ixVsdO3MYcHvjZMTjrou3/fZbjn+CInyvA4S6G4ME29
+VSJjcNmS/HOCeRxBkHlKB4D1lpVYaVICug2QLQIDAQABAoIBAEXoHfNOPDfCHC1M
+FdrzBNa98vp49oyqgz8Ofmnruy/nnVdQkmbskm/Ka8Ej2nU1xBf0N5/0dStixXSD
+HLLWTLYWVaU7bEYxJm9gqhMKo40W32Zqjb84pIVtdX3v7kjoAgfOytxk9zO+H298
+W7nf9l8dthgtgNfHXQv7hOZjJeenO37ZVMNcMTK4a7ZD1lA7a1+TffIbColx5FR5
+AvwJfP4V0e+FHfIc4YL/ls/+WJssBryIC/gQBw7sjoHZh6ocUoBtkgOgwm7LhUO7
+IEH9Hw4oibqlsx3pzVVVzdEjXW4sI2mqX3oTqhpmemL+oQNMJCN+a3iPe71l3hKd
+99Bfz/8CgYEA+J9j9drQdH02XnAllYzylYjA2K4eeiTyy95SwolhdcXXYqa2UVjC
+OP6SJ7XdSP7OhLBHMYCf2gXIi1cvP845uuK20L5jDgRLNSQaXEjuwJLi72npmJBq
+SpnTXGsMOgKpLOqWw8+/JOxNJLif6tqHi8BkieOdShzU/QhQlGCgZWsCgYEAyWNs
+pbV/YY7Xz2HX1srENrnyqfglg/5MlIWGXxdCwJ9ZXj9S4KlEwOwNF2K7/rrkmwBn
+7Scw/JjMPXWC0SAC01kk4NmcOF26CU8hE2v/MRMwEDv1uEh6+imoOl9yLOEXsgh/
+89Pl6sPGnLT15yYL2FA23AfQXc0LJH65z3VQrscCgYEA78mKt0xbUH6TOXIgTaSr
+Mt26YUFN07BfG5FJcKbfgJ9XpKX1oW9ho2ajv/j/e6+FryP1BiFwCu8ZBIsJ3xgf
+RcfzWlDFaHdrsc0oP2l4G/OPPCmCSsq+OUUzPSdhm3GFiPSYhDKRwCLIJGqMkg5C
+PN9KGFOXGCvGoGSsku6+xBECgYBoGPCMJ2kUsJV1KQo8iMsrzqpUmWQq+kPzcaGn
+fYqPrs6vHORmJJjZcCrEL9ElNs38IRWXTG7R4tmP2zInjvhm7ulVIKbTq/8B2Nks
+BOMAJv7tJVE6VJzcurOumK+X6zIoYKRjEOEDnPcJAbEqLkxpH+17hr55/gcIckjx
+p55w+QKBgQCEOQGOJz013sw1agrJV1i4PjNoMjHSpS/Lr4Cp0aVEoj8NHKVYiuE5
+TwU7fD6vcPTkPT44j8tudSPiCsC9YlbXFar2vcQTbfRQdmZLWcePahY41mZgDL0J
+zhcZfwl+H9YmwZgd+MV9wTSg1Zt4dcNOiBlnnOO9ai3mAvPhY+Xyzw==
+-----END RSA PRIVATE KEY-----"""
+
+PUBLIC_KEY = """-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAw5W0o94M11ffKeMgwl22
+Judpq0TYhBMJcXQpP+Kt7T5/pZMixnGNrbSCoyD75Z7Yz94o+UNqS+vVsq95Ve1W
++Da6aBYBS9sAjsNYVAchy0udojhW4YTBAIpu7lEEYAt8Q1oQxEcvcaKPspQhW2Yl
+5tUA0uuJQy/F5U6rTooybEpLH6uX4gDtBhbwCAF2VQ4yMr5peIMoKJMVKSBaeUw4
+W5fM++emNGVXedxMOO7hapJaXf1NytY7pkmF3vw2VfHPTmN87ixVsdO3MYcHvjZM
+Tjrou3/fZbjn+CInyvA4S6G4ME29VSJjcNmS/HOCeRxBkHlKB4D1lpVYaVICug2Q
+LQIDAQAB
+-----END PUBLIC KEY-----"""
+
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
-    "ALGORITHM": "HS256",
-    "SIGNING_KEY": SECRET_KEY,
-    "VERIFYING_KEY": None,
+    "ALGORITHM": "RS256",
+    "SIGNING_KEY": PRIVATE_KEY,
+    "VERIFYING_KEY": PUBLIC_KEY,
     "AUTH_HEADER_TYPES": ("Bearer",),
     "AUTH_TOKEN_CLASSES": (
         "rest_framework_simplejwt.tokens.AccessToken",
@@ -173,8 +211,12 @@ SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
 JWT_AUTH_COOKIE_SECURE = not DEBUG
 # Secure cookies only in production
-REFRESH_COOKIE_SAMESITE = 'None'  # ✅ Allow cross-origin (port to port) local dev
-REFRESH_COOKIE_SECURE = True   # ✅ Required for SameSite=None
+if DEBUG:
+    REFRESH_COOKIE_SAMESITE = 'Lax'
+    REFRESH_COOKIE_SECURE = False
+else:
+    REFRESH_COOKIE_SAMESITE = 'None'
+    REFRESH_COOKIE_SECURE = True
 
 REFRESH_COOKIE_PATH = "/"
 REFRESH_COOKIE_HTTPONLY = True
@@ -223,17 +265,34 @@ ASGI_APPLICATION = "auip_core.asgi.application"
 # -----------------------------
 # DATABASE
 # -----------------------------
-DATABASES = {
-    "default": {
-        "ENGINE": "django_tenants.postgresql_backend",
-        "NAME": config("DB_NAME"),
-        "USER": config("DB_USER"),
-        "PASSWORD": config("DB_PASSWORD"),
-        "HOST": config("DB_HOST"),
-        "PORT": config("DB_PORT", cast=int),
-        "TEST": {"NAME": None, "ATOMIC_REQUESTS": True},
+DATABASE_URL = config("DATABASE_URL", default=None)
+
+if DATABASE_URL:
+    import urllib.parse as urlparse
+    url = urlparse.urlparse(DATABASE_URL)
+    DATABASES = {
+        "default": {
+            "ENGINE": "django_tenants.postgresql_backend",
+            "NAME": url.path[1:],
+            "USER": url.username,
+            "PASSWORD": url.password,
+            "HOST": url.hostname,
+            "PORT": url.port,
+            "TEST": {"NAME": None, "ATOMIC_REQUESTS": True},
+        }
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django_tenants.postgresql_backend",
+            "NAME": config("DB_NAME", default="postgres"),
+            "USER": config("DB_USER", default="postgres"),
+            "PASSWORD": config("DB_PASSWORD", default=""),
+            "HOST": config("DB_HOST", default="127.0.0.1"),
+            "PORT": config("DB_PORT", cast=int, default=5432),
+            "TEST": {"NAME": None, "ATOMIC_REQUESTS": True},
+        }
+    }
 
 # -----------------------------
 # PASSWORD VALIDATORS
@@ -331,9 +390,7 @@ CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [
-                (config("REDIS_HOST", default="127.0.0.1"), int(config("REDIS_PORT", default=6379)))
-            ]
+            "hosts": [config("REDIS_URL", default="redis://127.0.0.1:6379/0")],
         },
     }
 }

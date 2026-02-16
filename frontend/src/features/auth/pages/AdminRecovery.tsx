@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { v2AuthApi } from "../api/v2AuthApi";
 import {
     Activity,
@@ -12,27 +12,91 @@ import {
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { Link } from "react-router-dom";
+import { TurnstileWidget } from "../components/TurnstileWidget";
 
 export default function AdminRecovery() {
     const [email, setEmail] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
+    const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+    const [siteKey, setSiteKey] = useState("");
+
+    useEffect(() => {
+        const fetchConfig = async () => {
+            try {
+                const config = await v2AuthApi.getPublicConfig();
+                setSiteKey(config.turnstile_site_key);
+            } catch (err) {
+                console.error("Failed to load Turnstile config", err);
+            }
+        };
+        fetchConfig();
+    }, []);
+
+    const handleTurnstileSuccess = React.useCallback((token: string) => {
+        setTurnstileToken(token);
+    }, []);
+
+    const handleTurnstileExpire = React.useCallback(() => {
+        setTurnstileToken(null);
+    }, []);
+
+    const [turnstileKey, setTurnstileKey] = useState(0);
+    const [cooldown, setCooldown] = useState(0);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!turnstileToken) {
+            toast.error("Please complete the human verification.");
+            return;
+        }
+
+        if (cooldown > 0) {
+            toast.error(`Please wait ${cooldown}s before re-initializing.`);
+            return;
+        }
+
         setIsSubmitting(true);
         try {
-            await v2AuthApi.requestAdminAccess(email);
+            await v2AuthApi.requestAdminAccess(email, turnstileToken);
             setSubmitted(true);
-            toast.success("Security certificate request processed.");
-        } catch (err) {
-            // Even on error, we show success-like generic message to prevent enumeration
-            setSubmitted(true);
-            toast.error("System connection interrupted. Try again later.");
+            toast.success("Security certificate request dispatched.");
+        } catch (err: any) {
+            const data = err.response?.data;
+            const status = err.response?.status;
+
+            if (status === 429 && data?.cooldown) {
+                setCooldown(data.cooldown);
+                toast.error(data.detail || "Burst protection active.");
+            } else if (status === 400 && data?.detail?.includes("Human verification")) {
+                toast.error("Human verification failed. Please try again.");
+                // We stay on the form so they can try again with a fresh widget
+            } else {
+                // For other errors (like email not existing in root), we follow zero-trust
+                // and show the success message to prevent enumeration, unless it's a 
+                // literal connection failure.
+                if (status) {
+                    setSubmitted(true);
+                    toast.success("Security certificate request dispatched.");
+                } else {
+                    toast.error("System connection interrupted. Try again later.");
+                }
+            }
         } finally {
             setIsSubmitting(false);
+            // reset turnstile for NEXT attempt (success or fail)
+            setTurnstileToken(null);
+            setTurnstileKey(prev => prev + 1);
         }
     };
+
+    useEffect(() => {
+        if (cooldown <= 0) return;
+        const timer = setInterval(() => {
+            setCooldown((prev) => Math.max(0, prev - 1));
+        }, 1000);
+        return () => clearInterval(timer);
+    }, [cooldown]);
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-[#050505] text-white font-mono p-4">
@@ -85,15 +149,30 @@ export default function AdminRecovery() {
                                     </div>
                                 </div>
 
+                                <div className="pt-2">
+                                    <TurnstileWidget
+                                        key={turnstileKey}
+                                        siteKey={siteKey}
+                                        onSuccess={handleTurnstileSuccess}
+                                        onExpire={handleTurnstileExpire}
+                                        theme="dark"
+                                    />
+                                </div>
+
                                 <button
                                     type="submit"
-                                    disabled={isSubmitting || !email}
+                                    disabled={isSubmitting || !email || !turnstileToken || cooldown > 0}
                                     className="w-full py-5 bg-white text-black rounded-xl font-black uppercase tracking-widest hover:bg-gray-200 active:scale-[0.98] transition-all disabled:opacity-20 flex items-center justify-center gap-3"
                                 >
                                     {isSubmitting ? (
                                         <>
                                             <Loader2 className="w-5 h-5 animate-spin" />
                                             Encrypting Request...
+                                        </>
+                                    ) : cooldown > 0 ? (
+                                        <>
+                                            <Activity className="w-5 h-5 animate-pulse" />
+                                            Wait {Math.floor(cooldown / 60)}:{(cooldown % 60).toString().padStart(2, '0')}
                                         </>
                                     ) : (
                                         <>

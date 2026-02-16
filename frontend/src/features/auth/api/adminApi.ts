@@ -2,7 +2,6 @@
 import {
   apiClient,
   setAccessToken,
-  setRefreshCookieFromResponse,
 } from "./base";
 
 import type { ApiResponse, AuthResponse } from "./types";
@@ -33,8 +32,6 @@ export const loginAdminOrTeacher = async (
       setAccessToken(data.access);
     }
 
-    setRefreshCookieFromResponse(res);
-
     return data;
   } catch (err: any) {
     const r = err?.response;
@@ -53,9 +50,10 @@ export const loginAdminOrTeacher = async (
 export const verifyAdminOTP = async (
   userId: number,
   otp: string,
-  password?: string
+  password?: string,
+  remember_device?: boolean
 ): Promise<AuthResponse> => {
-  const payload: Record<string, any> = { user_id: userId, otp };
+  const payload: Record<string, any> = { user_id: userId, otp, remember_device };
   if (password) payload.password = password;
 
   const res = await apiClient.post<ApiResponse<AuthResponse>>(
@@ -73,8 +71,6 @@ export const verifyAdminOTP = async (
   if (data.access) {
     setAccessToken(data.access);
   }
-
-  setRefreshCookieFromResponse(res);
 
   return data;
 };
@@ -101,8 +97,6 @@ export const googleExchangeCode = async (
     if (data.access) {
       setAccessToken(data.access);
     }
-
-    setRefreshCookieFromResponse(res);
 
     return data;
   } catch (err: any) {

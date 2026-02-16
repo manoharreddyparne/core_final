@@ -1,7 +1,7 @@
 // ✅ FINAL — SYNCED WITH BACKEND
 // src/features/user/api/userSecurityApi.ts
 
-import { api } from "../../auth/axios";
+import { apiClient as api } from "../../auth/api/base";
 
 /* -----------------------------------------------
    TYPES

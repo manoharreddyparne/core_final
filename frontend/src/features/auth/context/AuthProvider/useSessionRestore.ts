@@ -1,7 +1,7 @@
 // ✅ FINAL — Zero-Trust: Session Restore
 // src/features/auth/context/AuthProvider/useSessionRestore.ts
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 
 import {
   getAccessToken,
@@ -9,7 +9,7 @@ import {
   setAccessToken,
 } from "../../utils/tokenStorage";
 
-import { bootstrapSession } from "../../api/bootstrapApi";
+import { hydratePassport } from "../../api/passportApi";
 import type { User } from "../../api/types";
 
 /**
@@ -47,16 +47,21 @@ export const useSessionRestore = () => {
   const restoreSession = useCallback(async (): Promise<User | null> => {
     const existing = getAccessToken();
 
-    // ✅ no memory token → nothing to do
+    // If no RAM token, check if Shield cookies still exist via signal cookie.
+    // If Shield is present → Passport can re-issue a fresh access token.
     if (!existing) {
-      return null;
+      const { getCookie } = await import("../../utils/cookieUtils");
+      const shieldPresent = getCookie("auip_logged_in");
+      if (!shieldPresent) return null; // Truly logged out — no Shield cookies
+      // Shield cookies present but RAM token lost (reload/tab close/offline)
+      // → fall through to Passport re-hydration below
     }
 
     setRestoring(true);
     setError(null);
 
     try {
-      const res = await bootstrapSession();
+      const res = await hydratePassport();
 
       // ✅ Valid session — backend grants new access + user
       if (res?.access) {
@@ -82,6 +87,27 @@ export const useSessionRestore = () => {
       setRestoring(false);
     }
   }, []);
+
+  /**
+   * 🛡️ Proactive Resilience
+   * --------------------------------------------------
+   * Trigger re-sync on window focus or network back-online.
+   */
+  useEffect(() => {
+    const handleEvents = () => {
+      if (document.visibilityState === "visible") {
+        console.debug("🔄 [SessionRestore] Proactive re-sync triggered (Focus/Online)");
+        restoreSession();
+      }
+    };
+
+    window.addEventListener("focus", handleEvents);
+    window.addEventListener("online", handleEvents);
+    return () => {
+      window.removeEventListener("focus", handleEvents);
+      window.removeEventListener("online", handleEvents);
+    };
+  }, [restoreSession]);
 
   return {
     restoring,

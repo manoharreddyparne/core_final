@@ -2,7 +2,7 @@
 // src/features/auth/context/AuthProvider/useSecureAccount.ts
 
 import { useCallback, useState } from "react";
-import { bootstrapSession } from "../../api/bootstrapApi";
+import { hydratePassport } from "../../api/passportApi";
 import { setAccessToken, clearAccessToken } from "../../utils/tokenStorage";
 
 import type { User, SecureDeviceResponse } from "../../api/types";
@@ -50,7 +50,7 @@ export const useSecureAccount = (setUser: (u: User | null) => void) => {
       setAccessToken(rotated.access);
 
       // 3) 🔄 bootstrap new user session
-      const boot = await bootstrapSession();
+      const boot = await hydratePassport();
 
       if (!boot?.user) {
         // backend rotated but user missing = stale = kill

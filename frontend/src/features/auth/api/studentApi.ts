@@ -1,10 +1,7 @@
-// ✅ src/features/auth/api/studentApi.ts
 import {
   apiClient,
   setAccessToken,
-  setRefreshCookieFromResponse,
   clearAccessToken,
-  clearRefreshTokenCookies,
 } from "./base";
 
 import type { ApiResponse, AuthResponse } from "./types";
@@ -35,7 +32,6 @@ export const loginUser = async (
       setAccessToken(data.access);
     }
 
-    setRefreshCookieFromResponse(res);
 
     return data;
   } catch (err: any) {
@@ -95,7 +91,6 @@ export const verifyStudentOTP = async (
     if (data.access) {
       setAccessToken(data.access);
     }
-    setRefreshCookieFromResponse(res);
 
     return data;
   } catch (err: any) {
@@ -117,6 +112,5 @@ export const logoutUser = async (): Promise<void> => {
     // Soft fail: FE will still wipe tokens regardless
   } finally {
     clearAccessToken();
-    clearRefreshTokenCookies();
   }
 };

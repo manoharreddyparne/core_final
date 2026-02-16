@@ -1,7 +1,7 @@
 // ✅ FINAL — FULL + SAFE
 // src/features/user/api/userApi.ts
 
-import { api } from "../../auth/axios";
+import { apiClient as api } from "../../auth/api/base";
 
 /* -----------------------------------------------
    TYPES

@@ -2,17 +2,15 @@
 // src/features/auth/context/AuthProvider/useSessionSocket.ts
 
 import { useEffect, useRef, useCallback, useState } from "react";
-import axios from "axios";
+import { apiClient } from "../../api/base"; // ✅ Use apiClient
 
 import {
   getAccessToken,
-  clearAccessToken,
   setAccessToken,
 } from "../../utils/tokenStorage";
 
-import { bootstrapSession } from "../../api/bootstrapApi";
+import { hydratePassport } from "../../api/passportApi";
 import type { User, Session } from "../../api/types";
-import { API_BASE_URL } from "../../api/base";
 
 export type SessionEvent =
   | "force_logout"
@@ -47,10 +45,8 @@ export const useSessionSocket = (user: User | null, isReady: boolean = true) => 
     if (!user || !isReady) return;
     try {
       setLoading(true);
-      const token = getAccessToken();
-      const res = await axios.get(`${API_BASE_URL}sessions/`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      // ✅ Use apiClient - assumes 'api/users/' is base
+      const res = await apiClient.get("sessions/");
       setSessions(res.data.data || []);
     } catch (err) {
       console.error("[Sessions] Failed to load", err);
@@ -59,23 +55,16 @@ export const useSessionSocket = (user: User | null, isReady: boolean = true) => 
     }
   }, [user, isReady]);
 
-  // ... (logoutOneSession and logoutAllSessions remain same) ...
-
   const logoutOneSession = useCallback(async (id: number) => {
-    const token = getAccessToken();
-    await axios.delete(`${API_BASE_URL}sessions/${id}/logout/`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    // ✅ Use apiClient
+    await apiClient.delete(`sessions/${id}/logout/`);
     // Optimistic update
     setSessions((prev) => prev.filter((s) => s.id !== id));
   }, []);
 
   const logoutAllSessions = useCallback(async (excludeCurrent: boolean = false) => {
-    const token = getAccessToken();
-    const url = `${API_BASE_URL}sessions/logout-all/${excludeCurrent ? "?exclude_current=true" : ""}`;
-    await axios.delete(url, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const url = `sessions/logout-all/${excludeCurrent ? "?exclude_current=true" : ""}`;
+    await apiClient.delete(url);
     if (!excludeCurrent) {
       setSessions([]);
     } else {
@@ -134,7 +123,7 @@ export const useSessionSocket = (user: User | null, isReady: boolean = true) => 
         case "rotate":
         case "new_session": {
           // 🔁 Re-bootstrap + Refresh List
-          await bootstrapSession().then((res) => {
+          await hydratePassport().then((res) => {
             if (res?.access) setAccessToken(res.access);
           });
           loadSessions();
@@ -154,10 +143,20 @@ export const useSessionSocket = (user: User | null, isReady: boolean = true) => 
 
           // Dispatch event to trigger modal
           const customEvent = new CustomEvent('force_logout', {
-            detail: { sessionId, jti }
+            detail: { sessionId, jti, reason: data?.reason }
           });
           window.dispatchEvent(customEvent);
-          console.log("[WS] ✅ Dispatched 'force_logout' event to window");
+          console.log("[WS] ✅ Dispatched 'force_logout' event to window | reason:", data?.reason);
+          break;
+        }
+
+        case "institution_update": {
+          console.log("[WS] 🏢 Institution Update Received!", data.data);
+          // Dispatch global event so InstitutionAdmin.tsx can refresh
+          const customEvent = new CustomEvent('institution-updated', {
+            detail: data.data
+          });
+          window.dispatchEvent(customEvent);
           break;
         }
 

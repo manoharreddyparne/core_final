@@ -2,7 +2,6 @@
 import {
   apiClient,
   setAccessToken,
-  setRefreshCookieFromResponse,
 } from "./base";
 
 import type { ApiResponse, AuthResponse } from "./types";
@@ -31,8 +30,6 @@ export const googleLogin = async (authCode: string): Promise<AuthResponse> => {
       setAccessToken(data.access);
     }
 
-    // 🍪 refresh token
-    setRefreshCookieFromResponse(res);
 
     return data;
   } catch (err: any) {

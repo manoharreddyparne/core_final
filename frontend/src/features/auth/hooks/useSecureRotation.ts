@@ -4,7 +4,7 @@
 import { useState, useCallback } from "react";
 
 import { rotateTokensSecure } from "../api/secureDeviceApi";
-import { bootstrapSession } from "../api/bootstrapApi";
+import { hydratePassport } from "../api/passportApi";
 
 import {
   getAccessToken,
@@ -66,7 +66,7 @@ export const useSecureRotation = () => {
       setLastSecured(Date.now());
 
       // (3) Refresh session + user state
-      const boot = await bootstrapSession();
+      const boot = await hydratePassport();
       if (!boot?.user) {
         throw new Error("Rotation succeeded but bootstrap had no user");
       }

@@ -35,6 +35,8 @@ export const useLogoutHandler = (setUser: (user: User | null) => void) => {
    */
   const clearFrontendTokens = useCallback(() => {
     clearAccessToken();
+    // Aggressively clear JS-visible markers
+    document.cookie = "auip_logged_in=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;";
   }, []);
 
   /**
@@ -56,7 +58,7 @@ export const useLogoutHandler = (setUser: (user: User | null) => void) => {
       }
 
       if (!skipNavigate) {
-        navigate("/login", { replace: true });
+        navigate("/", { replace: true });
       }
     },
     [navigate, clearFrontendTokens, setUser]

@@ -11,34 +11,47 @@ import { AlertCircle } from "lucide-react";
 interface ForcedLogoutModalProps {
     open: boolean;
     countdown: number;
+    reason?: string;
 }
 
-export const ForcedLogoutModal = ({ open, countdown }: ForcedLogoutModalProps) => {
+export const ForcedLogoutModal = ({ open, countdown, reason }: ForcedLogoutModalProps) => {
+    const getMessage = () => {
+        if (reason === "terminated_by_other_device") {
+            return "Logout was performed by another device. This session is being terminated.";
+        }
+        if (reason === "terminated_by_admin") {
+            return "Your session was terminated by an administrator.";
+        }
+        return "Your session has been terminated.";
+    };
+
     return (
         <Dialog open={open} onOpenChange={() => { }}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-md bg-white border-2 border-red-500 shadow-2xl rounded-[32px]">
                 <DialogHeader>
-                    <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
-                            <AlertCircle className="w-6 h-6 text-red-600" />
+                    <div className="flex flex-col items-center gap-4 text-center">
+                        <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center animate-pulse">
+                            <AlertCircle className="w-8 h-8 text-red-600" />
                         </div>
                         <div>
-                            <DialogTitle className="text-xl">Session Terminated</DialogTitle>
-                            <DialogDescription className="mt-1">
-                                Your session was ended from another device
+                            <DialogTitle className="text-2xl font-black text-red-600 uppercase tracking-tighter">
+                                Access Terminated
+                            </DialogTitle>
+                            <DialogDescription className="mt-2 text-gray-600 font-medium">
+                                {getMessage()}
                             </DialogDescription>
                         </div>
                     </div>
                 </DialogHeader>
 
-                <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                    <p className="text-sm text-gray-600 text-center">
-                        You will be logged out in <span className="font-bold text-red-600">{countdown}</span> seconds
+                <div className="mt-6 p-6 bg-red-50 rounded-3xl border border-red-100">
+                    <p className="text-lg font-bold text-red-700 text-center">
+                        Logging you out in <span className="text-3xl font-black">{countdown}</span> seconds
                     </p>
                 </div>
 
-                <div className="mt-2 text-xs text-gray-500 text-center">
-                    This action was triggered by logging out from another device.
+                <div className="mt-4 text-[10px] text-gray-400 text-center uppercase tracking-widest font-bold">
+                    Security Protocol Active • Real-time Session Sync
                 </div>
             </DialogContent>
         </Dialog>

@@ -12,12 +12,11 @@ import {
 =========================== */
 import { useAuthInit } from "../../hooks/useAuthInit";
 import { useTokenDecode } from "../../hooks/useTokenDecode";
-
-/* ===========================
-   LOGIN / LOGOUT
-=========================== */
+import { getCookie } from "../../utils/cookieUtils";
 import { useLoginHandler } from "../../hooks/useLoginHandler";
 import { useLogoutHandler } from "../../hooks/useLogoutHandler";
+import { useSessionHydration } from "./useSessionHydration";
+import { useSilentRefresh } from "../../hooks/useSilentRefresh";
 
 /* ===========================
    SECURE
@@ -29,7 +28,6 @@ import { useSecureAccount } from "./useSecureAccount";
 /* ===========================
    SESSION MGMT
 =========================== */
-import { useSessionBootstrap } from "./useSessionBootstrap";
 import { useSessionRestore } from "./useSessionRestore";
 import { useSessionSocket } from "./useSessionSocket";
 
@@ -66,10 +64,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const tokenTools = useTokenDecode();
 
   /* -------------------------------------------------
-    3) bootstrap session
+    3) hydrate session (passport)
   -------------------------------------------------- */
-  const sessionBootstrap = useSessionBootstrap();
-  const { user: bootUser } = sessionBootstrap;
+  const sessionHydration = useSessionHydration();
+  const { user: bootUser } = sessionHydration;
 
   useEffect(() => {
     if (bootUser) setUser(bootUser);
@@ -80,10 +78,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   -------------------------------------------------- */
   const sessionRestore = useSessionRestore();
 
+  useEffect(() => {
+    if (sessionRestore.restoredUser) {
+      setUser(sessionRestore.restoredUser);
+    }
+  }, [sessionRestore.restoredUser, setUser]);
+
   /* -------------------------------------------------
     5) websocket session presence
   -------------------------------------------------- */
-  const sessionSocket = useSessionSocket(user, sessionBootstrap.bootstrapped);
+  const sessionSocket = useSessionSocket(user, sessionHydration.hydrated);
 
   /* -------------------------------------------------
     6) login per-role
@@ -98,6 +102,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     7) logout
   -------------------------------------------------- */
   const logoutTools = useLogoutHandler(setUser);
+  const { logout } = logoutTools;
 
   /* -------------------------------------------------
     8) secure ops
@@ -110,6 +115,38 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     9) password ops
   -------------------------------------------------- */
   const passwordTools = usePasswordHandler(setUser);
+
+  /* -------------------------------------------------
+    10) proactive refresh (silent)
+  -------------------------------------------------- */
+  useSilentRefresh();
+
+  /* -------------------------------------------------
+    AQOUS Shield Guard (Event-Driven)
+    ─────────────────────────────────
+    The `auip_logged_in` cookie is a JS-visible signal
+    indicating the HttpOnly Shield cookies exist.
+    If it disappears → server cleared the session → logout.
+    Triggered on focus/online only — no wasteful polling.
+  -------------------------------------------------- */
+  useEffect(() => {
+    const guardShield = () => {
+      if (user && !sessionHydration.hydrating) {
+        const shieldPresent = getCookie("auip_logged_in");
+        if (shieldPresent !== "true") {
+          console.warn("[AUTH] 🛡️ AQOUS Shield signal lost. Server-side invalidation detected.");
+          logout();
+        }
+      }
+    };
+
+    window.addEventListener('focus', guardShield);
+    window.addEventListener('online', guardShield);
+    return () => {
+      window.removeEventListener('focus', guardShield);
+      window.removeEventListener('online', guardShield);
+    };
+  }, [user, sessionHydration.hydrating, logout]);
 
   /* -------------------------------------------------
     FINAL CONTEXT VALUE
@@ -139,8 +176,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       ...prune(secureAccount),
 
       /* -------- session mgmt -------- */
-      ...prune(sessionBootstrap),
+      ...prune(sessionHydration),
       ...prune(sessionRestore),
+      // Backwards compatibility aliases
+      bootstrapping: sessionHydration.hydrating,
+      bootstrapped: sessionHydration.hydrated,
       ...prune(sessionSocket),
 
       /* -------- password ops -------- */
@@ -157,7 +197,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     secureRotation,
     secureCooldown,
     secureAccount,
-    sessionBootstrap,
+    sessionHydration,
     sessionRestore,
     sessionSocket,
     passwordTools,
