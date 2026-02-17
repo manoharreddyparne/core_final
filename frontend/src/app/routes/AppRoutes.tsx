@@ -9,6 +9,8 @@ import SuperAdminLogin from "../../features/auth/pages/SuperAdminLogin";
 import StudentRegistration from "../../features/auth/pages/StudentRegistration";
 import Dashboard from "../../features/dashboard/pages/Dashboard";
 import ActivatePage from "../../features/auth/pages/Activate";
+import InstAdminLogin from "../../features/auth/pages/InstAdminLogin";
+import InstAdminActivate from "../../features/auth/pages/InstAdminActivate";
 import AdminRecovery from "../../features/auth/pages/AdminRecovery";
 import { PageNotFound } from "../../components/PageNotFound";
 import CoreStudentAdmin from "../../features/dashboard/pages/CoreStudentAdmin";
@@ -101,6 +103,35 @@ export const AppRoutes = () => {
         element={
           <PublicRoute>
             <AdminRecovery />
+          </PublicRoute>
+        }
+      />
+
+      {/* ─── INSTITUTIONAL ADMIN ─── */}
+      <Route
+        path="/auth/inst-admin/login"
+        element={
+          <PublicRoute>
+            <InstAdminLogin />
+          </PublicRoute>
+        }
+      />
+
+      <Route
+        path="/auth/inst-admin/activate"
+        element={
+          <PublicRoute>
+            <InstAdminActivate />
+          </PublicRoute>
+        }
+      />
+
+      {/* ─── ACTIVATION (General) ─── */}
+      <Route
+        path="/auth/activate"
+        element={
+          <PublicRoute>
+            <ActivatePage />
           </PublicRoute>
         }
       />

@@ -153,5 +153,14 @@ export const v2AuthApi = {
     registerInstitution: async (data: any): Promise<ApiResponse<{ slug: string }>> => {
         const res = await apiClient.post<ApiResponse<{ slug: string }>>("public/register/", data);
         return res.data;
+    },
+
+    /**
+     * Institutional Admin: Activate account via signed activation token.
+     * Sets password + auto-login + auto-trust device.
+     */
+    instAdminActivate: async (data: ActivationPayload): Promise<ApiResponse<AuthResponse>> => {
+        const res = await apiClient.post<ApiResponse<AuthResponse>>("auth/v2/inst-admin/activate/", data);
+        return res.data;
     }
 };
