@@ -1,205 +1,237 @@
 # AUIP Platform — Registration & Onboarding Lifecycle
 
-This document covers the complete lifecycle from institution registration through student activation. It references the design philosophy from `project_document.txt` and the actual implementation.
+This document covers the full lifecycle from **institutional registration** through **student identity provisioning** to **account activation**.
 
 ---
 
-## 1. Core Philosophy
+## 1. Overview: The Two-Phase Identity Model
 
-> **Seeding ≠ Invitation ≠ Verification ≠ Activation ≠ Login**
+AUIP's identity model is fundamentally different from typical platforms. There is no "Sign Up" button for students. Identity flows through two controlled phases:
 
-These are five distinct states in AUIP. In traditional systems, registration immediately creates an account and allocates resources. AUIP delays resource allocation until the student proves intent by activating their account.
+```mermaid
+graph LR
+    subgraph "Phase 1: Institution Onboarding"
+        A["University Registers"] --> B["Super Admin Reviews"]
+        B --> C["Approval → Schema Created"]
+    end
+    subgraph "Phase 2: Student Identity"
+        D["Admin Seeds Students<br/>(CSV Upload)"] --> E["Invitation Sent<br/>(Signed Token)"]
+        E --> F["Student Activates<br/>(Sets Password)"]
+    end
+    C --> D
+```
 
 ---
 
 ## 2. Institution Registration & Approval
 
-### 2a. Public Registration (Anyone Can Apply)
+### 2a. Public Registration (Turnstile-Protected)
+
+When a university representative visits the registration page:
 
 ```mermaid
 sequenceDiagram
-    participant IA as Institution Admin
-    participant FE as Frontend
+    participant REP as University Rep
+    participant FE as Frontend (RegisterUniversity.tsx)
     participant CF as Cloudflare Turnstile
+    participant BE as Backend (InstitutionRegistrationView)
+    participant PG as PostgreSQL
+    participant WS as WebSocket
+
+    REP->>FE: Fill registration form (name, domain, admin name, email, phone)
+    FE->>CF: Render Turnstile challenge
+    CF-->>FE: Turnstile token
+    FE->>BE: POST /api/users/public/register/ (data + turnstile token)
+    BE->>CF: Verify Turnstile token
+    BE->>PG: Check for name/domain conflicts
+    BE->>PG: INSERT Institution (status=PENDING)
+    BE->>WS: Signal → institution_update (type=registration) → superadmin_updates group
+    WS-->>SA: Real-time notification on Super Admin dashboard
+    BE-->>FE: 201 Created + success message
+```
+
+**Registration data stored in the `Institution` model:**
+
+| Field | Example |
+|-------|---------|
+| `name` | "MIT Pune" |
+| `domain` | "mitpune.edu.in" |
+| `slug` | "mit-pune" |
+| `status` | "PENDING" |
+| `registration_data` (JSON) | Admin name, email, phone, designation |
+| `schema_name` | NULL (until approved) |
+
+### 2b. Super Admin Review & Approval
+
+The Super Admin dashboard (`InstitutionAdmin.tsx`) shows all institutions with their status:
+
+```mermaid
+stateDiagram-v2
+    [*] --> PENDING: Institution registers
+    PENDING --> APPROVED: Super Admin approves
+    PENDING --> REJECTED: Super Admin rejects
+    REJECTED --> PENDING: Re-application
+    APPROVED --> SUSPENDED: Violation/deactivation
+    SUSPENDED --> APPROVED: Reinstatement
+```
+
+**On Approval:**
+
+1. `create_institution_schema(institution)` is called
+2. PostgreSQL: `CREATE SCHEMA inst_<slug>`
+3. Django-tenants runs all `TENANT_APPS` migrations in the new schema
+4. `Client` and `Domain` records are created
+5. `Institution.schema_name` is updated
+6. WebSocket broadcasts the status change to all connected Super Admins
+
+---
+
+## 3. Student Identity Lifecycle
+
+Students go through a 4-state lifecycle within their institution's tenant schema:
+
+```mermaid
+stateDiagram-v2
+    [*] --> SEEDED: Admin uploads CSV
+    SEEDED --> INVITED: Admin sends activation email
+    INVITED --> VERIFIED: Student clicks link + verifies OTP
+    VERIFIED --> ACTIVE: Student sets password + account created
+    ACTIVE --> INACTIVE: Admin deactivates
+    INACTIVE --> ACTIVE: Admin reactivates
+```
+
+### 3a. Seeding (CSV Upload)
+
+The Admin/SPOC uploads a CSV file containing student records:
+
+| CSV Column | Maps To | Required |
+|------------|---------|----------|
+| stu_ref | `PreSeededRegistry.stu_ref` | ✅ |
+| roll_number | `PreSeededRegistry.roll_number` | ✅ |
+| full_name | `PreSeededRegistry.full_name` | ✅ |
+| department | `PreSeededRegistry.department` | ✅ |
+| email | `PreSeededRegistry.email` | ✅ |
+| batch_year | `PreSeededRegistry.batch_year` | ✅ |
+| cgpa | `PreSeededRegistry.cgpa` | ❌ |
+| tenth_percent | `PreSeededRegistry.tenth_percent` | ❌ |
+| twelfth_percent | `PreSeededRegistry.twelfth_percent` | ❌ |
+
+Each record is created with `status = SEEDED`. No `User` account, no `LoginSession`, no resources allocated.
+
+### 3b. Activation Invitation
+
+When the Admin selects students and sends invitations:
+
+1. System generates a **signed activation token** using Django's `TimestampSigner`:
+
+```python
+# activation.py
+signer = TimestampSigner(salt="activation-salt")
+
+def generate_activation_token(institution_id, identifier, role):
+    data = f"{institution_id}:{identifier}:{role}"
+    return signer.sign(data)
+```
+
+2. The token encodes: `institution_id:stu_ref:role`
+3. An email is sent with the activation URL: `{FRONTEND_URL}/auth/activate?token=<signed_token>`
+4. Student status: `SEEDED → INVITED`
+5. Token is time-limited (default: 24 hours)
+
+### 3c. Student Activation
+
+When the student clicks the activation link:
+
+```mermaid
+sequenceDiagram
+    participant ST as Student
+    participant FE as Frontend (Activate.tsx)
     participant BE as Backend
     participant PG as PostgreSQL
 
-    IA->>FE: Open /register-university
-    FE->>FE: Render form (name, domain, email, student count, etc.)
-    IA->>FE: Fill form + Solve Turnstile challenge
-    FE->>BE: POST /api/users/public/register/
-    BE->>CF: Verify Turnstile token
-    CF-->>BE: ✅ Valid
-    BE->>PG: Check for name/domain conflicts
-    BE->>PG: INSERT INTO identity_institution (status='PENDING')
-    BE-->>FE: ✅ "Application submitted"
+    ST->>FE: Click activation link (?token=xyz)
+    FE->>BE: POST /auth/activate/validate-token/
+    BE->>BE: TimestampSigner.unsign(token, max_age=86400)
+    BE-->>FE: Token valid → institution name, student name (read-only)
+    ST->>FE: Set password (strength validated)
+    FE->>BE: POST /auth/activate/complete/
+    BE->>PG: Create User in public schema (email, role=STUDENT)
+    BE->>PG: Link User.core_student → PreSeededRegistry.stu_ref
+    BE->>PG: Update PreSeededRegistry.status = ACTIVE
+    BE->>BE: handle_login() → JWT + Quantum Shield
+    BE-->>FE: Redirect to dashboard
 ```
 
-#### What Gets Stored
+### Why This Design?
 
-The `Institution` model stores:
+| Design Choice | Rationale |
+|---------------|-----------|
+| **No self-registration** | Prevents phantom accounts. Institution controls who can join. |
+| **Pre-seeded identity** | `STU_REF` is the canonical identifier, set by the institution. |
+| **Resources allocated post-activation only** | `User`, `LoginSession`, Quantum Shield cookies — all created only when a student actually activates. |
+| **Signed tokens** | Django `TimestampSigner` provides cryptographic integrity + time-based expiry. No random tokens stored in the DB. |
 
-| Field | Example Value | Purpose |
-|-------|---------------|---------|
-| `name` | "MIT" | Display name |
-| `slug` | "mit" | URL-safe identifier |
-| `domain` | "mit.edu" | Email domain for validation |
-| `contact_email` | "admin@mit.edu" | Primary contact |
-| `student_count_estimate` | 5000 | For capacity planning |
-| `registration_data` | `{...}` (JSON) | Full application data |
-| `status` | `PENDING` | Lifecycle state |
-| `schema_name` | `null` (until approved) | PostgreSQL schema reference |
+---
 
-**Frontend:** [RegisterUniversity.tsx](file:///c:/Manohar/AUIP/AUIP-Platform/frontend/src/features/auth/pages/RegisterUniversity.tsx)
-**Backend:** [registration.py](file:///c:/Manohar/AUIP/AUIP-Platform/backend/apps/identity/views/public/registration.py)
+## 4. OTP Flows for Account Operations
 
-### 2b. Institution Lifecycle States
+Two OTP paths are implemented:
+
+### User-Based OTP (Existing Users)
+
+Used for Super Admin login MFA and student login:
+
+```python
+# send_otp_secure(user)
+otp = generate_otp()  # 6-digit via secrets.randbelow()
+key = make_cache_key("otp", str(user.id), ip="SEC_GATE")
+cache_set(key, hash_token_secure(otp), timeout=OTP_TTL_SECONDS)
+send_otp_to_user(user, otp)
+```
+
+### Identifier-Based OTP (Pre-Activation)
+
+Used when a student hasn't activated yet and there's no `User` object:
+
+```python
+# send_otp_to_identifier(identifier, email)
+otp = generate_otp()
+key = make_cache_key("otp", str(identifier), ip="SEC_GATE")
+cache_set(key, hash_token_secure(otp), timeout=OTP_TTL_SECONDS)
+send_mail("Your Verification Code", f"Code: {otp}", settings.DEFAULT_FROM_EMAIL, [email])
+```
+
+Both paths:
+- Store OTPs as **HMAC hashes** in Redis (never plaintext)
+- Delete cache entry after successful verification (single-use)
+- Log OTP values in debug mode only
+
+---
+
+## 5. Password Reset Flow
 
 ```mermaid
-stateDiagram-v2
-    [*] --> PENDING: Public Registration
-    PENDING --> REVIEW: Super Admin reviews
-    PENDING --> APPROVED: Super Admin approves
-    PENDING --> REJECTED: Super Admin rejects
-    PENDING --> MORE_INFO: Super Admin requests details
-    REVIEW --> APPROVED: After review
-    REVIEW --> REJECTED: After review
-    MORE_INFO --> PENDING: Institution resubmits
-    APPROVED --> [*]: Schema created, institution active
-    REJECTED --> [*]: Access denied
+sequenceDiagram
+    participant U as User
+    participant FE as Frontend
+    participant BE as Backend
+    participant PG as PostgreSQL
+
+    U->>FE: Click "Forgot Password"
+    FE->>BE: POST /auth/password/reset/
+    BE->>PG: Create PasswordResetRequest (token_hash, single_use, expires_at)
+    BE->>PG: Invalidate all previous reset tokens for this user
+    BE->>SMTP: Send reset email with link
+    U->>FE: Click reset link
+    FE->>BE: POST /auth/password/reset/confirm/ (token + new password)
+    BE->>PG: Verify token hash, check expiry, check not used
+    BE->>PG: Update password → mark token as used
+    BE-->>FE: Success → redirect to login
 ```
 
-### 2c. Super Admin Approval Flow
-
-When a Super Admin clicks "Approve" in the Institution Hub:
-
-1. Backend validates the institution record.
-2. A schema name is generated: `inst_` + slugified institution name.
-3. `create_institution_schema()` creates a new PostgreSQL schema.
-4. `django-tenants` runs all tenant app migrations into the new schema.
-5. The institution's `status` is updated to `APPROVED`.
-6. The institution's `schema_name` is saved.
-
-**Frontend:** [InstitutionAdmin.tsx](file:///c:/Manohar/AUIP/AUIP-Platform/frontend/src/features/dashboard/pages/InstitutionAdmin.tsx)
-**Backend:** [institution_views.py](file:///c:/Manohar/AUIP/AUIP-Platform/backend/apps/identity/views/admin/institution_views.py)
-
----
-
-## 3. Student Onboarding (Designed, Partially Implemented)
-
-> [!IMPORTANT]
-> The student lifecycle described below is the **designed** flow based on `project_document.txt` and `authentication-architecture.md`. The backend models (`CoreStudent`, `RegistrationInvitation`) are implemented, but the complete end-to-end bulk seeding and activation workflow is still being wired up in Sprint 2.
-
-### 3a. Identity State Machine
-
-```mermaid
-stateDiagram-v2
-    [*] --> SEEDED: Admin bulk uploads student data
-    SEEDED --> INVITED: System sends activation email
-    INVITED --> VERIFIED: Student clicks activation link
-    VERIFIED --> ACTIVE: Student sets password / OTP verified
-    ACTIVE --> SUSPENDED: Admin suspends
-    SUSPENDED --> ACTIVE: Admin reactivates
-```
-
-### 3b. Step-by-Step Flow
-
-#### Step 1: Pre-Seeding (Institution Admin)
-
-The institutional admin uploads student data via CSV/Excel. For each valid entry, the system creates a `CoreStudent` record:
-
-```
-STU_REF:            STU_2025_0142
-Email:              abc@college.edu
-Identity State:     SEEDED
-Registration Status: NOT_REGISTERED
-```
-
-**No user account is created.** No resources are allocated. Seeding only establishes an institution-recognized identity.
-
-**Model:** [core_models.py](file:///c:/Manohar/AUIP/AUIP-Platform/backend/apps/identity/models/core_models.py) → `CoreStudent`
-
-#### Step 2: Invitation (Automated)
-
-After seeding, the system sends activation emails to each seeded student. A `RegistrationInvitation` record is created with:
-- A unique, cryptographically secure activation token.
-- An expiry time (7 days).
-- Status tracking (`PENDING` → `ACTIVATED` → `EXPIRED`).
-
-**Model:** [invitation.py](file:///c:/Manohar/AUIP/AUIP-Platform/backend/apps/identity/models/invitation.py) → `RegistrationInvitation`
-
-#### Step 3: Identity Confirmation (Student)
-
-The student clicks the activation link or enters their institutional email on the portal. The system checks:
-- Does the email map to a `CoreStudent.stu_ref`?
-- If NO → "No account found. Contact your institution."
-- If YES → Proceed to activation.
-
-#### Step 4: Verification & Activation
-
-The student verifies via OTP or secure link. Upon success:
-1. A `User` record is created in `auth_users`.
-2. A `StudentProfile` record is created and linked to the `CoreStudent`.
-3. `CoreStudent.status` transitions to `ACTIVE`.
-4. Dashboard and services are provisioned.
-
-**Service:** [activation_service.py](file:///c:/Manohar/AUIP/AUIP-Platform/backend/apps/identity/services/activation_service.py)
-
-#### Step 5: Login (Post-Activation)
-
-Activated students log in via **OTP-based passwordless auth**:
-1. Enter email → System resolves to `STU_REF`.
-2. OTP sent to email.
-3. OTP verified → JWT issued → Dashboard access.
-
----
-
-## 4. The `CoreStudent` Model
-
-This is the institution-controlled student record. Students **cannot modify** this data — it is the authoritative source of truth for academic information.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `stu_ref` | CharField (PK) | System-generated reference (e.g., "2021-CS-001") |
-| `roll_number` | CharField (unique) | Institution roll number |
-| `full_name` | CharField | Student's full name |
-| `department` | CharField | Department/branch |
-| `batch_year` | IntegerField | Year of admission |
-| `official_email` | EmailField (unique) | Institution email |
-| `cgpa` | DecimalField | Current CGPA |
-| `tenth_percentage` | DecimalField | 10th grade percentage |
-| `twelfth_percentage` | DecimalField | 12th grade percentage |
-| `current_semester` | IntegerField | Current semester number |
-| `attendance_percentage` | DecimalField | Attendance percentage |
-| `status` | CharField | `SEEDED` / `INVITED` / `VERIFIED` / `ACTIVE` / `SUSPENDED` |
-| `institution` | ForeignKey | Link to the `Institution` model |
-| `is_eligible_for_placement` | BooleanField | Placement eligibility flag |
-
----
-
-## 5. Why This Design Matters
-
-| Old Way | AUIP Way |
-|---------|----------|
-| Student registers → account created immediately | Student invited → activates only if interested |
-| Resources wasted on 1000 accounts, 300 active | Resources allocated only for 300 active students |
-| Email = identity (fragile) | STU_REF = identity (institution-owned, stable) |
-| Admin has no visibility into dormant accounts | Admin dashboard shows `SEEDED` vs `ACTIVE` vs `INACTIVE` |
-| No institutional control over registration | Only institution-approved identities can register |
-
----
-
-## 6. Files Summary
-
-| File | Purpose |
-|------|---------|
-| [core_models.py](file:///c:/Manohar/AUIP/AUIP-Platform/backend/apps/identity/models/core_models.py) | `CoreStudent`, `User`, `StudentProfile`, `TeacherProfile` |
-| [institution.py](file:///c:/Manohar/AUIP/AUIP-Platform/backend/apps/identity/models/institution.py) | `Institution`, `InstitutionAdmin` |
-| [invitation.py](file:///c:/Manohar/AUIP/AUIP-Platform/backend/apps/identity/models/invitation.py) | `RegistrationInvitation` |
-| [registration.py](file:///c:/Manohar/AUIP/AUIP-Platform/backend/apps/identity/views/public/registration.py) | Public institution registration endpoint |
-| [institution_views.py](file:///c:/Manohar/AUIP/AUIP-Platform/backend/apps/identity/views/admin/institution_views.py) | Approve/reject/review institution |
-| [activation_service.py](file:///c:/Manohar/AUIP/AUIP-Platform/backend/apps/identity/services/activation_service.py) | Student account activation logic |
-| [multitenancy.py](file:///c:/Manohar/AUIP/AUIP-Platform/backend/apps/identity/utils/multitenancy.py) | Schema creation on approval |
-| [RegisterUniversity.tsx](file:///c:/Manohar/AUIP/AUIP-Platform/frontend/src/features/auth/pages/RegisterUniversity.tsx) | Public registration form |
-| [InstitutionAdmin.tsx](file:///c:/Manohar/AUIP/AUIP-Platform/frontend/src/features/dashboard/pages/InstitutionAdmin.tsx) | Super Admin institution management |
-| [CoreStudentAdmin.tsx](file:///c:/Manohar/AUIP/AUIP-Platform/frontend/src/features/dashboard/pages/CoreStudentAdmin.tsx) | Student data management UI |
+Key security properties:
+- Token is hashed using `hash_token_secure()` before storage
+- New request **invalidates all existing tokens** for the user
+- Tokens expire after configurable TTL (default 24 hours)
+- Used tokens are marked → cannot be reused
+- "Expired Link" page shown if token is invalid/used

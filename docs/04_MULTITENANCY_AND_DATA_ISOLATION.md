@@ -1,167 +1,226 @@
 # AUIP Platform — Multi-Tenancy & Data Isolation
 
-This document explains how AUIP isolates data between institutions at the database level.
+This document explains how the AUIP platform isolates data between institutions using PostgreSQL schema-based multi-tenancy.
 
 ---
 
-## 1. The Problem
+## 1. Architecture: One Schema Per Institution
 
-AUIP is designed to serve **multiple universities** on a single deployment. Without isolation, Institution A could accidentally (or maliciously) access Institution B's student data. Traditional approaches like row-level filtering (`WHERE institution_id = X`) are fragile and error-prone.
+AUIP uses **PostgreSQL schema isolation** via the [django-tenants](https://django-tenants.readthedocs.io/) library. When an institution is approved, a dedicated PostgreSQL schema is created for it. All institution-scoped data lives exclusively within that schema.
 
----
+```mermaid
+graph TB
+    subgraph "PostgreSQL Database"
+        subgraph "public schema"
+            U["User"]
+            I["Institution"]
+            LS["LoginSession"]
+            BAT["BlacklistedAccessToken"]
+            RD["RememberedDevice"]
+            PRC["PasswordResetRequest"]
+        end
+        subgraph "inst_mit schema"
+            CS1["CoreStudent"]
+            PSR1["PreSeededRegistry"]
+            RI1["RegistrationInvitation"]
+        end
+        subgraph "inst_iit_delhi schema"
+            CS2["CoreStudent"]
+            PSR2["PreSeededRegistry"]
+            RI2["RegistrationInvitation"]
+        end
+    end
+```
 
-## 2. The Solution — PostgreSQL Schema Isolation
+### Schema Naming Convention
 
-AUIP uses **PostgreSQL schemas** to isolate tenant data. Each approved institution gets its own database schema, which acts as a separate namespace within the same PostgreSQL database.
+Every institution gets a schema named `inst_<slug>`, where `slug` is derived from the institution name:
 
 ```
-PostgreSQL Database: auip_db
-├── public (schema)           — Shared data (institutions, super admin users, platform config)
-├── inst_mit (schema)         — MIT's isolated data (students, faculty, courses)
-├── inst_harvard (schema)     — Harvard's isolated data
-└── inst_stanford (schema)    — Stanford's isolated data
+MIT → inst_mit
+IIT Delhi → inst_iit_delhi
+Stanford University → inst_stanford_university
 ```
-
-### Why Schemas (Not Separate Databases)?
-
-| Approach | Pros | Cons |
-|----------|------|------|
-| Row-level filtering (`WHERE inst_id=X`) | Simple, single schema | Fragile; one missing filter leaks data |
-| Separate databases per tenant | Maximum isolation | Hard to manage migrations, expensive |
-| **PostgreSQL schemas** ✅ | Strong isolation, shared migrations, single DB connection | Slightly more complex setup |
 
 ---
 
-## 3. How It Works
+## 2. Shared vs Tenant Models
 
-### 3a. Technology: `django-tenants`
+| Scope | Where | Models | Django-Tenants Type |
+|-------|-------|--------|---------------------|
+| **Shared** (public schema) | `SHARED_APPS` | `User`, `Institution`, `LoginSession`, `BlacklistedAccessToken`, `RememberedDevice`, `PasswordResetRequest`, `InstitutionAdmin`, `RegistrationInvitation`, `Client`, `Domain` | `django_tenants.models.TenantMixin` |
+| **Tenant** (inst_* schema) | `TENANT_APPS` | `CoreStudent`, `StudentProfile`, `TeacherProfile`, `PreSeededRegistry`, `Subject`, `Course`, `Batch`, `Quiz`, `Attempt`, placement data | Regular Django models |
 
-AUIP uses the [django-tenants](https://django-tenants.readthedocs.io/) library, which provides:
-- Automatic schema creation when a new tenant (institution) is created.
-- Automatic migration of tenant-specific apps into each schema.
-- Middleware for routing requests to the correct schema.
+### Key Relationship
 
-### 3b. Tenant Models
-
-The tenant system is defined in two Django apps:
-
-**`auip_tenant/models.py`** — The `Client` and `Domain` models:
+The `User` model (shared) links to `CoreStudent` (tenant) via `stu_ref`:
 
 ```python
-# Simplified from backend/apps/auip_tenant/models.py
-from django_tenants.models import TenantMixin, DomainMixin
-
-class Client(TenantMixin):
-    name = models.CharField(max_length=100)
-    auto_create_schema = True  # Automatically creates schema on Client.save()
-
-class Domain(DomainMixin):
-    pass  # Associates domain names with Client records
+# In public schema
+class User(AbstractUser):
+    core_student = models.ForeignKey("CoreStudent", null=True, blank=True)
+    institution = models.ForeignKey("Institution", null=True, blank=True)
+    role = models.CharField(choices=ROLE_CHOICES)
 ```
 
-**`auip_institution/models.py`** — Pre-seeded registry for tenant apps:
+When accessing tenant data, the application uses `schema_context()` to switch schemas:
 
 ```python
-# Simplified from backend/apps/auip_institution/models.py
-class PreSeededRegistry(models.Model):
-    """Tracks seeded student data per institution schema."""
-    institution_name = models.CharField(max_length=255)
-    schema_name = models.CharField(max_length=63)
-    # ...
+from apps.identity.utils.multitenancy import schema_context
+
+with schema_context("inst_mit"):
+    students = CoreStudent.objects.filter(department="CS")
+    # This SQL query runs against the inst_mit schema
 ```
-
-### 3c. App Routing
-
-In `settings/base.py`, apps are classified as either **shared** (in the `public` schema) or **tenant-specific** (replicated into each institution's schema):
-
-| Category | Apps | Schema |
-|----------|------|--------|
-| **Shared** | `identity`, `auip_tenant`, Django core apps | `public` |
-| **Tenant** | `academic`, `auip_institution`, examination apps | `inst_<slug>` |
 
 ---
 
-## 4. Schema Provisioning Flow
+## 3. Tenant Provisioning Flow
 
-When a Super Admin approves an institution, the following happens:
+When a Super Admin approves an institution registration:
 
 ```mermaid
 sequenceDiagram
     participant SA as Super Admin
     participant BE as Backend
     participant PG as PostgreSQL
+    participant WS as WebSocket
 
     SA->>BE: POST /institutions/{id}/approve/
-    BE->>BE: Validate institution data
-    BE->>BE: Generate schema_name = "inst_" + slugify(name)
-    BE->>BE: Call create_institution_schema()
-    BE->>PG: Client.objects.get_or_create(schema_name="inst_mit")
-    PG->>PG: CREATE SCHEMA inst_mit
-    PG->>PG: Run migrations for all TENANT_APPS in inst_mit
-    BE->>PG: Domain.objects.create(domain="inst_mit.localhost", tenant=client)
-    BE->>BE: Update Institution.status = "APPROVED"
-    BE->>BE: Update Institution.schema_name = "inst_mit"
-    BE-->>SA: ✅ "Institution approved and environment provisioned"
+    BE->>PG: CREATE SCHEMA inst_{slug}
+    BE->>PG: Run django-tenants migrations in new schema
+    BE->>PG: Create Client + Domain records
+    BE->>PG: Update Institution.status = 'APPROVED'
+    BE->>PG: Update Institution.schema_name = 'inst_{slug}'
+    BE->>WS: Broadcast institution_update to superadmin_updates group
+    WS-->>SA: Real-time dashboard refresh
 ```
 
-### Key Utility: `create_institution_schema()`
-
-Located in [multitenancy.py](file:///c:/Manohar/AUIP/AUIP-Platform/backend/apps/identity/utils/multitenancy.py):
+### Implementation: [multitenancy.py](file:///c:/Manohar/AUIP/AUIP-Platform/backend/apps/identity/utils/multitenancy.py)
 
 ```python
-def create_institution_schema(schema_name, name=None, domain=None):
+def create_institution_schema(institution):
     """
-    Creates a new Tenant (Client) and Domain using django-tenants.
-    This triggers automatic schema creation and migration of all TENANT_APPS.
+    1. Generate slug from institution name
+    2. CREATE SCHEMA inst_<slug>
+    3. Run tenant migrations
+    4. Create Client + Domain entries
+    5. Update institution record with schema_name
     """
-    schema_name = "".join(c for c in schema_name if c.isalnum() or c == "_").lower()
-
-    client, created = Client.objects.get_or_create(
-        schema_name=schema_name,
-        defaults={'name': name or schema_name}
-    )
-
-    if created:
-        final_domain = domain or f"{schema_name}.localhost"
-        Domain.objects.get_or_create(
-            domain=final_domain, tenant=client,
-            defaults={'is_primary': True}
-        )
-    return created
-```
-
-### Key Utility: `schema_context()`
-
-For code that needs to operate within a specific institution's schema:
-
-```python
-from apps.identity.utils.multitenancy import schema_context
-
-# All database operations inside this block
-# will target the 'inst_mit' schema
-with schema_context('inst_mit'):
-    students = CoreStudent.objects.all()  # Only MIT's students
 ```
 
 ---
 
-## 5. Security Guarantees
+## 4. Django-Tenants Configuration
+
+From [base.py](file:///c:/Manohar/AUIP/AUIP-Platform/backend/auip_core/settings/base.py):
+
+```python
+DATABASES = {
+    "default": {
+        "ENGINE": "django_tenants.postgresql_backend",
+        # ... connection params
+    }
+}
+
+DATABASE_ROUTERS = ("django_tenants.routers.TenantSyncRouter",)
+
+TENANT_MODEL = "auip_tenant.Client"
+TENANT_DOMAIN_MODEL = "auip_tenant.Domain"
+
+SHARED_APPS = [
+    "django_tenants",
+    "apps.auip_tenant",
+    "apps.identity",
+    "rest_framework",
+    # ...
+]
+
+TENANT_APPS = [
+    "apps.auip_institution",
+    "apps.academic",
+    "apps.quizzes",
+    "apps.attempts",
+    "apps.anti_cheat",
+    # ...
+]
+
+INSTALLED_APPS = list(SHARED_APPS) + [app for app in TENANT_APPS if app not in SHARED_APPS]
+```
+
+---
+
+## 5. Tenant Models
+
+### Client Model (auip_tenant/models.py)
+
+```python
+from django_tenants.models import TenantMixin, DomainMixin
+
+class Client(TenantMixin):
+    name = models.CharField(max_length=100)
+    is_active = models.BooleanField(default=True)
+    created_on = models.DateField(auto_now_add=True)
+    auto_create_schema = True
+
+class Domain(DomainMixin):
+    pass
+```
+
+### PreSeededRegistry (auip_institution/models.py)
+
+The tenant-side model for pre-seeded student identities:
+
+```python
+class PreSeededRegistry(models.Model):
+    stu_ref = models.CharField(max_length=50, unique=True, primary_key=True)
+    roll_number = models.CharField(max_length=20)
+    full_name = models.CharField(max_length=200)
+    email = models.EmailField()
+    department = models.CharField(max_length=100)
+    batch_year = models.IntegerField()
+    cgpa = models.DecimalField(max_digits=4, decimal_places=2)
+    tenth_percent = models.DecimalField(...)
+    twelfth_percent = models.DecimalField(...)
+    status = models.CharField(choices=['SEEDED', 'INVITED', 'VERIFIED', 'ACTIVE'])
+```
+
+---
+
+## 6. Security Guarantees
 
 | Guarantee | How It's Enforced |
-|-----------|-------------------|
-| No cross-tenant data access | PostgreSQL `search_path` is set per-request |
-| Schema names are sanitized | `create_institution_schema()` strips non-alphanumeric characters |
-| Shared data is read-only for tenants | Shared apps live in `public` schema; tenants cannot modify them |
-| Automatic migration | New schemas receive all tenant app tables via `django-tenants` |
+|-----------|------------------|
+| **No cross-tenant data access** | PostgreSQL `SET search_path TO inst_<slug>` — queries physically cannot reach other schemas |
+| **Schema creation requires Super Admin approval** | `InstitutionRegistrationView` only creates the `Institution` record; schema is created only on approval |
+| **Schema name is deterministic** | Derived from institution slug — no user-controlled input in schema names |
+| **Tenant context is explicit** | All tenant-scoped operations require `schema_context()` wrapper |
+| **Django-tenants routing** | `TenantSyncRouter` ensures migrations only run in the correct schema |
 
 ---
 
-## 6. Files Involved
+## 7. Real-Time Institutional Hub
 
-| File | Path | Purpose |
-|------|------|---------|
-| `multitenancy.py` | [backend/apps/identity/utils/multitenancy.py](file:///c:/Manohar/AUIP/AUIP-Platform/backend/apps/identity/utils/multitenancy.py) | `create_institution_schema()`, `schema_context()` |
-| `Client` model | [backend/apps/auip_tenant/models.py](file:///c:/Manohar/AUIP/AUIP-Platform/backend/apps/auip_tenant/models.py) | django-tenants TenantMixin |
-| `Institution` model | [backend/apps/identity/models/institution.py](file:///c:/Manohar/AUIP/AUIP-Platform/backend/apps/identity/models/institution.py) | Approval status, schema_name reference |
-| `institution_views.py` | [backend/apps/identity/views/admin/institution_views.py](file:///c:/Manohar/AUIP/AUIP-Platform/backend/apps/identity/views/admin/institution_views.py) | Approve/reject actions with schema creation |
-| `settings/base.py` | [backend/auip_core/settings/base.py](file:///c:/Manohar/AUIP/AUIP-Platform/backend/auip_core/settings/base.py) | `SHARED_APPS`, `TENANT_APPS` configuration |
+When any `Institution` record is created, updated, or deleted, Django signals broadcast the change to all connected Super Admin WebSocket clients:
+
+**Signals:** [signals.py](file:///c:/Manohar/AUIP/AUIP-Platform/backend/apps/identity/signals.py)
+
+```python
+@receiver(post_save, sender=Institution)
+def broadcast_institution_change(sender, instance, created, **kwargs):
+    channel_layer = get_channel_layer()
+    async_to_sync(channel_layer.group_send)(
+        "superadmin_updates",
+        {
+            "type": "institution_update",
+            "data": {
+                "id": instance.id,
+                "name": instance.name,
+                "status": instance.status,
+                "action_type": "registration" if created else "update"
+            }
+        }
+    )
+```
+
+The `SessionConsumer` relays these events to the Super Admin dashboard for real-time updates without manual page refresh.

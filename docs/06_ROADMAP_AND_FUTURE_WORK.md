@@ -1,202 +1,179 @@
-# AUIP Platform — Roadmap & Future Work
+# AUIP Platform — Roadmap & Sprint Plan
 
-This document separates what has been **built and verified** from what is **planned or conceptual**. This is the source of truth for project status.
-
----
-
-## 1. What Is Built (Sprint 1 — Complete)
-
-The following features have been implemented, tested, and are running locally:
-
-### ✅ Authentication & Session Management
-- Super Admin login with email + password + OTP (multi-factor)
-- Student login with OTP-based passwordless flow
-- Faculty login
-- JWT access token (5 min) + refresh token (7 days) with silent refresh
-- Session tracking (`LoginSession` model with device, IP, user-agent, geolocation)
-- WebSocket-based real-time session sync
-- Token blacklisting on logout
-- HMAC-hashed token storage (no plaintext tokens in DB)
-- Brute-force protection via Redis rate limiting
-- Cloudflare Turnstile bot protection on public endpoints
-- Content Security Policy (CSP) middleware
-- Remembered device tracking (adaptive 2FA foundation)
-
-### ✅ Institution Management
-- Public institution registration form with Turnstile protection
-- Super Admin institution approval/rejection dashboard
-- Institution lifecycle states: `PENDING` → `REVIEW` → `APPROVED` / `REJECTED` / `MORE_INFO`
-- Email notifications on state changes
-
-### ✅ Multi-Tenancy
-- PostgreSQL schema-based data isolation via `django-tenants`
-- Automatic schema creation on institution approval (`CREATE SCHEMA inst_<slug>`)
-- Automatic migration of tenant apps into new schemas
-- `schema_context()` utility for cross-schema operations
-
-### ✅ Data Models
-- `User` (custom `AbstractUser` with roles: SUPER_ADMIN, INST_ADMIN, ADMIN, TEACHER, STUDENT)
-- `CoreStudent` (institution-seeded academic data with `STU_REF` primary key)
-- `StudentProfile`, `TeacherProfile` (linked to User)
-- `Institution`, `InstitutionAdmin`
-- `RegistrationInvitation` (activation token model)
-- `LoginSession`, `BlacklistedAccessToken`, `RememberedDevice`
-- `PasswordResetRequest` (single-use, time-bound reset tokens)
-
-### ✅ Password Management
-- Password reset via secure email link
-- Single-use, time-limited (24h) reset tokens
-- Previous tokens invalidated on new request
-- Expired link detection and user feedback
-
-### ✅ Frontend Pages
-- Landing page
-- Super Admin login page (with Turnstile widget)
-- Student login page
-- Faculty login page
-- University registration page
-- Account activation page
-- Admin recovery page
-- Dashboard (main)
-- Institution Hub (Super Admin)
-- Core Student Admin (data management)
-
-### ✅ Infrastructure
-- Docker Compose setup (Redis, Backend, Frontend)
-- Supabase PostgreSQL integration (dev)
-- Dockerfiles for backend and frontend
+This document outlines the full development roadmap for the AUIP platform across all planned sprints.
 
 ---
 
-## 2. What Is Scaffolded (Migrated But Not Actively Developed)
+## Sprint 1 — Authentication, Multi-Tenancy & Institutional Onboarding
 
-These apps were migrated from the old `exam_portal` project. The models and basic structure exist, but they are not wired into the current Sprint 1 flows:
+**Goal:** Build the core identity and security backbone. Everything else depends on this.
 
-### 📦 Academic Service (`backend/apps/academic/`)
-- Course and Batch models exist
-- ~11 files migrated
-- **Not yet connected** to the tenant-aware student workflow
-
-### 📦 Examination Service (`backend/apps/quizzes/`, `attempts/`, `anti_cheat/`)
-- Quiz, Question, Answer, Attempt, and CheatDetection models exist
-- ~32 files migrated
-- Anti-cheat includes tab-switch detection
-- **Not yet updated** for multi-tenant architecture
-
----
-
-## 3. What Is Planned (Not Started)
-
-The following features have **no code written yet**. Their directories are empty scaffolds.
-
-### ⬜ Sprint 2: Student Pre-Seeding & Activation (Next)
-- Bulk CSV upload endpoint for student data
-- Activation invitation email system
-- Student activation page (set password, link to `CoreStudent`)
-- Admin dashboard for tracking `SEEDED` → `INVITED` → `ACTIVE` states
-- Excel validation and error reporting
-
-### ⬜ Sprint 3: Placement Management (`backend/apps/placement/`)
-- Placement drive creation (company, role, package, deadline)
-- Dynamic eligibility rule engine (AND/OR/nested logic)
-- Student application flow
-- One-student-one-job enforcement
-- Automated shortlisting
-- No-show penalty system
-
-### ⬜ Sprint 4: Governance Brain (`backend/apps/governance/`)
-- Placement readiness scoring (0-100)
-  - Academic performance (30% weight)
-  - Mock test performance (40% weight)
-  - Interview performance (20% weight)
-  - Projects/internships (10% weight)
-- At-risk student detection (score < 40)
-- Personalized mock test assignment
-- Intervention recommendations for TPO
-- Dynamic feature activation per student
-
-### ⬜ Sprint 5: Intelligence Service (`backend/apps/intelligence/`)
-- ML prediction models (placement readiness)
-- Anomaly detection with autoencoders
-- NLP for resume parsing
-- LLM-powered decision explanations
-- AI-assisted governance (advisory only, never overrides)
-
-### ⬜ Sprint 6: Notifications & Analytics (`backend/apps/notifications/`, `analytics/`)
-- Real-time push notifications
-- Email notification service
-- TPO dashboards and analytics
-- Company-wise placement stats
-- Department-wise analytics
-- Student progress tracking
-- PDF/Excel report export
-
-### ⬜ Future Backlog
-- Mobile apps (iOS & Android)
-- LLM-powered interview preparation chatbot
-- Resume parsing with NLP
-- Peer comparison (anonymized)
-- Company-specific mock tests
-- AWS production deployment (ECS, RDS, S3, CloudFront)
-- Terraform Infrastructure as Code
-- GitHub Actions CI/CD pipelines
+| Feature | Description |
+|---------|-------------|
+| Super Admin MFA Login | Email + password + OTP verification with Quantum Shield |
+| Student Passwordless Login | OTP-based login — no passwords stored for students |
+| Faculty Login | Role-based authentication for teachers |
+| Quantum Shield | Quad-Segment Cookie Fragmentation — refresh token split across 4 cookies |
+| SafeJWT Triple-Check | JWT signature + DB session whitelist + device fingerprint validation |
+| Silent Token Rotation | Auto-renewal when access token is within 15 seconds of expiry |
+| Device Fingerprinting | SHA256(IP + User-Agent + random salt) bound to every session |
+| HMAC Token Hashing | Key-rotatable HMAC-SHA256 for all stored tokens (format: `key_id$hash`) |
+| Brute-Force Protection | Redis-backed rate limiting per (identifier, IP) pair |
+| Global IP Lockout | Platform-wide IP blocking with email incident reports to Super Admin |
+| Institution Registration | Public Turnstile-protected registration with name/domain conflict detection |
+| Institution Approval | Super Admin approve/reject with dynamic PostgreSQL schema creation |
+| Multi-Tenancy | PostgreSQL schema isolation via django-tenants (`inst_<slug>`) |
+| Session Management | LoginSession model with device tracking, geo, remote deactivation |
+| WebSocket Session Sync | Real-time force_logout, token rotation, location updates across devices |
+| Institutional Hub | Django signals broadcast institution changes to all Super Admin clients |
+| Cloudflare Turnstile | Bot protection on public endpoints (configurable on/off) |
+| Content Security Policy | Strict CSP headers via middleware |
+| Password Reset | Single-use, time-limited, hash-stored tokens with previous-token invalidation |
+| RBAC | 6 permission classes (SuperAdmin, InstitutionAdmin, Admin, Teacher, Student, AdminOrTeacher) |
+| Activation Tokens | Django TimestampSigner for cryptographic activation links |
+| OTP System | User-based and identifier-based OTP with HMAC Redis storage |
+| Remembered Devices | Adaptive 2FA via trusted device tracking |
 
 ---
 
-## 4. Sprint Timeline Estimate
+## Sprint 2 — Student Pre-Seeding & Activation
 
-| Sprint | Focus | Status | Estimated Duration |
-|--------|-------|--------|--------------------|
-| Sprint 1 | Authentication & Multi-Tenancy | ✅ Complete | ~4 weeks |
-| Sprint 2 | Student Pre-Seeding & Activation | ⬜ Next | ~3 weeks |
-| Sprint 3 | Placement Management | ⬜ Planned | ~4 weeks |
-| Sprint 4 | Governance Brain (AI Core) | ⬜ Planned | ~4 weeks |
-| Sprint 5 | Intelligence Service (ML/AI) | ⬜ Planned | ~5 weeks |
-| Sprint 6 | Notifications & Analytics | ⬜ Planned | ~3 weeks |
-| Sprint 7–8 | Mobile Apps, Deployment, Polish | ⬜ Planned | ~4 weeks |
+**Goal:** Complete the student identity lifecycle — from bulk upload to active accounts.
 
-**Total estimated timeline:** 5–6 months for full MVP.
-**Total story points (from user stories):** ~200
-
----
-
-## 5. User Stories Reference
-
-Detailed user stories with acceptance criteria are documented in:
-- [user-stories.md](file:///c:/Manohar/AUIP/AUIP-Platform/docs/user-stories/user-stories.md)
-
-### Epic Summary
-
-| Epic | User Stories | Status |
-|------|-------------|--------|
-| Epic 1: Identity & Access Management | 4 stories (1.1–1.4) | ✅ Mostly implemented |
-| Epic 2: Placement Management | 3 stories (2.1–2.3) | ⬜ Not started |
-| Epic 3: Governance Brain (AI Core) | 3 stories (3.1–3.3) | ⬜ Not started |
-| Epic 4: Student Experience | 2 stories (4.1–4.2) | ⬜ Not started |
-| Epic 5: TPO/Admin Operations | 2 stories (5.1–5.2) | ⬜ Not started |
+| Feature | Description |
+|---------|-------------|
+| CSV Upload Engine | Admin uploads student data (STU_REF, roll, name, dept, CGPA, marks) |
+| Data Validation | Duplicate detection, format validation, error reports |
+| Batch Invitation | Select seeded students → generate signed activation tokens → send emails |
+| Activation Page | Student clicks link → verifies identity → sets password → account created |
+| State Dashboard | Admin tracks SEEDED → INVITED → VERIFIED → ACTIVE transitions |
+| Pre-Seeded Registry | Tenant-scoped model with full academic data (10th%, 12th%, CGPA) |
+| Identifier-Based OTP | OTP verification for students who don't have User accounts yet |
 
 ---
 
-## 6. Known Limitations & Technical Debt
+## Sprint 3 — Placement Management
 
-| Item | Detail |
-|------|--------|
-| No automated test suite for Sprint 1 | Test files exist (13 files) but need to be updated for current architecture |
-| Examination apps not tenant-aware | Migrated from old project; need schema routing updates |
-| No production deployment config | Docker Compose is development-only; AWS/Terraform not configured |
-| CSP in development mode | `'unsafe-inline'` and `'unsafe-eval'` are used; must be tightened for production |
-| No email queue | Emails are sent synchronously; should use Celery for production |
-| Student seeding not wired end-to-end | `CoreStudent` model exists but bulk upload API and UI are Sprint 2 work |
+**Goal:** Replace Excel-based placement workflows with a dynamic eligibility engine.
+
+| Feature | Description |
+|---------|-------------|
+| Placement Drive CRUD | Create drives with company, role, package, deadline |
+| Dynamic Eligibility Engine | AND/OR/nested logic — `CGPA ≥ 7.5 AND (branch IN [CS, IT] OR 12th% ≥ 65)` |
+| Student Application Flow | View eligible drives, apply with resume upload |
+| One-Student-One-Job Rule | Prevent multiple active placements per student |
+| Drive Status Management | Draft → Active → Closed → Results |
+| Eligibility Feedback | Students see *why* they're eligible/not eligible for each drive |
 
 ---
 
-## 7. Documentation Index
+## Sprint 4 — Governance Brain (AI Core)
 
-| # | Document | Description |
-|---|----------|-------------|
-| 01 | [Project Overview](01_PROJECT_OVERVIEW.md) | Problem statement, tech stack, project structure |
-| 02 | [System Architecture](02_SYSTEM_ARCHITECTURE.md) | Backend/frontend architecture, data models, API map |
-| 03 | [Security & Authentication](03_SECURITY_AND_AUTHENTICATION.md) | Token lifecycle, session management, threat model |
-| 04 | [Multi-Tenancy & Data Isolation](04_MULTITENANCY_AND_DATA_ISOLATION.md) | Schema isolation, tenant provisioning |
-| 05 | [Registration & Onboarding Lifecycle](05_REGISTRATION_AND_ONBOARDING_LIFECYCLE.md) | Institution → Student registration flow |
-| 06 | **Roadmap & Future Work** (this document) | Sprint plan, backlog, known limitations |
+**Goal:** AI-driven decision support for placement offices.
+
+| Feature | Description |
+|---------|-------------|
+| Readiness Scoring (0-100) | Weighted: Academic 30%, Mock 40%, Interview 20%, Projects 10% |
+| At-Risk Detection | Flag students with score < 40 for intervention |
+| Personalized Mock Assignment | Auto-assign mocks based on weak areas (max 2/week) |
+| Intervention Recommendations | AI-suggested actions for TPO (mentoring, extra mocks, etc.) |
+| Daily Score Updates | Recalculate scores based on latest performance data |
+
+---
+
+## Sprint 5 — Intelligence Service (ML/AI)
+
+**Goal:** Advanced ML models for prediction and analysis.
+
+| Feature | Description |
+|---------|-------------|
+| Placement Prediction | ML model predicting placement probability per student |
+| Anomaly Detection | Autoencoders for unusual performance patterns |
+| Resume NLP | Extract skills, projects, and experience from uploaded resumes |
+| LLM Explanations | Natural language explanations for governance decisions |
+| Chat Interface | LLM-powered interview preparation chatbot |
+
+---
+
+## Sprint 6 — Notifications & Communication
+
+**Goal:** Push notifications and automated communication.
+
+| Feature | Description |
+|---------|-------------|
+| Push Notifications | Real-time WebSocket + browser push notifications |
+| Email Automation | Drive deadlines, eligibility updates, placement results |
+| Notification Preferences | Students configure which notifications they want |
+| Admin Announcements | Broadcast messages to all students in an institution |
+
+---
+
+## Sprint 7 — Analytics & Reporting
+
+**Goal:** Data-driven dashboards for TPOs and admins.
+
+| Feature | Description |
+|---------|-------------|
+| TPO Dashboard | Placement stats, company-wise, department-wise, package distribution |
+| PDF/Excel Export | Downloadable reports for management and accreditation |
+| Student Analytics | Individual performance trends, mock history, improvement areas |
+| Comparative Analytics | Department-wise and batch-wise placement comparisons |
+| At-Risk Heatmaps | Visual representation of at-risk students by department |
+
+---
+
+## Sprint 8 — Mock Tests & Anti-Cheat
+
+**Goal:** Full quiz engine with proctoring.
+
+| Feature | Description |
+|---------|-------------|
+| Question Bank | Category-wise question management (Aptitude, Coding, Verbal) |
+| Timed Mock Tests | Configurable duration, auto-submit on timeout |
+| Anti-Cheat | Tab-switch detection, fullscreen enforcement, copy-paste blocking |
+| Instant Results | Score breakdown, correct/wrong analysis, solution explanations |
+| Performance Tracking | Historical mock performance per student |
+
+---
+
+## Backlog (Future Sprints)
+
+| Feature | Description |
+|---------|-------------|
+| Company-Specific Mocks | Mock tests tailored to specific company hiring patterns |
+| Peer Comparison | Anonymized ranking within department/batch |
+| Mobile App | iOS/Android native app (React Native) |
+| Social Auth | Google OAuth integration for faculty |
+| Advanced RBAC | Fine-grained permission policies per institution |
+| Audit Logging | Complete audit trail of all admin/system actions |
+
+---
+
+## Development Timeline
+
+| Sprint | Duration | Focus |
+|--------|----------|-------|
+| Sprint 1 | 2 weeks | ✅ Authentication, Multi-Tenancy, Security |
+| Sprint 2 | 2 weeks | Student Pre-Seeding & Activation |
+| Sprint 3 | 2 weeks | Placement Management |
+| Sprint 4 | 3 weeks | Governance Brain (AI) |
+| Sprint 5 | 3 weeks | Intelligence Service (ML) |
+| Sprint 6 | 2 weeks | Notifications & Communication |
+| Sprint 7 | 2 weeks | Analytics & Reporting |
+| Sprint 8 | 2 weeks | Mock Tests & Anti-Cheat |
+
+**Total Estimated Story Points:** ~200  
+**Estimated Timeline:** 4-5 months (2-week sprints)
+
+---
+
+## Known Limitations & Technical Debt
+
+| Item | Description | Priority |
+|------|-------------|----------|
+| SMS OTP | Currently email-only — SMS integration pending for mobile users | Medium |
+| Rate Limiter Tuning | Brute-force thresholds are hardcoded (5 attempts, 60s cooldown, 5m lockout) — should be config-driven | Low |
+| Legacy Cookie Compat | `set_refresh_cookie()` is deprecated but still exists for backward compatibility | Low |
+| Schema Cleanup | No automated cleanup of orphaned schemas when institutions are deleted | Medium |
+| Test Coverage | Identity service has 13 test files but coverage is not comprehensive | High |
+| Frontend Error Boundaries | Missing error boundaries on some pages | Medium |
