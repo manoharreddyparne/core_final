@@ -23,8 +23,11 @@ def verify_activation_token(token, max_age=3600*24):
     except (BadSignature, SignatureExpired, ValueError):
         return None
 
-def get_activation_url(token):
+def get_activation_url(token, role=None):
     """
     Constructs the frontend activation URL.
+    Routes institutional admins to their dedicated activation page.
     """
+    if role == "ADMIN":
+        return f"{settings.FRONTEND_URL}/auth/inst-admin/activate?token={token}"
     return f"{settings.FRONTEND_URL}/auth/activate?token={token}"

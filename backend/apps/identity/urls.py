@@ -55,6 +55,8 @@ from apps.identity.views.auth.v2_auth import (
 from apps.identity.views.public.tenants import PublicInstitutionListView
 from apps.identity.views.public.registration import InstitutionRegistrationView
 
+from apps.identity.views.auth.inst_admin_activation import InstAdminActivateView
+
 from apps.identity.views.admin.jit_verify import VerifyAdminTicketView, RequestAdminAccessView
 from apps.identity.views.admin.search_views import GlobalAdvancedSearchView
 
@@ -194,6 +196,11 @@ urlpatterns = [
     path("admin/login/", AdminTokenObtainPairView.as_view(), name="admin_login"),
     path("admin/verify-otp/", AdminVerifyOTPView.as_view(), name="admin_verify_otp"),
     path("admin/resend-otp/", AdminResendOTPView.as_view(), name="admin_resend_otp"),
+
+    # ============================
+    # INSTITUTIONAL ADMIN AUTH
+    # ============================
+    path("auth/v2/inst-admin/activate/", InstAdminActivateView.as_view(), name="inst_admin_activate"),
 
     # ============================
     # SOCIAL LOGIN

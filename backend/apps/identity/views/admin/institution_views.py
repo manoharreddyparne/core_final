@@ -6,10 +6,12 @@ import logging
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from apps.identity.models.institution import Institution, InstitutionAdmin
+from apps.identity.models.core_models import User
 from apps.identity.serializers.core_serializers import serializers
 from apps.identity.permissions import IsSuperAdmin
 from apps.identity.utils.response_utils import success_response, error_response
 from apps.identity.utils.multitenancy import create_institution_schema
+from apps.identity.utils.activation import generate_activation_token, get_activation_url
 from django_tenants.utils import schema_context
 from apps.auip_institution.models import PreSeededRegistry
 
@@ -143,29 +145,68 @@ class InstitutionViewSet(viewsets.ModelViewSet):
             institution.status = Institution.RegistrationStatus.APPROVED
             institution.save()
 
-            # Trigger Email Notification
+            # ── Provision Institutional Admin ──
+            admin_name = reg_data.get("admin_name", "") or reg_data.get("contact_person", "")
+            name_parts = admin_name.strip().split() if admin_name else []
+            first_name = name_parts[0] if name_parts else ""
+            last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
+
+            admin_user, user_created = User.objects.get_or_create(
+                email=institution.contact_email,
+                defaults={
+                    "username": institution.contact_email,
+                    "role": User.Roles.INSTITUTION_ADMIN,
+                    "first_name": first_name,
+                    "last_name": last_name,
+                    "need_password_reset": True,
+                    "first_time_login": True,
+                }
+            )
+            if user_created:
+                admin_user.set_unusable_password()  # Cannot login until activation
+                admin_user.save()
+                logger.info(f"[Institution-Approval] Created User (INST_ADMIN) for {institution.contact_email}")
+            else:
+                logger.warning(f"[Institution-Approval] User already exists for {institution.contact_email}, linking to institution")
+
+            InstitutionAdmin.objects.get_or_create(
+                user=admin_user,
+                institution=institution,
+                defaults={"role_description": reg_data.get("designation", "Administrator")}
+            )
+
+            # ── Generate Activation Link (7-day expiry) ──
+            activation_token = generate_activation_token(
+                institution.id, institution.contact_email, "ADMIN"
+            )
+            activation_url = get_activation_url(activation_token, role="ADMIN")
+            logger.info(f"[Institution-Approval] Activation link generated for {institution.contact_email}")
+
+            # ── Send Approval + Activation Email ──
             try:
                 from django.core.mail import send_mail
                 from django.conf import settings
                 
-                subject = f"AUIP Platform: {institution.name} Approved"
-                message = f"""
-                Hello,
-
-                Great news! The AUIP instance for {institution.name} has been successfully provisioned and approved.
-
-                Institution Details:
-                - Name: {institution.name}
-                - Domain: {institution.domain}
-                - Status: ACTIVE
-
-                You can now log in to your institutional portal using your administrator credentials.
-
-                Welcome to the future of unified academic governance.
-
-                Best regards,
-                AUIP Platform Team
-                """
+                subject = f"AUIP Platform: {institution.name} Approved — Set Up Your Admin Account"
+                message = (
+                    f"Hello {admin_name or 'Administrator'},\n\n"
+                    f"Great news! Your institution {institution.name} has been approved on the AUIP Platform.\n\n"
+                    f"Institution Details:\n"
+                    f"  - Name: {institution.name}\n"
+                    f"  - Domain: {institution.domain}\n"
+                    f"  - Status: APPROVED\n\n"
+                    f"To activate your administrator account and set your password, click the link below:\n\n"
+                    f"  {activation_url}\n\n"
+                    f"This link expires in 7 days.\n\n"
+                    f"After activation, you will have access to:\n"
+                    f"  - Student pre-seeding (CSV upload)\n"
+                    f"  - Faculty management\n"
+                    f"  - Placement drive management\n"
+                    f"  - Analytics dashboard\n\n"
+                    f"Welcome to the future of unified academic governance.\n\n"
+                    f"Best regards,\n"
+                    f"AUIP Platform Team"
+                )
                 send_mail(
                     subject,
                     message,
@@ -173,7 +214,7 @@ class InstitutionViewSet(viewsets.ModelViewSet):
                     [institution.contact_email],
                     fail_silently=True
                 )
-                logger.info(f"[Institution-Approval] Notification email sent to {institution.contact_email}")
+                logger.info(f"[Institution-Approval] Activation email sent to {institution.contact_email}")
             except Exception as mail_err:
                 logger.error(f"[Institution-Approval] Failed to send email: {mail_err}")
 
