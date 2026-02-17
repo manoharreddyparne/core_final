@@ -16,7 +16,7 @@ export const loginUser = async (
 ): Promise<AuthResponse> => {
   try {
     const res = await apiClient.post<ApiResponse<AuthResponse>>(
-      "/login/",
+      "/auth/v2/student/login/",
       { identifier: login, password, turnstile_token: turnstileToken }
     );
 
@@ -112,5 +112,7 @@ export const logoutUser = async (): Promise<void> => {
     // Soft fail: FE will still wipe tokens regardless
   } finally {
     clearAccessToken();
+    // Clear signal cookie
+    document.cookie = "auip_logged_in=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;";
   }
 };

@@ -255,10 +255,12 @@ def logout_single_session_secure(user: User, refresh_token: Optional[str] = None
         send_session_ws_event(user.id, "force_logout", s.id)
 
 @transaction.atomic
-def logout_all_sessions_secure(user: User, exclude_session_id: Optional[int] = None) -> int:
+def logout_all_sessions_secure(user: User, exclude_session_id: Optional[int] = None, exclude_jti: Optional[str] = None) -> int:
     qs = LoginSession.objects.filter(user=user, is_active=True)
     if exclude_session_id:
         qs = qs.exclude(id=exclude_session_id)
+    if exclude_jti:
+        qs = qs.exclude(jti=exclude_jti)
         
     count_before = qs.count()
     for s in qs:
@@ -266,7 +268,7 @@ def logout_all_sessions_secure(user: User, exclude_session_id: Optional[int] = N
             s.is_active = False
             s.save(update_fields=["is_active"])
             blacklist_refresh_jti(s.refresh_jti, user=s.user)
-            send_session_ws_event(user.id, "force_logout", s.id)
+            send_session_ws_event(user.id, "force_logout", s.id, s.jti)
         except Exception as e:
             logger.warning(f"[SESSION] Failed logout session_id={s.id} user_id={user.id}: {e}")
     return count_before

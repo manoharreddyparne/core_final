@@ -22,7 +22,7 @@ import { toast } from "react-hot-toast";
 import { useAuth } from "../context/AuthProvider/AuthProvider";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "../api/base";
-import { getAccessToken, setAccessToken, hasAccessToken } from "../utils/tokenStorage";
+import { getAccessToken, setAccessToken, hasAccessToken, isHydrating } from "../utils/tokenStorage";
 import { SecureDeviceModal } from "../components/SecureDeviceModal";
 import { ForcedLogoutModal } from "../components/ForcedLogoutModal";
 import { GlobalSearch } from "../../dashboard/components/GlobalSearch";
@@ -156,13 +156,19 @@ export const AppLayout = () => {
                 console.log("  - Match:", loggedOutJti === currentJti);
 
                 // Show modal if JTIs match OR if no JTI provided (fallback to show modal)
-                if (!loggedOutJti || loggedOutJti === currentJti) {
-                    console.log("[AppLayout] ✅ Showing logout modal | reason:", detail?.reason);
+                if (loggedOutJti && loggedOutJti === currentJti) {
+                    console.info("[AppLayout] 🛑 Force logout applicable to this tab. Showing modal.");
+                    setLogoutReason(detail?.reason || "Session terminated.");
+                    setShowLogoutModal(true);
+                    setLogoutCountdown(5);
+                } else if (!loggedOutJti) {
+                    // Fallback for older events or broad terminations
+                    console.info("[AppLayout] ⚠️ Force logout received without JTI. Logging out safely.");
                     setLogoutReason(detail?.reason);
                     setShowLogoutModal(true);
                     setLogoutCountdown(5);
                 } else {
-                    console.log("[AppLayout] ❌ JTIs don't match - not showing modal");
+                    console.log("[AppLayout] 🛡️ Force logout ignored: applies to a different device.");
                 }
             } catch (error) {
                 console.error("[AppLayout] Failed to parse token:", error);
@@ -224,6 +230,15 @@ export const AppLayout = () => {
         };
     }, [user, bootstrapped]);
 
+    // 🔁 SESSION PERSISTENCE FIX: 
+    // Ensure that reloads preserve the current route if authenticated.
+    useEffect(() => {
+        if (bootstrapped && user && location.pathname !== "/login" && !location.pathname.includes("/verify")) {
+            sessionStorage.setItem("auip_last_valid_path", location.pathname);
+            console.debug("[AppLayout] Syncing path persistence:", location.pathname);
+        }
+    }, [location.pathname, bootstrapped, user]);
+
     // Listen for session invalidated events (from offline logout detection)
     useEffect(() => {
         const handleSessionInvalidated = (event: any) => {
@@ -266,12 +281,19 @@ export const AppLayout = () => {
             const { latitude, longitude } = position.coords;
 
             // Send location update via API
-            if (hasAccessToken() && user) {
-                // ✅ Use apiClient (interceptors handle auth)
+            // ✅ GUARD: Skip if no user, no token, or HYDRATING (to avoid race conditions)
+            if (hasAccessToken() && user && !isHydrating()) {
+                console.debug("[Geolocation] Periodic update triggered");
                 apiClient.post("sessions/update-location/", {
                     latitude,
                     longitude
-                }).catch(err => console.debug("Failed to update location", err));
+                }).catch(err => {
+                    if (err.response?.status === 401) {
+                        console.debug("[Geolocation] Update failed (401) - session likely rotating.");
+                    } else {
+                        console.debug("Failed to update location", err);
+                    }
+                });
             }
         };
 

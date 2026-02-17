@@ -92,6 +92,10 @@ class SessionLogoutView(APIView):
             logger.exception("Failed to logout session")
             return success_response("Failed to logout session", status_code=500)
 
+    def post(self, request, *args, **kwargs) -> Any:
+        """Compatibility for POST-based logout"""
+        return self.delete(request, *args, **kwargs)
+
 # -------------------------------
 # LOGOUT ALL SESSIONS
 # -------------------------------
@@ -102,25 +106,16 @@ class SessionLogoutAllView(APIView):
         user: User = request.user
         exclude_current = request.query_params.get("exclude_current", "false").lower() == "true"
         
-        current_session_id = None
+        current_session_jti = None
         if exclude_current:
-            # Try to get current session ID from auth/token context if available
-            # For SimpleJWT, sometimes it's in token payload if customized, 
-            # or we look up active session by JTI.
-            # Here we rely on the fact that if they are authenticated, they have an access token.
             try:
-                # This depends on how your auth sets request.auth. 
-                # If custom middleware sets request.session_id, use that.
-                # Otherwise, try to find session by JTI.
-                jti = request.auth.get("jti")
-                session = user.login_sessions.filter(jti=jti, is_active=True).first()
-                if session:
-                    current_session_id = session.id
+                # Extract JTI from the current access token (SafeJWTAuthentication sets this)
+                current_session_jti = getattr(request.auth, 'get', lambda x, y: None)('jti', None)
             except Exception:
                 pass
 
         try:
-            logout_all_sessions_secure(user, exclude_session_id=current_session_id)
+            logout_all_sessions_secure(user, exclude_jti=current_session_jti)
             msg = "Logged out of other devices" if exclude_current else "All sessions logged out successfully"
             resp = success_response(msg)
             if not exclude_current:
@@ -129,6 +124,10 @@ class SessionLogoutAllView(APIView):
         except Exception:
             logger.exception("Failed to logout all sessions")
             return success_response("Failed to logout all sessions", status_code=500)
+
+    def post(self, request, *args, **kwargs) -> Any:
+        """Compatibility for POST-based logout"""
+        return self.delete(request, *args, **kwargs)
 
 
 class SessionValidateView(APIView):

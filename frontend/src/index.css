@@ -57,3 +57,25 @@
 .premium-gradient {
   background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
 }
+
+.glass-dark {
+  @apply bg-black/60 backdrop-blur-xl border border-white/5 shadow-2xl;
+}
+
+/* Animations */
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.animate-spin-slow {
+  animation: spin-slow 8s linear infinite;
+}
+
+@keyframes progress-buffer {
+  0% { width: 0%; opacity: 0.5; }
+  50% { width: 70%; opacity: 1; }
+  100% { width: 100%; opacity: 0.5; }
+}
+.animate-progress-buffer {
+  animation: progress-buffer 20s ease-in-out infinite;
+}

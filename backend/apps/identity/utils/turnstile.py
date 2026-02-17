@@ -27,8 +27,11 @@ def verify_turnstile_token(token: str) -> bool:
         data = response.json()
         success = data.get("success", False)
         if not success:
-            logger.warning(f"[TURNSTILE] Validation failed: {data.get('error-codes')}")
+            error_codes = data.get('error-codes', [])
+            logger.warning(f"[TURNSTILE] Validation failed for token {token[:10]}... Error Codes: {error_codes}")
+        else:
+            logger.info(f"[TURNSTILE] Validation SUCCESS for token {token[:10]}...")
         return success
     except Exception as e:
-        logger.error(f"[TURNSTILE] System error: {e}")
+        logger.error(f"[TURNSTILE] Critical verification error: {e}")
         return False

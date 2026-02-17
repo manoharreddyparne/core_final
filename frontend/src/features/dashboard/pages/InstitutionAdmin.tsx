@@ -1,13 +1,12 @@
-import { useState, useEffect, useCallback } from "react";
-import axios from "axios";
-import { API_BASE_URL } from "../../auth/api/base";
-import { getAccessToken } from "../../auth/utils/tokenStorage";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { apiClient } from "../../auth/api/base";
 import {
     Plus, Globe, Building2, MoreVertical, Search, CheckCircle2, XCircle, Clock,
     AlertCircle, FileText, Mail, Users, Phone, MapPin, ChevronRight, Filter,
-    ArrowRight, CheckCircle
+    ArrowRight, CheckCircle, Loader2, Sparkles, ShieldCheck, Zap
 } from "lucide-react";
 import { toast } from "react-hot-toast";
+import { getAccessToken } from "../../auth/utils/tokenStorage";
 
 export const InstitutionAdmin = () => {
     const [institutions, setInstitutions] = useState<any[]>([]);
@@ -17,6 +16,9 @@ export const InstitutionAdmin = () => {
     const [selectedInst, setSelectedInst] = useState<any | null>(null);
     const [isActionLoading, setIsActionLoading] = useState(false);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [isQuantumProcessing, setIsQuantumProcessing] = useState(false);
+    const [currentLoreIdx, setCurrentLoreIdx] = useState(0);
+
     const [newInst, setNewInst] = useState({
         name: "",
         slug: "",
@@ -30,18 +32,16 @@ export const InstitutionAdmin = () => {
         e.preventDefault();
         setIsActionLoading(true);
         try {
-            const token = getAccessToken();
-            await axios.post(`${API_BASE_URL}superadmin/institutions/`,
-                { ...newInst, registration_data: { source: "manual_onboarding" } },
-                { headers: { Authorization: `Bearer ${token}` } }
+            await apiClient.post(`superadmin/institutions/`,
+                { ...newInst, registration_data: { source: "manual_onboarding" } }
             );
             toast.success(`Institution ${newInst.name} onboarded successfully!`);
             await fetchInstitutions();
             setIsCreateModalOpen(false);
             setNewInst({ name: "", slug: "", domain: "", contact_email: "", contact_number: "", address: "" });
-        } catch (err) {
+        } catch (err: any) {
             console.error("Failed to create institution", err);
-            toast.error("Failed to onboard institution. Check the console for details.");
+            toast.error(err?.response?.data?.detail || "Failed to onboard institution.");
         } finally {
             setIsActionLoading(false);
         }
@@ -49,11 +49,7 @@ export const InstitutionAdmin = () => {
 
     const fetchInstitutions = useCallback(async () => {
         try {
-            const token = getAccessToken();
-            // ✅ FIX: API_BASE_URL already includes "/api/users/", so we just need "superadmin/..."
-            const res = await axios.get(`${API_BASE_URL}superadmin/institutions/`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const res = await apiClient.get(`superadmin/institutions/`);
             setInstitutions(res.data);
         } catch (err) {
             console.error("Failed to fetch institutions", err);
@@ -61,6 +57,16 @@ export const InstitutionAdmin = () => {
             setIsLoading(false);
         }
     }, []);
+
+    useEffect(() => {
+        let interval: any;
+        if (isQuantumProcessing) {
+            interval = setInterval(() => {
+                setCurrentLoreIdx(prev => (prev + 1) % quantumLore.length);
+            }, 5000);
+        }
+        return () => clearInterval(interval);
+    }, [isQuantumProcessing]);
 
     useEffect(() => {
         fetchInstitutions();
@@ -87,19 +93,28 @@ export const InstitutionAdmin = () => {
     }, [fetchInstitutions]);
 
     const handleAction = async (slug: string, action: string) => {
+        if (!slug) {
+            toast.error(`Cannot perform ${action}: This institution is missing a unique slug identifier. Please contact support to fix this record.`);
+            return;
+        }
+
         setIsActionLoading(true);
+        if (action === "approve") setIsQuantumProcessing(true);
+
         try {
-            const token = getAccessToken();
-            // ✅ FIX: Remove redundant "users/"
-            await axios.post(`${API_BASE_URL}superadmin/institutions/${slug}/${action}/`, {}, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            await apiClient.post(`superadmin/institutions/${slug}/${action}/`, {});
+            toast.success(`Institution ${action} successful!`);
             await fetchInstitutions();
             setSelectedInst(null);
-        } catch (err) {
+        } catch (err: any) {
             console.error(`Failed to perform action ${action}`, err);
+            toast.error(err?.response?.data?.message || err?.response?.data?.detail || `Failed to ${action} institution.`);
         } finally {
             setIsActionLoading(false);
+            if (action === "approve") {
+                // Keep modal for a brief moment to show success state if needed
+                setTimeout(() => setIsQuantumProcessing(false), 800);
+            }
         }
     };
 
@@ -426,8 +441,163 @@ export const InstitutionAdmin = () => {
                     </div>
                 </div>
             )}
+
+            {/* ✅ RESTORED: Manual Register Modal */}
+            {isCreateModalOpen && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
+                    <div className="glass w-full max-w-xl p-10 rounded-[3rem] border-white/10 shadow-2xl space-y-8 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-6">
+                            <button
+                                onClick={() => setIsCreateModalOpen(false)}
+                                className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white transition-all"
+                            >
+                                <XCircle className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="space-y-2">
+                            <h2 className="text-3xl font-black text-white italic">Manual <span className="text-primary not-italic font-black">Registration</span></h2>
+                            <p className="text-gray-500 text-sm font-bold uppercase tracking-widest">Onboard a trusted academic partner</p>
+                        </div>
+
+                        <form onSubmit={handleCreate} className="space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-4">Institution Name</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        placeholder="e.g MIT"
+                                        className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all font-bold placeholder:text-white/10"
+                                        value={newInst.name}
+                                        onChange={(e) => {
+                                            const name = e.target.value;
+                                            const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+                                            setNewInst({ ...newInst, name, slug });
+                                        }}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-4">Unique Slug</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        placeholder="e.g mit"
+                                        className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all font-mono text-xs font-bold"
+                                        value={newInst.slug}
+                                        onChange={(e) => setNewInst({ ...newInst, slug: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-4">Primary Domain</label>
+                                <input
+                                    type="text"
+                                    required
+                                    placeholder="e.g mit.edu"
+                                    className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all font-bold placeholder:text-white/10"
+                                    value={newInst.domain}
+                                    onChange={(e) => setNewInst({ ...newInst, domain: e.target.value })}
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-4">Contact Email</label>
+                                <input
+                                    type="email"
+                                    required
+                                    placeholder="admin@university.edu"
+                                    className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all font-bold placeholder:text-white/10"
+                                    value={newInst.contact_email}
+                                    onChange={(e) => setNewInst({ ...newInst, contact_email: e.target.value })}
+                                />
+                            </div>
+
+                            <div className="flex items-center gap-4 pt-4">
+                                <button
+                                    type="submit"
+                                    disabled={isActionLoading}
+                                    className="flex-1 py-4 premium-gradient text-white font-black rounded-2xl shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                                >
+                                    {isActionLoading ? <div className="w-5 h-5 border-3 border-white/30 border-t-white rounded-full animate-spin" /> : "Finalize Registration"}
+                                    <ArrowRight className="w-5 h-5" />
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+            {/* ✅ Quantum Processing Modal */}
+            {isQuantumProcessing && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/90 backdrop-blur-xl animate-in fade-in duration-500">
+                    <div className="glass w-full max-w-2xl p-12 rounded-[4rem] border-primary/20 shadow-[0_0_100px_rgba(var(--primary-rgb),0.2)] space-y-10 relative overflow-hidden bg-white/[0.01]">
+                        {/* Background Ambiance */}
+                        <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary/20 blur-[100px] animate-pulse" />
+                        <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-blue-500/20 blur-[100px] animate-pulse delay-700" />
+
+                        <div className="flex flex-col items-center text-center space-y-6 relative z-10">
+                            <div className="relative">
+                                <div className="w-32 h-32 rounded-[2.5rem] bg-primary/10 flex items-center justify-center border border-primary/20 relative group">
+                                    <div className="absolute inset-0 rounded-[2.5rem] border-2 border-primary/40 border-t-transparent animate-spin-slow" />
+                                    <Loader2 className="w-12 h-12 text-primary animate-spin" />
+                                </div>
+                                <div className="absolute -top-2 -right-2 w-10 h-10 rounded-2xl bg-black border border-white/10 flex items-center justify-center shadow-xl animate-bounce">
+                                    <Sparkles className="w-5 h-5 text-amber-400" />
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <h3 className="text-4xl font-black text-white tracking-tight italic">
+                                    Quantum <span className="text-primary not-italic">Provisioning</span>
+                                </h3>
+                                <p className="text-gray-500 font-bold uppercase tracking-[0.3em] text-[10px]">Isolated Environment Initialization</p>
+                            </div>
+
+                            <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/5">
+                                <div className="h-full bg-primary animate-progress-buffer shadow-[0_0_15px_rgba(var(--primary-rgb),0.5)]" />
+                            </div>
+
+                            {/* Dynamic AUIP Fact Card */}
+                            <div className="w-full glass p-8 rounded-[2.5rem] border-white/5 bg-black/40 space-y-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 rounded-xl bg-primary/10">
+                                        <Zap className="w-4 h-4 text-primary" />
+                                    </div>
+                                    <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Did you know?</span>
+                                </div>
+                                <p className="text-white/80 font-medium italic text-lg leading-relaxed animate-in slide-in-from-bottom duration-700">
+                                    {quantumLore[currentLoreIdx]}
+                                </p>
+                            </div>
+
+                            <div className="flex items-center gap-8 text-[10px] font-black text-gray-500 uppercase tracking-widest pt-4">
+                                <div className="flex items-center gap-2">
+                                    <ShieldCheck className="w-4 h-4 text-green-500/50" /> Encrypted Tunnel
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    < Globe className="w-4 h-4 text-blue-500/50" /> DB Isolation
+                                </div>
+                                <div className="flex items-center gap-2 font-mono">
+                                    v2.4.0_SECURE
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
+
+// --- DATA: Premium Lore/Facts ---
+const quantumLore = [
+    "AUIP uses PostgreSQL Schema Isolation to ensure every institution lives in its own high-security digital vault.",
+    "Our V2 Kernel enables students to access global resources while their personal data remains locked in tenant-specific storage.",
+    "The 'Quantum Shield' prevents cross-tenant data leaks using dynamic search_path enforcement at the session level.",
+    "AI-driven monitoring tracks unusual login patterns across all unified institutions in real-time.",
+    "Onboarding a new university triggers a multi-stage migration flow that pre-seeds essential administrative registry data.",
+    "The AUIP platform is designed to handle over 10 million concurrent student sessions with sub-100ms latency."
+];
 
 export default InstitutionAdmin;

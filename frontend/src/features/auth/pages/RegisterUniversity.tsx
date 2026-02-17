@@ -1,13 +1,8 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
 import { Building2, Mail, Globe, Users, Phone, MapPin, Send, CheckCircle2 } from "lucide-react";
 import { TurnstileWidget } from "../components/TurnstileWidget";
 import { v2AuthApi } from "../api/v2AuthApi";
-
-const API_BASE_URL = import.meta.env.VITE_BACKEND_URL
-    ? `${import.meta.env.VITE_BACKEND_URL}/api/`
-    : "http://localhost:8000/api/";
 
 export const RegisterUniversity = () => {
     const navigate = useNavigate();
@@ -66,7 +61,19 @@ export const RegisterUniversity = () => {
             });
             setIsSubmitted(true);
         } catch (err: any) {
-            setError(err.response?.data?.detail || "Failed to submit application. Please try again.");
+            const msg = err.response?.data?.message || err.response?.data?.detail || "Failed to submit application. Please try again.";
+            setError(msg);
+
+            // 🔄 Critical: Reset Turnstile token on failure so user has to solve a new one
+            // or we don't try to reuse a spent token.
+            setTurnstileToken(null);
+            if ((window as any).turnstile) {
+                try {
+                    (window as any).turnstile.reset();
+                } catch (resetErr) {
+                    console.warn("Turnstile reset failed", resetErr);
+                }
+            }
         } finally {
             setIsLoading(false);
         }

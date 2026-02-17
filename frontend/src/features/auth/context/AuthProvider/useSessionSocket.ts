@@ -7,6 +7,7 @@ import { apiClient } from "../../api/base"; // ✅ Use apiClient
 import {
   getAccessToken,
   setAccessToken,
+  isHydrating,
 } from "../../utils/tokenStorage";
 
 import { hydratePassport } from "../../api/passportApi";
@@ -123,6 +124,14 @@ export const useSessionSocket = (user: User | null, isReady: boolean = true) => 
         case "rotate":
         case "new_session": {
           // 🔁 Re-bootstrap + Refresh List
+          // ✅ GUARD: Skip if this tab is already performing a rotation/sync
+          if (isHydrating()) {
+            console.debug("[WS] 🛡️ Rotation event ignored: hydration in progress.");
+            loadSessions();
+            return;
+          }
+
+          console.debug("[WS] 🔄 Rotation event received: re-hydrating session");
           await hydratePassport().then((res) => {
             if (res?.access) setAccessToken(res.access);
           });

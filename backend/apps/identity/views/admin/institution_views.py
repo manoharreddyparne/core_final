@@ -19,6 +19,12 @@ class InstitutionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Institution
         fields = '__all__'
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def validate_slug(self, value):
+        if not value:
+            raise serializers.ValidationError("Slug cannot be empty.")
+        return value
 
 class InstitutionViewSet(viewsets.ModelViewSet):
     """
@@ -31,7 +37,20 @@ class InstitutionViewSet(viewsets.ModelViewSet):
     lookup_field = 'slug'
 
     def perform_create(self, serializer):
-        institution = serializer.save()
+        from django.utils.text import slugify
+        name = serializer.validated_data.get('name')
+        slug = serializer.validated_data.get('slug')
+        
+        if not slug and name:
+            slug = slugify(name)
+            # Basic uniqueness check
+            base_slug = slug
+            counter = 1
+            while Institution.objects.filter(slug=slug).exists():
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+        
+        institution = serializer.save(slug=slug)
         logger.info(f"[Institution-Create] slug={institution.slug}")
 
     @action(detail=True, methods=['post'])
@@ -57,11 +76,23 @@ class InstitutionViewSet(viewsets.ModelViewSet):
 
             def check_tables_ready(schema_name):
                 with connection.cursor() as cursor:
-                    # Check if the table exists in the specific schema
-                    cursor.execute(f"SELECT count(*) FROM information_schema.tables WHERE table_schema = '{schema_name}' AND table_name = 'auip_institution_preseededregistry'")
-                    return cursor.fetchone()[0] > 0
+                    # Check if the table exists in the specific schema (case-insensitive for safety)
+                    query = """
+                        SELECT count(*) 
+                        FROM information_schema.tables 
+                        WHERE table_schema = %s 
+                        AND table_name = 'auip_institution_preseededregistry'
+                    """
+                    cursor.execute(query, [schema_name.lower()])
+                    exists = cursor.fetchone()[0] > 0
+                    if not exists:
+                        # Log what tables DO exist for debugging
+                        cursor.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = %s", [schema_name.lower()])
+                        tables = [r[0] for r in cursor.fetchall()]
+                        logger.warning(f"[Multi-Tenancy] Tables found in {schema_name}: {tables}")
+                    return exists
 
-            max_retries = 3
+            max_retries = 5
             for i in range(max_retries):
                 logger.info(f"[Multi-Tenancy] Syncing migrations for {institution.schema_name} (Attempt {i+1})")
                 try:
@@ -112,14 +143,54 @@ class InstitutionViewSet(viewsets.ModelViewSet):
             institution.status = Institution.RegistrationStatus.APPROVED
             institution.save()
 
+            # Trigger Email Notification
+            try:
+                from django.core.mail import send_mail
+                from django.conf import settings
+                
+                subject = f"AUIP Platform: {institution.name} Approved"
+                message = f"""
+                Hello,
+
+                Great news! The AUIP instance for {institution.name} has been successfully provisioned and approved.
+
+                Institution Details:
+                - Name: {institution.name}
+                - Domain: {institution.domain}
+                - Status: ACTIVE
+
+                You can now log in to your institutional portal using your administrator credentials.
+
+                Welcome to the future of unified academic governance.
+
+                Best regards,
+                AUIP Platform Team
+                """
+                send_mail(
+                    subject,
+                    message,
+                    settings.DEFAULT_FROM_EMAIL,
+                    [institution.contact_email],
+                    fail_silently=True
+                )
+                logger.info(f"[Institution-Approval] Notification email sent to {institution.contact_email}")
+            except Exception as mail_err:
+                logger.error(f"[Institution-Approval] Failed to send email: {mail_err}")
+
             logger.info(f"[Institution-Approval] APPROVED, SCHEMA CREATED, and SEEDED: {institution.name}")
-            return success_response({"message": f"Institution {institution.name} approved and isolated schema created successfully."})
+            return success_response({
+                "message": f"Institution {institution.name} approved and isolated schema created successfully.",
+                "notification_sent": True
+            })
         except Exception as e:
-            logger.error(f"[Institution-Approval] Failed to approve {institution.name}: {str(e)}", exc_info=True)
-            # Temporarily include 'errors' for debugging the Stanford failure
+            logger.error(f"[Institution-Approval] Failed to approve {institution.name} (Schema: {institution.schema_name}): {str(e)}", exc_info=True)
+            # Temporarily include 'errors' for debugging the failure
             return error_response(
                 f"Failed to create isolated environment for {institution.name}.",
-                errors={"detail": str(e)}
+                errors={
+                    "detail": str(e),
+                    "schema_attempted": institution.schema_name
+                }
             )
 
     @action(detail=True, methods=['post'])
@@ -139,6 +210,35 @@ class InstitutionViewSet(viewsets.ModelViewSet):
         institution.status = Institution.RegistrationStatus.REVIEW
         institution.save()
         return success_response({"message": f"Institution {institution.name} marked for review."})
+
+    @action(detail=False, methods=['post'], url_path='rebuild-slugs')
+    def rebuild_slugs(self, request):
+        """
+        Emergency action to fix institutions with missing slugs causing 404s.
+        """
+        from django.utils.text import slugify
+        institutions = Institution.objects.filter(slug='') | Institution.objects.filter(slug__isnull=True)
+        count = 0
+        fixed = []
+        
+        for inst in institutions:
+            new_slug = slugify(inst.name)
+            base_slug = new_slug
+            counter = 1
+            while Institution.objects.filter(slug=new_slug).exclude(id=inst.id).exists():
+                new_slug = f"{base_slug}-{counter}"
+                counter += 1
+            
+            inst.slug = new_slug
+            inst.save()
+            fixed.append({"id": inst.id, "name": inst.name, "slug": inst.slug})
+            count += 1
+            
+        logger.warning(f"[Institution-SlugFix] Rebuilt {count} slugs for legacy records.")
+        return success_response({
+            "message": f"Successfully rebuilt {count} slugs.",
+            "fixed": fixed
+        })
 
     @action(detail=True, methods=['post'])
     def request_info(self, request, slug=None):

@@ -36,10 +36,12 @@ class InstitutionRegistrationView(APIView):
                                  code=status.HTTP_400_BAD_REQUEST)
 
         if Institution.objects.filter(name=name).exists():
+            logger.warning(f"[Institution-Registration] Rejected: Name conflict '{name}'")
             return error_response("An institution with this name already exists.", 
                                  code=status.HTTP_400_BAD_REQUEST)
 
         if Institution.objects.filter(domain=domain).exists():
+            logger.warning(f"[Institution-Registration] Rejected: Domain conflict '{domain}'")
             return error_response("An institution with this domain already exists.", 
                                  code=status.HTTP_400_BAD_REQUEST)
 

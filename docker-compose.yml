@@ -52,11 +52,15 @@ services:
     environment:
       - REDIS_HOST=redis
       - DB_HOST=aws-1-ap-southeast-1.pooler.supabase.com
+      - TURNSTILE_ENABLED=True
     depends_on:
       redis:
         condition: service_healthy
     networks:
       - auip-network
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
 
   # Frontend (React)
   frontend:

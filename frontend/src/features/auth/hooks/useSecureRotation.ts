@@ -65,12 +65,6 @@ export const useSecureRotation = () => {
       setAccessToken(rotated.access);
       setLastSecured(Date.now());
 
-      // (3) Refresh session + user state
-      const boot = await hydratePassport();
-      if (!boot?.user) {
-        throw new Error("Rotation succeeded but bootstrap had no user");
-      }
-
       console.log("✅ [useSecureRotation] rotation successful");
       return rotated;
     } catch (err: any) {

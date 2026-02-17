@@ -60,30 +60,27 @@ class ChangePasswordView(APIView):
         ip = get_client_ip(request) or "0.0.0.0"
         user_agent = request.META.get("HTTP_USER_AGENT", "")
 
-        # ✅ CRITICAL FIX: After password change, old refresh tokens are often invalidated 
-        # by the password change itself (Django's session invalidation or hash change). 
-        # We manually issue FRESH tokens for the session rather than "rotating" the old one.
+        # ✅ ROBUST FIX: After password change, issue FRESH tokens and a proper LoginSession.
         try:
             from rest_framework_simplejwt.tokens import RefreshToken
-            from apps.identity.models import LoginSession
-            from django.utils import timezone
-
+            from apps.identity.services.token_service import create_login_session_safe
+            
             # Create fresh tokens
             refresh = RefreshToken.for_user(user)
+            access_token = str(refresh.access_token)
             
-            # Create a new login session record for this device
-            session = LoginSession.objects.create(
+            # Use the safe service to create the session record (handles hashing + JTI + WS)
+            create_login_session_safe(
                 user=user,
-                refresh_jti=refresh["jti"],
-                ip_address=ip,
-                user_agent=user_agent,
-                is_active=True,
-                expires_at=timezone.now() + timezone.timedelta(days=7) # Standard duration
+                access_token=access_token,
+                refresh_token=str(refresh),
+                ip=ip,
+                user_agent=user_agent
             )
 
             resp = password_success(
                 "Password updated successfully.",
-                data={"access": str(refresh.access_token), "user": serialize_user(user)}
+                data={"access": access_token, "user": serialize_user(user)}
             )
             # Set 4-part Quantum Shield cookies
             from apps.identity.services.quantum_shield import QuantumShieldService

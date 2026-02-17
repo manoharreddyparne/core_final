@@ -49,14 +49,18 @@ export const useSilentRefresh = () => {
             performRefresh();
         }
 
-        // 3. Set a timer for the next check if not in danger zone yet
-        // This reduces interval overhead
-        const nextCheckMillis = (remaining - REFRESH_THRESHOLD) * 1000;
-        const timer = setTimeout(() => {
-            forceDecode(); // Force a re-decode to trigger the next effect run
-        }, Math.max(nextCheckMillis, 5000));
-
-        return () => clearTimeout(timer);
+        // 3. Schedule next check
+        // Check 10s before we actually expected to hit THRESHOLD to be safe, 
+        // but never more frequent than every 30s for silent checks.
+        const secondsUntilDanger = remaining - REFRESH_THRESHOLD;
+        if (secondsUntilDanger > 0) {
+            const nextCheckSeconds = Math.max(secondsUntilDanger - 10, 30);
+            console.debug(`[Auth] Scheduling next silent check in ${nextCheckSeconds}s`);
+            const timer = setTimeout(() => {
+                forceDecode();
+            }, nextCheckSeconds * 1000);
+            return () => clearTimeout(timer);
+        }
     }, [remaining, isValid, performRefresh, forceDecode]);
 
     // 4. Foreground Wakeup Logic
