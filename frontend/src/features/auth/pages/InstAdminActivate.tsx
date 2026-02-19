@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import { v2AuthApi } from "../api/v2AuthApi";
 import { useAuth } from "../context/AuthProvider/AuthProvider";
@@ -12,8 +12,11 @@ import {
     Lock,
     KeyRound,
     ArrowRight,
-    Building2
+    Building2,
+    Mail,
+    ShieldAlert
 } from "lucide-react";
+import { hydratePassport } from "../api/passportApi";
 
 export default function InstAdminActivate() {
     const [searchParams] = useSearchParams();
@@ -25,6 +28,42 @@ export default function InstAdminActivate() {
     const [confirmPassword, setConfirmPassword] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [success, setSuccess] = useState(false);
+
+    const [validating, setValidating] = useState(true);
+    const [tokenError, setTokenError] = useState<string | null>(null);
+    const [activationInfo, setActivationInfo] = useState<{ email: string; already_activated: boolean } | null>(null);
+
+    useEffect(() => {
+        const validateToken = async () => {
+            if (!token) {
+                setTokenError("Missing activation token.");
+                setValidating(false);
+                return;
+            }
+            try {
+                // We'll reuse the same endpoint via a GET request
+                // Since v2AuthApi doesn't have a validate endpoint yet, we'll manually fetch or update v2AuthApi
+                const res = await v2AuthApi.validateInstAdminToken(token);
+                if (res.success && res.data) {
+                    setActivationInfo({
+                        email: res.data.email,
+                        already_activated: res.data.already_activated
+                    });
+                    if (res.data.already_activated) {
+                        toast.success("This account is already active. Redirecting to login...");
+                        setTimeout(() => navigate("/auth/inst-admin/login"), 3000);
+                    }
+                } else {
+                    setTokenError(res.message || "Invalid or expired activation link.");
+                }
+            } catch (err: any) {
+                setTokenError("Failed to verify activation link. It may have expired.");
+            } finally {
+                setValidating(false);
+            }
+        };
+        validateToken();
+    }, [token, navigate]);
 
     const handleActivate = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -45,12 +84,20 @@ export default function InstAdminActivate() {
         try {
             const res = await v2AuthApi.instAdminActivate({ token, password });
             if (res.success && res.data) {
-                // Auto-login: store JWT + set user from backend response
-                setAccessToken(res.data.access!);
-                setUser(res.data.user);
-                setSuccess(true);
-                toast.success("Account activated! Redirecting to dashboard...");
-                setTimeout(() => navigate("/dashboard"), 2000);
+                // ✅ SECURE HYDRATION: Sync RAM state with backend Quad-Shield cookies
+                // Instead of manually setting state, we let the hub hydrate the passport.
+                const passport = await hydratePassport();
+
+                if (passport.success) {
+                    setAccessToken(passport.access!);
+                    setUser(passport.user);
+                    setSuccess(true);
+                    toast.success("Account activated! Synchronizing security shield...");
+                    // Redirect to Institutional Dashboard directly
+                    setTimeout(() => navigate("/institution/dashboard"), 2000);
+                } else {
+                    toast.error("Account activated, but security handshake failed. Please login manually.");
+                }
             } else {
                 toast.error(res.message || "Activation failed.");
             }
@@ -61,6 +108,47 @@ export default function InstAdminActivate() {
             setSubmitting(false);
         }
     };
+
+    if (validating) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-screen bg-[#0a0a0b] p-4 text-white">
+                <div className="text-center space-y-4">
+                    <Loader2 className="w-12 h-12 text-primary animate-spin mx-auto" />
+                    <p className="text-gray-400 font-medium animate-pulse">Verifying Security Protocols...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (tokenError || (activationInfo?.already_activated && !success)) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-screen bg-[#0a0a0b] p-4">
+                <div className="w-full max-w-md glass p-10 text-center rounded-[3rem] space-y-8 animate-in slide-in-from-top-4 duration-500">
+                    <div className="flex justify-center">
+                        <div className="w-20 h-20 rounded-[2rem] bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500">
+                            <AlertCircle className="w-10 h-10" />
+                        </div>
+                    </div>
+                    <div>
+                        <h1 className="text-2xl font-black text-white uppercase tracking-tight">
+                            {activationInfo?.already_activated ? "Already Activated" : "Invalid Link"}
+                        </h1>
+                        <p className="text-gray-500 text-sm mt-2">
+                            {activationInfo?.already_activated
+                                ? "This administrator account is already active."
+                                : tokenError || "The activation link is missing or malformed."}
+                        </p>
+                    </div>
+                    <Link
+                        to="/auth/inst-admin/login"
+                        className="inline-block w-full py-4 glass border-white/5 text-white rounded-2xl font-bold hover:bg-white/5 transition-all text-xs uppercase tracking-widest"
+                    >
+                        Go to Admin Login
+                    </Link>
+                </div>
+            </div>
+        );
+    }
 
     if (success) {
         return (
@@ -78,35 +166,11 @@ export default function InstAdminActivate() {
                         </p>
                     </div>
                     <Link
-                        to="/dashboard"
+                        to="/institution/dashboard"
                         className="flex items-center justify-center gap-2 w-full py-4 premium-gradient text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-primary/25 hover:scale-105 transition-all"
                     >
                         Go to Dashboard
                         <ArrowRight className="w-5 h-5" />
-                    </Link>
-                </div>
-            </div>
-        );
-    }
-
-    if (!token) {
-        return (
-            <div className="flex flex-col items-center justify-center min-h-screen bg-[#0a0a0b] p-4">
-                <div className="w-full max-w-md glass p-10 text-center rounded-[3rem] space-y-8 animate-in slide-in-from-top-4 duration-500">
-                    <div className="flex justify-center">
-                        <div className="w-20 h-20 rounded-[2rem] bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500">
-                            <AlertCircle className="w-10 h-10" />
-                        </div>
-                    </div>
-                    <div>
-                        <h1 className="text-2xl font-black text-white uppercase tracking-tight">Invalid <span className="text-red-500 italic">Link</span></h1>
-                        <p className="text-gray-500 text-sm mt-2">The activation link is missing or malformed. Please check your email for the correct link.</p>
-                    </div>
-                    <Link
-                        to="/auth/inst-admin/login"
-                        className="inline-block w-full py-4 glass border-white/5 text-white rounded-2xl font-bold hover:bg-white/5 transition-all text-xs uppercase tracking-widest"
-                    >
-                        Go to Admin Login
                     </Link>
                 </div>
             </div>
@@ -128,6 +192,12 @@ export default function InstAdminActivate() {
                     <p className="text-muted-foreground text-[10px] uppercase tracking-[0.2em] font-black">
                         Set up your institutional administrator credentials
                     </p>
+                    {activationInfo && (
+                        <div className="mt-4 flex items-center justify-center gap-2 text-primary font-bold bg-primary/5 py-2 px-4 rounded-full border border-primary/10 animate-pulse">
+                            <Mail className="w-4 h-4" />
+                            <span className="text-xs tracking-tighter">{activationInfo.email}</span>
+                        </div>
+                    )}
                 </div>
 
                 <div className="glass p-8 rounded-[3rem] space-y-8 relative overflow-hidden">

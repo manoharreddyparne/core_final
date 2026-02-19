@@ -23,31 +23,19 @@ export default function StudentLogin() {
         isLoading,
         handleStudentLogin,
         turnstileToken,
-        setTurnstileToken
+        setTurnstileToken,
+        onTurnstileExpire,
+        turnstileSiteKey
     } = useLoginV2VM();
 
     const { institutions, isLoading: loadingInstitutions } = useInstitutions();
-    const [siteKey, setSiteKey] = useState<string>("");
-
-    React.useEffect(() => {
-        const fetchConfig = async () => {
-            try {
-                const config = await v2AuthApi.getPublicConfig();
-                setSiteKey(config.turnstile_site_key);
-            } catch (err) {
-                console.error("Failed to load public config", err);
-            }
-        };
-        fetchConfig();
-    }, []);
 
     const onSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!turnstileToken) {
-            return;
-        }
         handleStudentLogin();
     };
+
+    const isFormValid = identifier && password && selectedInstitution && turnstileToken;
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-[#0a0a0b] p-4 text-white font-inter">
@@ -114,15 +102,15 @@ export default function StudentLogin() {
                             </div>
 
                             <TurnstileWidget
-                                siteKey={siteKey}
-                                onSuccess={(token: string) => setTurnstileToken(token)}
-                                onExpire={() => setTurnstileToken(null)}
+                                siteKey={turnstileSiteKey}
+                                onSuccess={setTurnstileToken}
+                                onExpire={onTurnstileExpire}
                             />
                         </div>
 
                         <button
                             type="submit"
-                            disabled={isLoading || !selectedInstitution || !turnstileToken}
+                            disabled={isLoading || !isFormValid}
                             className="w-full py-5 premium-gradient text-white rounded-2xl font-black uppercase tracking-widest shadow-2xl shadow-primary/30 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:grayscale flex items-center justify-center gap-3"
                         >
                             {isLoading ? (

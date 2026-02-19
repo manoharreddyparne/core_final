@@ -55,7 +55,8 @@ class LogoutView(APIView):
             )
 
         resp = success_response("Logged out")
-        clear_session_cookies(resp)
+        role = getattr(user, 'role', None) 
+        clear_session_cookies(resp, role=role)
         return resp
 
 
@@ -94,5 +95,6 @@ class LogoutAllView(APIView):
                 status=500,
             )
 
-        clear_session_cookies(resp)
+        role = getattr(user, 'role', None)
+        clear_session_cookies(resp, role=role)
         return resp

@@ -45,7 +45,7 @@ REFRESH_COOKIE_SECURE = False
 # GMAIL SMTP FOR DEVELOPMENT
 # -----------------------------
 # User intends to use Gmail for manual verification
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_BACKEND = config("EMAIL_BACKEND", default="django.core.mail.backends.smtp.EmailBackend")
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True

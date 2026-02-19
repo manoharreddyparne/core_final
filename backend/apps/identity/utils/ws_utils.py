@@ -10,15 +10,19 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-def send_session_ws_event(user_id: int, action: str, session_id: int = None, jti: str = None) -> bool:
+def send_session_ws_event(user_id: int, action: str, session_id: int = None, jti: str = None, role: str = None) -> bool:
     if not CHANNELS_AVAILABLE:
         return False
     try:
         layer = get_channel_layer()
         if not layer:
             return False
+        group_name = f"user_sessions_{user_id}"
+        if role:
+             group_name = f"{group_name}_{role}"
+
         async_to_sync(layer.group_send)(
-            f"user_sessions_{user_id}",
+            group_name,
             {"type": "session_update", "data": {"action": action, "session_id": session_id, "jti": jti}},
         )
         return True

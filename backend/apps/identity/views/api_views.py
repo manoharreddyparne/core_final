@@ -19,18 +19,26 @@ class UpdateSessionLocationView(APIView):
         longitude = request.data.get('longitude')
         
         if not latitude or not longitude:
-            return success_response("Missing coordinates", status_code=400)
+            return success_response("Missing coordinates", code=400)
         
         user = request.user
+        from apps.identity.models.core_models import User
         
         # Get current session from JWT
         jti = getattr(request.auth, 'get', lambda x, y: None)('jti', None)
         
         if not jti:
-            return success_response("No session found", status_code=400)
+            return success_response("No session found", code=400)
         
         try:
-            session = LoginSession.objects.filter(user=user, jti=jti, is_active=True).first()
+            from django.db.models import Q
+            # Multi-tenant aware session lookup
+            if hasattr(user, 'email') and not isinstance(user, User):
+                schema = getattr(request.auth, 'get', lambda x, y: '')('schema', '')
+                session = LoginSession.objects.filter(tenant_user_id=user.id, tenant_schema=schema, jti=jti, is_active=True).first()
+            else:
+                session = LoginSession.objects.filter(user=user, jti=jti, is_active=True).first()
+
             if session:
                 session.latitude = float(latitude)
                 session.longitude = float(longitude)
@@ -38,10 +46,10 @@ class UpdateSessionLocationView(APIView):
                 logger.info(f"Updated location for session {session.id}: {latitude}, {longitude}")
                 return success_response("Location updated")
             else:
-                return success_response("Session not found", status_code=404)
+                return success_response("Session not found", code=404)
         except Exception as e:
             logger.exception("Failed to update session location")
-            return success_response("Failed to update location", status_code=500)
+            return success_response("Failed to update location", code=500)
 
 
 class PublicConfigView(APIView):

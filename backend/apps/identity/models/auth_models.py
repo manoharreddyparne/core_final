@@ -21,6 +21,8 @@ class BlacklistedAccessToken(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="blacklisted_tokens",
+        null=True,
+        blank=True
     )
     token_hash = models.CharField(max_length=128)
     jti = models.CharField(max_length=255, blank=True, null=True)
@@ -72,7 +74,15 @@ class LoginSession(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="login_sessions",
+        null=True,
+        blank=True
     )
+    # Metadata for isolated Tenant Users (Students/Faculty/InstAdmins)
+    # Used when 'user' is NULL to bridge the gap without creating global records.
+    tenant_user_id = models.IntegerField(null=True, blank=True)
+    tenant_schema = models.CharField(max_length=255, blank=True)
+    tenant_email = models.EmailField(blank=True)
+    
     jti = models.CharField(max_length=255, unique=True)
     token_hash = models.CharField(max_length=128)
     refresh_jti = models.CharField(max_length=255, blank=True, null=True)
@@ -84,6 +94,7 @@ class LoginSession(models.Model):
     device_type = models.CharField(max_length=32, blank=True)  # mobile / desktop / tablet
     browser_info = models.CharField(max_length=128, blank=True)
     login_method = models.CharField(max_length=32, default="web")  # web / mobile / api
+    role = models.CharField(max_length=50, blank=True, null=True, db_index=True) # ✅ NEW — Isolation support
 
     ip_address = models.GenericIPAddressField(blank=True, null=True)
     latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
@@ -113,7 +124,8 @@ class LoginSession(models.Model):
         if self.is_active:
             self.is_active = False
             self.save(update_fields=["is_active"])
-            logger.info(f"Login session deactivated: jti={self.jti}, user={self.user.email}")
+            email = self.user.email if self.user else self.tenant_email
+            logger.info(f"Login session deactivated: jti={self.jti}, user={email}")
 
     def is_expired(self):
         return self.expires_at and self.expires_at <= timezone.now()
@@ -149,11 +161,19 @@ class LoginSession(models.Model):
         user_agent: str = "",
         expires_at: timezone = None,
         device_salt: str = None,
+        tenant_user_id: int = None,
+        tenant_schema: str = "",
+        tenant_email: str = "",
+        role: str = None,
     ):
         token_hash_value = hash_token_secure(token_str)
         refresh_hash_value = hash_token_secure(refresh_token_str) if refresh_token_str else None
         session = cls.objects.create(
-            user=user,
+            user=user if hasattr(user, 'pk') and not isinstance(user, int) else None,
+            tenant_user_id=tenant_user_id,
+            tenant_schema=tenant_schema,
+            tenant_email=tenant_email,
+            role=role,
             jti=jti,
             token_hash=token_hash_value,
             refresh_jti=refresh_jti,
@@ -168,11 +188,13 @@ class LoginSession(models.Model):
             expires_at=expires_at,
             device_salt=device_salt,
         )
-        logger.info(f"[SESSION] Created: jti={jti} user={user.email} id={session.id}")
+        email = user.email if hasattr(user, 'email') else tenant_email
+        logger.info(f"[SESSION] Created: jti={jti} user={email} id={session.id}")
         return session
 
     def __str__(self):
-        return f"Session {self.jti} for {self.user.email} (Active: {self.is_active})"
+        email = self.user.email if self.user else self.tenant_email
+        return f"Session {self.jti} for {email} (Active: {self.is_active})"
 
     @staticmethod
     def make_device_salt():
@@ -192,6 +214,8 @@ class RememberedDevice(models.Model):
     )
     device_hash = models.CharField(max_length=128)
     trusted = models.BooleanField(default=False)
+    trust_cookie_hash = models.CharField(max_length=128, blank=True, default="")  # HMAC of browser auip_dt cookie
+    trusted_until = models.DateTimeField(null=True, blank=True)  # When trust expires (matches cookie lifetime)
     last_active = models.DateTimeField(auto_now=True)
     # Device and Location Info
     ip_address = models.GenericIPAddressField()

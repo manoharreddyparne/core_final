@@ -31,7 +31,7 @@ class CreateTeacherView(APIView):
         institution = get_user_institution(request.user)
         
         if not institution:
-            return error_response("Institution context not found for user.", status_code=status.HTTP_400_BAD_REQUEST)
+            return error_response("Institution context not found for user.", code=status.HTTP_400_BAD_REQUEST)
 
         teachers_data = request.data.get("teachers", [])
         created_teachers = []
@@ -104,7 +104,7 @@ class TeacherProfileSearchView(APIView):
         institution = get_user_institution(request.user)
         
         if not institution and not request.user.role == User.Roles.SUPER_ADMIN:
-            return error_response("Institution context required.", status_code=status.HTTP_400_BAD_REQUEST)
+            return error_response("Institution context required.", code=status.HTTP_400_BAD_REQUEST)
 
         qs = TeacherProfile.objects.select_related("user").all()
         

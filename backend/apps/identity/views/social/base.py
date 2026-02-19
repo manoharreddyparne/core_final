@@ -39,7 +39,7 @@ class BaseSocialLoginView(SocialLoginView):
         fragments = QuantumShieldService.fragment_token(str(refresh))
         
         set_quantum_shield(response, fragments)
-        set_logged_in_cookie(response, "true")
+        set_logged_in_cookie(response, "true", role=user.role)
 
     def post(self, request, *args, **kwargs):
         ip = request.META.get("REMOTE_ADDR", "")

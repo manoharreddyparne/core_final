@@ -20,17 +20,34 @@ class SessionListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs) -> Any:
-        user: User = request.user
+        from django.db.models import Q
+        user = request.user
         
         # Get current session JTI from JWT token
         current_jti = getattr(request.auth, 'get', lambda x, y: None)('jti', None)
 
+        role = getattr(request.auth, 'get', lambda x, y: None)('role', None) or getattr(user, 'role', None)
+        schema = getattr(request.auth, 'get', lambda x, y: '')('schema', '')
+
+        if hasattr(user, 'email') and not isinstance(user, User):
+            # Tenant isolated User (Student/Faculty)
+            session_filter = Q(tenant_user_id=user.id, tenant_schema=schema)
+        else:
+            # Global User (Super Admin/Inst Admin)
+            # 🛡️ ISOLATION: Only show sessions belonging to the current ROLE and SCHEMA context.
+            session_filter = Q(user=user, role=role)
+            if schema:
+                session_filter &= Q(tenant_schema=schema)
+            else:
+                # If no schema context (SuperAdmin portal), only show global sessions
+                session_filter &= Q(tenant_schema='')
+
         # Deactivate expired sessions
-        for session in LoginSession.objects.filter(user=user, is_active=True):
+        for session in LoginSession.objects.filter(session_filter, is_active=True):
             session.deactivate_if_expired()
 
         sessions_data: list[Dict[str, Any]] = []
-        for session in LoginSession.objects.filter(user=user, is_active=True).order_by("-created_at"):
+        for session in LoginSession.objects.filter(session_filter, is_active=True).order_by("-created_at"):
             location = get_location(session.ip_address)
             device_info = parse_device_info(session.user_agent)
             
@@ -69,28 +86,35 @@ class SessionLogoutView(APIView):
     def delete(self, request, pk: int, *args, **kwargs) -> Any:
         user: User = request.user
 
+        role = getattr(request.auth, 'get', lambda x, y: None)('role', None) or getattr(user, 'role', None)
+        schema = getattr(request.auth, 'get', lambda x, y: '')('schema', '')
+
         try:
-            session = LoginSession.objects.get(pk=pk, user=user)
+            if hasattr(user, 'email') and not isinstance(user, User):
+                 session = LoginSession.objects.get(pk=pk, tenant_user_id=user.id, tenant_schema=schema)
+            else:
+                 # 🛡️ ISOLATION: Verify context ownership before allowing logout
+                 session = LoginSession.objects.get(pk=pk, user=user, role=role, tenant_schema=schema if schema else '')
         except LoginSession.DoesNotExist:
-            return success_response("Session not found", status_code=404)
+            return success_response("Session not found", code=404)
 
         # Even if inactive, we might want to delete/hide it, but logic here says "deactivate"
         if not session.is_active:
-            return success_response("Session already inactive", status_code=400)
+            return success_response("Session already inactive", code=400)
 
         try:
-            session.is_active = False
-            session.save(update_fields=["is_active"])
+            # Extract schema from token for correct multi-tenant context
+            schema = getattr(request.auth, 'get', lambda x, y: None)('schema', None)
             
-            # Notify the specific session to force logout
-            send_session_ws_event(user.id, "force_logout", session.id, session.jti)
+            from apps.identity.services.token_service import logout_single_session_secure
+            logout_single_session_secure(user, session_id=pk, schema=schema)
             
-            logger.info(f"Session {session.pk} deactivated for user {user.email}")
+            logger.info(f"Session {pk} deactivated for user {user.email}")
             return success_response("Session logged out successfully")
 
         except Exception:
             logger.exception("Failed to logout session")
-            return success_response("Failed to logout session", status_code=500)
+            return success_response("Failed to logout session", code=500)
 
     def post(self, request, *args, **kwargs) -> Any:
         """Compatibility for POST-based logout"""
@@ -115,15 +139,20 @@ class SessionLogoutAllView(APIView):
                 pass
 
         try:
-            logout_all_sessions_secure(user, exclude_jti=current_session_jti)
+            # Extract schema from token if it exists (for multi-tenant sessions)
+            schema = getattr(request.auth, 'get', lambda x, y: None)('schema', None)
+            
+            logout_all_sessions_secure(user, exclude_jti=current_session_jti, schema=schema)
             msg = "Logged out of other devices" if exclude_current else "All sessions logged out successfully"
             resp = success_response(msg)
             if not exclude_current:
-                clear_session_cookies(resp)
+                # Extract role to clear specific cookie
+                role = getattr(user, 'role', None) or getattr(request.auth, 'get', lambda x, y: None)('role', None)
+                clear_session_cookies(resp, role=role)
             return resp
         except Exception:
             logger.exception("Failed to logout all sessions")
-            return success_response("Failed to logout all sessions", status_code=500)
+            return success_response("Failed to logout all sessions", code=500)
 
     def post(self, request, *args, **kwargs) -> Any:
         """Compatibility for POST-based logout"""
@@ -149,13 +178,18 @@ class SessionValidateView(APIView):
                 "is_valid": False,
                 "was_logged_out": True,
                 "reason": "no_jti"
-            }, status_code=400)
+            }, code=400)
         
         try:
-            session = LoginSession.objects.filter(user=user, jti=jti).first()
+            from django.db.models import Q
+            if hasattr(user, 'email') and not isinstance(user, User):
+                 schema = getattr(request.auth, 'get', lambda x, y: '')('schema', '')
+                 session = LoginSession.objects.filter(tenant_user_id=user.id, tenant_schema=schema, jti=jti).first()
+            else:
+                 session = LoginSession.objects.filter(user=user, jti=jti).first()
             
             if not session:
-                logger.warning(f"[SESSION-VAL] ⚠️ Session NOT FOUND in DB: {jti} for user {user.email}")
+                logger.warning(f"[SESSION-VAL] ⚠️ Session NOT FOUND in DB: {jti} for user {getattr(user, 'email', 'unknown')}")
                 return success_response("Session not found", data={
                     "is_valid": False,
                     "was_logged_out": True,
@@ -179,4 +213,4 @@ class SessionValidateView(APIView):
             
         except Exception as e:
             logger.exception(f"Failed to validate session: {e}")
-            return success_response("Failed to validate session", status_code=500)
+            return success_response("Failed to validate session", code=500)

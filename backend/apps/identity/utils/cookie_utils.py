@@ -61,13 +61,17 @@ def clear_refresh_cookie(response: Response):
 LOGGED_IN_COOKIE_NAME = "auip_logged_in"
 
 
-def set_logged_in_cookie(response: Response, value: str = "true", max_age: int = REFRESH_COOKIE_MAX_AGE):
+def set_logged_in_cookie(response: Response, value: str = "true", max_age: int = REFRESH_COOKIE_MAX_AGE, role: str = None):
     """
     Sets a client-readable marker cookie (not HttpOnly).
     Frontend can check this to know if a session *should* exist.
     """
+    key = LOGGED_IN_COOKIE_NAME
+    if role:
+        key = f"{key}_{role}"
+        
     response.set_cookie(
-        key=LOGGED_IN_COOKIE_NAME,
+        key=key,
         value=value,
         max_age=max_age,
         path=REFRESH_COOKIE_PATH,
@@ -77,18 +81,25 @@ def set_logged_in_cookie(response: Response, value: str = "true", max_age: int =
     )
 
 
-def clear_logged_in_cookie(response: Response):
+def clear_logged_in_cookie(response: Response, role: str = None):
     """Remove logged-in marker."""
+    key = LOGGED_IN_COOKIE_NAME
+    if role:
+        key = f"{key}_{role}"
+    
     response.delete_cookie(
-        key=LOGGED_IN_COOKIE_NAME,
+        key=key,
         path=REFRESH_COOKIE_PATH,
     )
+    # Also clear the generic one for safety during migration
+    if role:
+        response.delete_cookie(LOGGED_IN_COOKIE_NAME, path=REFRESH_COOKIE_PATH)
 
 
-def clear_session_cookies(response: Response):
+def clear_session_cookies(response: Response, role: str = None):
     """Clear the HttpOnly refresh cookie AND the logged-in marker."""
     response.delete_cookie(REFRESH_COOKIE_NAME, path=REFRESH_COOKIE_PATH)
-    clear_logged_in_cookie(response)
+    clear_logged_in_cookie(response, role=role)
     clear_quantum_shield(response) # ✅ Sweep all segments
 
 # Alias for legacy compatibility
@@ -115,7 +126,7 @@ def set_quantum_shield(response: Response, fragments: dict, max_age: int = REFRE
             path=REFRESH_COOKIE_PATH,
             secure=REFRESH_COOKIE_SECURE,
             httponly=not is_public,  # ✅ JS can only read Segment T (TTL)
-            samesite="Strict" if not is_public else "Lax",
+            samesite=REFRESH_COOKIE_SAMESITE if not is_public else "Lax",
         )
 
 def clear_quantum_shield(response: Response):

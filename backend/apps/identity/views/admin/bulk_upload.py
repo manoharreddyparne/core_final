@@ -30,16 +30,16 @@ class BulkStudentUploadView(APIView):
 
     def post(self, request):
         if 'file' not in request.FILES:
-            return error_response("CSV file required", status_code=status.HTTP_400_BAD_REQUEST)
+            return error_response("CSV file required", code=status.HTTP_400_BAD_REQUEST)
 
         csv_file = request.FILES['file']
         if not csv_file.name.endswith('.csv'):
-            return error_response("File must be a CSV", status_code=status.HTTP_400_BAD_REQUEST)
+            return error_response("File must be a CSV", code=status.HTTP_400_BAD_REQUEST)
 
         try:
             decoded_file = csv_file.read().decode('utf-8')
         except UnicodeDecodeError:
-            return error_response("CSV must be UTF-8 encoded", status_code=status.HTTP_400_BAD_REQUEST)
+            return error_response("CSV must be UTF-8 encoded", code=status.HTTP_400_BAD_REQUEST)
 
         io_string = io.StringIO(decoded_file)
         reader = csv.DictReader(io_string)
@@ -68,7 +68,7 @@ class BulkStudentUploadView(APIView):
                         institution = get_user_institution(request.user)
                         
                         if not institution:
-                            return error_response("Institution context not found for user.", status_code=status.HTTP_400_BAD_REQUEST)
+                            return error_response("Institution context not found for user.", code=status.HTTP_400_BAD_REQUEST)
 
                         # Check if schema exists, if not, fallback to public (or handle error)
                         context_manager = schema_context(institution.schema_name) if institution.schema_name else None

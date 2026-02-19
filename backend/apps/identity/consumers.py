@@ -28,7 +28,15 @@ class SessionConsumer(AsyncWebsocketConsumer):
             logger.debug("WS connection rejected: unauthenticated user")
             return
 
-        self.group_name = f"user_sessions_{self.user.id}"
+        # 🚀 Role-based Group Isolation
+        # This prevents Super Admin and Institutional Admin (sharing same email)
+        # from kicking each other out via WebSocket events.
+        role = "anonymous"
+        payload = self.scope.get("token_payload")
+        if payload:
+            role = payload.get("role", self.user.role)
+        
+        self.group_name = f"user_sessions_{self.user.id}_{role}"
         await self.channel_layer.group_add(self.group_name, self.channel_name)
 
         # 🚀 REAL-TIME HUB: Add Super Admins to the broadcast group
@@ -106,7 +114,16 @@ class SessionConsumer(AsyncWebsocketConsumer):
     def update_session_location(self, jti: str, latitude: float, longitude: float):
         """Update LoginSession with live location and broadcast."""
         try:
-            session = LoginSession.objects.filter(user=self.user, jti=jti, is_active=True).first()
+            from apps.identity.models.core_models import User
+            from django.db.models import Q
+            
+            # Multi-tenant aware session lookup
+            if hasattr(self.user, 'role') and self.user.role in ('STUDENT', 'FACULTY', 'INSTITUTION_ADMIN'):
+                 schema = self.scope.get("token_payload", {}).get("schema", "")
+                 session = LoginSession.objects.filter(tenant_user_id=self.user.id, tenant_schema=schema, jti=jti, is_active=True).first()
+            else:
+                 session = LoginSession.objects.filter(user=self.user, jti=jti, is_active=True).first()
+
             if session:
                 session.latitude = latitude
                 session.longitude = longitude
@@ -126,7 +143,14 @@ class SessionConsumer(AsyncWebsocketConsumer):
     def force_logout(self, jti: str):
         """Force logout of a specific session."""
         try:
-            session = LoginSession.objects.filter(user=self.user, jti=jti, is_active=True).first()
+            from apps.identity.models.core_models import User
+            # Multi-tenant aware session lookup
+            if hasattr(self.user, 'role') and self.user.role in ('STUDENT', 'FACULTY', 'INSTITUTION_ADMIN'):
+                 schema = self.scope.get("token_payload", {}).get("schema", "")
+                 session = LoginSession.objects.filter(tenant_user_id=self.user.id, tenant_schema=schema, jti=jti, is_active=True).first()
+            else:
+                 session = LoginSession.objects.filter(user=self.user, jti=jti, is_active=True).first()
+
             if session:
                 session.is_active = False
                 session.save(update_fields=["is_active"])
@@ -144,7 +168,14 @@ class SessionConsumer(AsyncWebsocketConsumer):
     def logout_other_devices(self, origin_jti: str):
         """Logout all sessions except origin_jti."""
         try:
-            other_sessions = LoginSession.objects.filter(user=self.user, is_active=True).exclude(jti=origin_jti)
+            from apps.identity.models.core_models import User
+            # Multi-tenant aware session lookup
+            if hasattr(self.user, 'role') and self.user.role in ('STUDENT', 'FACULTY', 'INSTITUTION_ADMIN'):
+                 schema = self.scope.get("token_payload", {}).get("schema", "")
+                 other_sessions = LoginSession.objects.filter(tenant_user_id=self.user.id, tenant_schema=schema, is_active=True).exclude(jti=origin_jti)
+            else:
+                 other_sessions = LoginSession.objects.filter(user=self.user, is_active=True).exclude(jti=origin_jti)
+
             for session in other_sessions:
                 session.is_active = False
                 session.save(update_fields=["is_active"])

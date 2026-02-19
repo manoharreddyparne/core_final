@@ -197,19 +197,10 @@ SIMPLE_JWT = {
 ## -----------------------------
 # REFRESH COOKIE SETTINGS
 # -----------------------------
-if DEBUG:  
-    REFRESH_COOKIE_NAME = "refresh_token_v2"      # dev: plain cookie (v2 to clear conflicts)
-else:
-    REFRESH_COOKIE_NAME = "__Host-refresh_token"  # prod: __Host- prefix required
-
-JWT_AUTH_COOKIE = "access_token"
-JWT_AUTH_REFRESH_COOKIE = REFRESH_COOKIE_NAME
-REST_USE_JWT = True
-
-# Cookie security & SameSite
+# Core cookie security settings (Shared by Quantum Shield)
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
-JWT_AUTH_COOKIE_SECURE = not DEBUG
+
 # Secure cookies only in production
 if DEBUG:
     REFRESH_COOKIE_SAMESITE = 'Lax'

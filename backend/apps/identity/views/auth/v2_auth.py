@@ -14,7 +14,6 @@ from apps.identity.serializers.v2_auth import (
 from apps.identity.utils.activation import generate_activation_token, verify_activation_token, get_activation_url
 from apps.identity.utils.turnstile import verify_turnstile_token
 from apps.auip_tenant.models import Client
-from apps.auip_institution.models import PreSeededRegistry, AuthorizedAccount
 from apps.identity.utils.response_utils import success_response, error_response
 
 class IdentityCheckView(generics.GenericAPIView):
@@ -70,18 +69,30 @@ class ActivationCompleteView(generics.GenericAPIView):
         client = get_object_or_404(Client, id=institution_id)
         
         with schema_context(client.schema_name):
-            registry_entry = get_object_or_404(PreSeededRegistry, identifier=identifier)
+            from apps.auip_institution.models import (
+                StudentPreSeededRegistry, StudentAuthorizedAccount,
+                FacultyPreSeededRegistry, FacultyAuthorizedAccount,
+                AdminPreSeededRegistry, AdminAuthorizedAccount
+            )
             
-            if registry_entry.is_active:
+            if role == 'STUDENT':
+                reg_model, acc_model = StudentPreSeededRegistry, StudentAuthorizedAccount
+            elif role == 'FACULTY':
+                reg_model, acc_model = FacultyPreSeededRegistry, FacultyAuthorizedAccount
+            else:
+                reg_model, acc_model = AdminPreSeededRegistry, AdminAuthorizedAccount
+
+            registry_entry = get_object_or_404(reg_model, identifier=identifier)
+            
+            if registry_entry.is_activated:
                 return error_response("Account already activated.", code=400)
             
-            # Create AuthorizedAccount with localized credentials
-            account, created = AuthorizedAccount.objects.get_or_create(
+            # Create Account with localized credentials
+            account, created = acc_model.objects.get_or_create(
                 registry_ref=registry_entry,
                 defaults={
-                    "email": registry_entry.email,
+                    "email": registry_entry.email if role != 'ADMIN' else registry_entry.identifier,
                     "password_hash": make_password(password),
-                    "role": role,
                     "is_active": True
                 }
             )
@@ -90,7 +101,7 @@ class ActivationCompleteView(generics.GenericAPIView):
                 account.password_hash = make_password(password)
                 account.save()
             
-            registry_entry.is_active = True
+            registry_entry.is_activated = True
             registry_entry.save()
             
         return success_response("Account activated successfully. You can now log in.", code=201)
@@ -129,24 +140,23 @@ class StudentLoginView(generics.GenericAPIView):
         client = get_object_or_404(Client, id=institution_id)
         
         with schema_context(client.schema_name):
+            from apps.auip_institution.models import StudentPreSeededRegistry, StudentAuthorizedAccount
             try:
                 # Student can login with email or roll number (identifier)
-                account = AuthorizedAccount.objects.get(
-                    email=identifier, 
-                    role='STUDENT'
+                account = StudentAuthorizedAccount.objects.get(
+                    email=identifier
                 )
-            except AuthorizedAccount.DoesNotExist:
+            except StudentAuthorizedAccount.DoesNotExist:
                  # Fallback to roll number lookup via registry
                  try:
-                     reg = PreSeededRegistry.objects.get(identifier=identifier, role='STUDENT')
-                     account = AuthorizedAccount.objects.get(registry_ref=reg)
-                 except (PreSeededRegistry.DoesNotExist, AuthorizedAccount.DoesNotExist):
+                     reg = StudentPreSeededRegistry.objects.get(identifier=identifier)
+                     account = StudentAuthorizedAccount.objects.get(registry_ref=reg)
+                 except (StudentPreSeededRegistry.DoesNotExist, StudentAuthorizedAccount.DoesNotExist):
                      return error_response("Invalid credentials.", code=401)
             
             if not check_password(password, account.password_hash):
-                attempts_left = get_remaining_attempts(ip)
-                register_global_failure(ip, ua, identifier)
-                return error_response("Invalid credentials.", code=401, data={"attempts_remaining": attempts_left - 1})
+                attempts_left = register_global_failure(ip, ua, identifier)
+                return error_response("Invalid credentials.", code=401, data={"attempts_remaining": attempts_left})
             
             # 🛡️ SECURITY: Centralized Login Handler (Quantum Shield + Session)
             from apps.identity.services.auth_service import handle_login
@@ -158,7 +168,13 @@ class StudentLoginView(generics.GenericAPIView):
                 ip=ip,
                 user_agent=ua,
                 request=request,
-                role_context="student"
+                role_context="STUDENT",
+                custom_claims={
+                    "schema": client.schema_name,
+                    "role": "STUDENT",
+                    "email": account.email,
+                    "tenant_user_id": account.id
+                }
             )
 
             response = success_response("Login successful.", data={
@@ -170,7 +186,7 @@ class StudentLoginView(generics.GenericAPIView):
 
             # 🍪 Set Quantum Shield (4-segment cookies)
             set_quantum_shield(response, login_data["fragments"])
-            set_logged_in_cookie(response, "true")
+            set_logged_in_cookie(response, "true", role="STUDENT")
             
             return response
 
@@ -207,15 +223,22 @@ class FacultyLoginView(generics.GenericAPIView):
         client = get_object_or_404(Client, id=institution_id)
         
         with schema_context(client.schema_name):
+            from apps.auip_institution.models import FacultyAuthorizedAccount, AdminAuthorizedAccount
             try:
-                account = AuthorizedAccount.objects.get(email=email, role__in=['FACULTY', 'ADMIN'])
-            except AuthorizedAccount.DoesNotExist:
+                # Try Faculty first
+                account = FacultyAuthorizedAccount.objects.filter(email=email).first()
+                if not account:
+                    # Fallback to Admin
+                    account = AdminAuthorizedAccount.objects.filter(email=email).first()
+                
+                if not account:
+                    return error_response("Invalid credentials.", code=401)
+            except Exception:
                 return error_response("Invalid credentials.", code=401)
             
             if not check_password(password, account.password_hash):
-                attempts_left = get_remaining_attempts(ip)
-                register_global_failure(ip, ua, email)
-                return error_response("Invalid credentials.", code=401, data={"attempts_remaining": attempts_left - 1})
+                attempts_left = register_global_failure(ip, ua, email)
+                return error_response("Invalid credentials.", code=401, data={"attempts_remaining": attempts_left})
             
             # Step 1 success: Credentials valid. Trigger OTP.
             from apps.identity.utils.otp_utils import send_otp_to_identifier
@@ -238,9 +261,12 @@ class FacultyMFAVerifyView(generics.GenericAPIView):
         client = get_object_or_404(Client, id=institution_id)
         
         with schema_context(client.schema_name):
+            from apps.auip_institution.models import FacultyAuthorizedAccount, AdminAuthorizedAccount
             try:
-                account = AuthorizedAccount.objects.get(email=email, role__in=['FACULTY', 'ADMIN'])
-            except AuthorizedAccount.DoesNotExist:
+                account = FacultyAuthorizedAccount.objects.filter(email=email).first()
+                if not account:
+                    account = AdminAuthorizedAccount.objects.get(email=email)
+            except Exception:
                 return error_response("Invalid session.", code=400)
             
             from apps.identity.utils.otp_utils import verify_otp_for_identifier
@@ -255,25 +281,43 @@ class FacultyMFAVerifyView(generics.GenericAPIView):
             # 🛡️ SECURITY: Centralized Login Handler (Quantum Shield + Session)
             from apps.identity.services.auth_service import handle_login
             from apps.identity.utils.cookie_utils import set_quantum_shield, set_logged_in_cookie
+            from apps.identity.models.core_models import User
             
+            # ✅ V2 CRITICAL FIX: Bind to Global User for Admins
+            identity_to_login = account
+            final_role = account.role if hasattr(account, 'role') else "FACULTY"
+            
+            if final_role == "INSTITUTION_ADMIN":
+                global_user = User.objects.filter(email=account.email).first()
+                if global_user:
+                    identity_to_login = global_user
+
             login_data = handle_login(
-                identity=account,
+                identity=identity_to_login,
                 password=None, # MFA already verified
                 ip=ip,
                 user_agent=ua,
                 request=request,
-                role_context="faculty"
+                role_context=final_role, # Use the actual role (FACULTY or INSTITUTION_ADMIN)
+                custom_claims={
+                    "schema": client.schema_name,
+                    "role": final_role,
+                    "email": account.email,
+                    "tenant_user_id": account.id,
+                    "user_id": identity_to_login.id if hasattr(identity_to_login, 'id') else None
+                }
             )
 
             response = success_response("Login successful.", data={
                 "access": login_data["access"],
-                "role": account.role,
+                "role": final_role,
                 "institution": client.name,
-                "identifier": account.email
+                "identifier": account.email,
+                "user_id": identity_to_login.id if hasattr(identity_to_login, 'id') else account.id
             })
 
             # 🍪 Set Quantum Shield (4-segment cookies)
             set_quantum_shield(response, login_data["fragments"])
-            set_logged_in_cookie(response, "true")
+            set_logged_in_cookie(response, "true", role=final_role)
             
             return response

@@ -13,7 +13,6 @@ from apps.identity.utils.response_utils import success_response, error_response
 from apps.identity.utils.multitenancy import create_institution_schema
 from apps.identity.utils.activation import generate_activation_token, get_activation_url
 from django_tenants.utils import schema_context
-from apps.auip_institution.models import PreSeededRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +82,7 @@ class InstitutionViewSet(viewsets.ModelViewSet):
                         SELECT count(*) 
                         FROM information_schema.tables 
                         WHERE table_schema = %s 
-                        AND table_name = 'auip_institution_preseededregistry'
+                        AND table_name = 'auip_institution_adminpreseededregistry'
                     """
                     cursor.execute(query, [schema_name.lower()])
                     exists = cursor.fetchone()[0] > 0
@@ -119,26 +118,37 @@ class InstitutionViewSet(viewsets.ModelViewSet):
                 with tenant_conn.cursor() as cursor:
                     cursor.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm;")
 
+                from apps.auip_institution.models import (
+                    AdminPreSeededRegistry, FacultyPreSeededRegistry, StudentPreSeededRegistry
+                )
+
                 # Seeding Logic using the ORM (now safe with forced search_path)
                 if not initial_users:
                     logger.info(f"[Multi-Tenancy] Seeding default admin for {institution.contact_email}")
-                    PreSeededRegistry.objects.get_or_create(
+                    AdminPreSeededRegistry.objects.get_or_create(
                         identifier=institution.contact_email,
                         defaults={
-                            "email": institution.contact_email,
-                            "role": "ADMIN"
+                            "is_activated": False
                         }
                     )
                 else:
                     for user in initial_users:
                         identifier = user.get("identifier")
+                        role = user.get("role", "STUDENT")
                         if identifier:
-                            PreSeededRegistry.objects.get_or_create(
+                            if role == 'ADMIN':
+                                model = AdminPreSeededRegistry
+                                defaults = {"is_activated": False}
+                            elif role == 'FACULTY':
+                                model = FacultyPreSeededRegistry
+                                defaults = {"email": user.get("email"), "is_activated": False}
+                            else:
+                                model = StudentPreSeededRegistry
+                                defaults = {"email": user.get("email"), "is_activated": False}
+
+                            model.objects.get_or_create(
                                 identifier=identifier,
-                                defaults={
-                                    "email": user.get("email"),
-                                    "role": user.get("role", "STUDENT")
-                                }
+                                defaults=defaults
                             )
 
             # Update Status
@@ -167,13 +177,30 @@ class InstitutionViewSet(viewsets.ModelViewSet):
                 admin_user.save()
                 logger.info(f"[Institution-Approval] Created User (INST_ADMIN) for {institution.contact_email}")
             else:
-                logger.warning(f"[Institution-Approval] User already exists for {institution.contact_email}, linking to institution")
+                # ✅ PROTECTION: If this is a Super Admin sharing the email, do NOT force password reset
+                # This prevents the Super Admin from being logged out remotely.
+                if admin_user.role == User.Roles.SUPER_ADMIN:
+                    logger.info(f"[Institution-Approval] Existing SUPER_ADMIN {institution.contact_email} skipping reset flags.")
+                else:
+                    # Force activation modal for existing users by setting need_password_reset
+                    admin_user.need_password_reset = True
+                    admin_user.first_time_login = True
+                    admin_user.save(update_fields=["need_password_reset", "first_time_login"])
+                    logger.warning(f"[Institution-Approval] Existing user {institution.contact_email} flagged for activation setup, linking to institution")
 
-            InstitutionAdmin.objects.get_or_create(
-                user=admin_user,
-                institution=institution,
-                defaults={"role_description": reg_data.get("designation", "Administrator")}
-            )
+            # Check if an InstitutionAdmin profile already exists for this user
+            existing_profile = InstitutionAdmin.objects.filter(user=admin_user).first()
+            if existing_profile:
+                if existing_profile.institution != institution:
+                    logger.warning(f"[Institution-Approval] User {admin_user.email} already has an admin profile for {existing_profile.institution.name}. Skipping second profile creation for {institution.name} due to OneToOne constraint.")
+                else:
+                    logger.info(f"[Institution-Approval] Profile already correctly linked for {admin_user.email}")
+            else:
+                InstitutionAdmin.objects.create(
+                    user=admin_user,
+                    institution=institution,
+                    role_description=reg_data.get("designation", "Administrator")
+                )
 
             # ── Generate Activation Link (7-day expiry) ──
             activation_token = generate_activation_token(
@@ -251,6 +278,20 @@ class InstitutionViewSet(viewsets.ModelViewSet):
         institution.status = Institution.RegistrationStatus.REVIEW
         institution.save()
         return success_response({"message": f"Institution {institution.name} marked for review."})
+
+    @action(detail=True, methods=['post'])
+    def grant_access(self, request, slug=None):
+        """
+        Special action to instantly restore access for a revoked institution.
+        Skips formal approval/migration flow to provide a faster UX for admins.
+        """
+        institution = self.get_object()
+        institution.status = Institution.RegistrationStatus.APPROVED
+        institution.is_active = True
+        institution.save()
+        
+        logger.info(f"[Institution-Grant] Access restored for: {institution.name}")
+        return success_response({"message": f"Access granted to {institution.name}."})
 
     @action(detail=False, methods=['post'], url_path='rebuild-slugs')
     def rebuild_slugs(self, request):

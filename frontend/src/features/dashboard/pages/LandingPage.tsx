@@ -84,18 +84,18 @@ export const LandingPage = () => {
 
                     {/* Admin Portal */}
                     <div
-                        onClick={() => navigate("/auth/secure-gateway")}
+                        onClick={() => navigate("/auth/inst-admin/login")}
                         className="group glass p-8 rounded-3xl border border-white/5 hover:border-pink-500/50 transition-all cursor-pointer hover:-translate-y-1 hover:shadow-2xl hover:shadow-pink-500/10 flex flex-col items-start gap-4"
                     >
                         <div className="w-14 h-14 rounded-2xl bg-pink-500/10 flex items-center justify-center text-pink-400 group-hover:bg-pink-500 group-hover:text-white transition-colors">
                             <ShieldCheck className="w-7 h-7" />
                         </div>
                         <div className="text-left space-y-2">
-                            <h3 className="text-xl font-bold text-white group-hover:text-pink-400 transition-colors">Admin Gateway</h3>
-                            <p className="text-sm text-gray-400 group-hover:text-gray-300">Restricted access for institutional governance.</p>
+                            <h3 className="text-xl font-bold text-white group-hover:text-pink-400 transition-colors">Admin Portal</h3>
+                            <p className="text-sm text-gray-400 group-hover:text-gray-300">Management & oversight for departmental administrators.</p>
                         </div>
                         <div className="mt-auto pt-6 w-full flex items-center justify-between text-xs font-bold text-gray-500 uppercase tracking-wider group-hover:text-pink-400">
-                            <span>Secure Login</span>
+                            <span>Governance</span>
                             <ArrowRight className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" />
                         </div>
                     </div>

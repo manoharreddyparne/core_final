@@ -2,7 +2,11 @@ from django.db import models
 from django.conf import settings
 from django.contrib.postgres.fields import ArrayField
 
-class AcademicRegistry(models.Model):
+# ==============================================================================
+# 🎓 1. STUDENT CONTEXT (Registry + Account + Academic)
+# ==============================================================================
+
+class StudentAcademicRegistry(models.Model):
     """
     Read-Only Source of Truth for Student Academic History.
     Populated via Excel/CSV Bulk Import.
@@ -14,82 +18,243 @@ class AcademicRegistry(models.Model):
     batch_year = models.IntegerField()
     current_semester = models.IntegerField(default=1)
     
-    # Sensitive Data
     personal_email = models.EmailField(null=True, blank=True)
     official_email = models.EmailField(null=True, blank=True)
     phone_number = models.CharField(max_length=20, null=True, blank=True)
     
-    # Academic History (JSON for flexibility)
+    # NEW: Detailed Academic & Personal Fields
+    date_of_birth = models.DateField(null=True, blank=True)
+    admission_year = models.IntegerField(null=True, blank=True)
+    passout_year = models.IntegerField(null=True, blank=True)
+    section = models.CharField(max_length=10, blank=True)
+    
+    # Performance
+    current_semester = models.IntegerField(default=1)
+    sgpa_history = models.JSONField(default=dict, help_text="Semester-wise GPA mapping")
+    cgpa = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
+    
     history_data = models.JSONField(default=dict) 
-    # Structure: {'sem1': {'sgpa': 9.0, 'backlogs': 0}, '10th': {'percentage': 95}}
-
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name_plural = "Student Academic Registries"
 
     def __str__(self):
         return f"{self.roll_number} - {self.full_name}"
 
-class PreSeededRegistry(models.Model):
+class StudentPreSeededRegistry(models.Model):
     """
-    Registry of allowed users (Student/Faculty) before they activate their account.
-    Used for validation during onboarding.
+    Registry of allowed Students before they activate their account.
+    Usually mapped from roll_number.
     """
-    ROLE_CHOICES = (
-        ('STUDENT', 'Student'),
-        ('FACULTY', 'Faculty'),
-        ('ADMIN', 'Institutional Admin'),
-    )
-    
-    identifier = models.CharField(max_length=255, unique=True, db_index=True) 
-    # For students: Roll Number. For Faculty: Employee ID or Email.
-    
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES)
-    email = models.EmailField() # Verification channel
-    
-    is_active = models.BooleanField(default=False) # True once account is claimed
+    identifier = models.CharField(max_length=255, unique=True, db_index=True) # Roll Number
+    email = models.EmailField()
+    is_activated = models.BooleanField(default=False)
     activated_at = models.DateTimeField(null=True, blank=True)
+    
+    # Invitation Tracking
+    invitation_sent_at = models.DateTimeField(null=True, blank=True)
+    invitation_count = models.IntegerField(default=0)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.identifier} ({self.role})"
+        return f"Pre-Student: {self.identifier}"
 
-class AuthorizedAccount(models.Model):
+class StudentAuthorizedAccount(models.Model):
     """
-    Schema-isolated authentication record for Students, Faculty, and Admins.
-    Stores hashed credentials and MFA secrets within the tenant schema.
+    Activated Student credentials.
+    Isolated from Admin/Faculty tables.
     """
-    registry_ref = models.OneToOneField(PreSeededRegistry, on_delete=models.CASCADE)
+    registry_ref = models.OneToOneField(StudentPreSeededRegistry, on_delete=models.CASCADE)
+    academic_ref = models.OneToOneField(StudentAcademicRegistry, on_delete=models.SET_NULL, null=True, blank=True)
     
-    # Credentials (V2 Isolation)
     email = models.EmailField(unique=True, db_index=True)
     password_hash = models.CharField(max_length=255)
     mfa_secret = models.CharField(max_length=255, blank=True, null=True)
     
-    role = models.CharField(max_length=20, choices=PreSeededRegistry.ROLE_CHOICES)
     is_active = models.BooleanField(default=True)
     last_login_at = models.DateTimeField(null=True, blank=True)
     last_login_ip = models.GenericIPAddressField(null=True, blank=True)
     last_login_ua = models.TextField(null=True, blank=True)
     
-    # Role specific data linkage
-    student_profile = models.OneToOneField(AcademicRegistry, on_delete=models.SET_NULL, null=True, blank=True)
-    
-    # V2 Timestamps (Allowing null for migration on existing tables)
-    created_at = models.DateTimeField(auto_now_add=True, null=True)
-    updated_at = models.DateTimeField(auto_now=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def is_authenticated(self):
+        return True
+
+    @property
+    def is_anonymous(self):
+        return False
+
+    @property
+    def is_staff(self):
+        return False
+
+    @property
+    def pk(self):
+        return self.id
+
+    def get_username(self):
+        return self.email
 
     def __str__(self):
-        return f"{self.email} ({self.role})"
+        return f"Student: {self.email}"
 
-class FacultyProfile(models.Model):
+    @property
+    def role(self):
+        return "STUDENT"
+
+
+# ==============================================================================
+# 👨‍🏫 2. FACULTY CONTEXT (Registry + Account)
+# ==============================================================================
+
+class FacultyPreSeededRegistry(models.Model):
     """
-    Tenant-specific profile for Faculty/Admins.
+    Whitelist for Educators/SPOCs.
     """
-    auth_account = models.OneToOneField(AuthorizedAccount, on_delete=models.CASCADE)
+    identifier = models.CharField(max_length=255, unique=True, db_index=True) # Employee ID or Email
+    email = models.EmailField()
+    is_activated = models.BooleanField(default=False)
+    activated_at = models.DateTimeField(null=True, blank=True)
+    
+    # Invitation Tracking
+    invitation_sent_at = models.DateTimeField(null=True, blank=True)
+    invitation_count = models.IntegerField(default=0)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Pre-Faculty: {self.identifier}"
+
+class FacultyAcademicRegistry(models.Model):
+    """
+    Independent Professional/Academic details for Faculty.
+    """
+    employee_id = models.CharField(max_length=50, unique=True, db_index=True)
+    full_name = models.CharField(max_length=255)
+    email = models.EmailField(unique=True)
+    
     designation = models.CharField(max_length=100)
     department = models.CharField(max_length=100)
     joining_date = models.DateField(null=True, blank=True)
-    
     courses_handling = ArrayField(models.CharField(max_length=100), default=list, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"Prof. {self.auth_account.email} ({self.department})"
+        return f"{self.employee_id} - {self.full_name}"
+
+class FacultyAuthorizedAccount(models.Model):
+    """
+    Activated Faculty credentials.
+    """
+    registry_ref = models.OneToOneField(FacultyPreSeededRegistry, on_delete=models.CASCADE)
+    academic_ref = models.OneToOneField(FacultyAcademicRegistry, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    email = models.EmailField(unique=True, db_index=True)
+    password_hash = models.CharField(max_length=255)
+    mfa_secret = models.CharField(max_length=255, blank=True, null=True)
+    
+    is_active = models.BooleanField(default=True)
+    last_login_at = models.DateTimeField(null=True, blank=True)
+    last_login_ip = models.GenericIPAddressField(null=True, blank=True)
+    last_login_ua = models.TextField(null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def is_authenticated(self):
+        return True
+
+    @property
+    def is_anonymous(self):
+        return False
+
+    @property
+    def is_staff(self):
+        return False
+
+    @property
+    def pk(self):
+        return self.id
+
+    def get_username(self):
+        return self.email
+
+    def __str__(self):
+        return f"Faculty: {self.email}"
+
+    @property
+    def role(self):
+        return "FACULTY"
+
+
+# ==============================================================================
+# 🛡️ 3. ADMIN CONTEXT (Registry + Account)
+# ==============================================================================
+
+class AdminPreSeededRegistry(models.Model):
+    """
+    Whitelist for Institutional Admins.
+    """
+    identifier = models.CharField(max_length=255, unique=True, db_index=True) # Email
+    is_activated = models.BooleanField(default=False)
+    activated_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Pre-Admin: {self.identifier}"
+
+class AdminAuthorizedAccount(models.Model):
+    """
+    Activated Institutional Admin credentials.
+    Only valid for portal administration.
+    """
+    registry_ref = models.OneToOneField(AdminPreSeededRegistry, on_delete=models.CASCADE)
+    
+    email = models.EmailField(unique=True, db_index=True)
+    password_hash = models.CharField(max_length=255)
+    mfa_secret = models.CharField(max_length=255, blank=True, null=True)
+    
+    is_active = models.BooleanField(default=True)
+    last_login_at = models.DateTimeField(null=True, blank=True)
+    last_login_ip = models.GenericIPAddressField(null=True, blank=True)
+    last_login_ua = models.TextField(null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def is_authenticated(self):
+        return True
+
+    @property
+    def is_anonymous(self):
+        return False
+
+    @property
+    def is_staff(self):
+        return False
+
+    @property
+    def pk(self):
+        return self.id
+
+    def get_username(self):
+        return self.email
+
+    def __str__(self):
+        return f"InstAdmin: {self.email}"
+
+    @property
+    def role(self):
+        return "INSTITUTION_ADMIN"

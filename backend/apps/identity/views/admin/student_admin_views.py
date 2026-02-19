@@ -128,7 +128,7 @@ class BulkInviteStudentsView(APIView):
     def post(self, request):
         student_refs = request.data.get("student_refs", [])
         if not student_refs:
-            return error_response("student_refs list required", status_code=400)
+            return error_response("student_refs list required", code=400)
 
         from apps.identity.services.activation_service import ActivationService
         

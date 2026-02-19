@@ -107,7 +107,7 @@ class SecureDeviceView(APIView):
             
             # ✅ SET QUAD-SHIELD COOKIES
             set_quantum_shield(resp, rotated["fragments"])
-            set_logged_in_cookie(resp, "true")
+            set_logged_in_cookie(resp, "true", role=user.role)
             
             return resp
 

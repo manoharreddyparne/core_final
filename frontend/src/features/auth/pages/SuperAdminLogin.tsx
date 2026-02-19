@@ -124,7 +124,7 @@ export default function SuperAdminLogin() {
             if (!turnstileToken) toast.error("Please complete human verification.");
             return;
         }
-        handleAdminLogin(ticket);
+        handleAdminLogin(ticket, { forceGlobal: true });
     };
 
     if (isVerifyingTicket) {
@@ -136,7 +136,8 @@ export default function SuperAdminLogin() {
         );
     }
 
-    if (ticket && !isTicketValid && !isVerifyingTicket) {
+    // 🕵️ INVISIBLE GATEWAY: Show 404 if no ticket exists or if it's invalid
+    if (!ticket || (!isTicketValid && !isVerifyingTicket)) {
         return <PageNotFound />;
     }
 

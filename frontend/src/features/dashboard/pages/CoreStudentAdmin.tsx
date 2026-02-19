@@ -20,17 +20,18 @@ export default function CoreStudentAdmin() {
         setLoading(true);
         try {
             const res = await getCoreStudents();
-            if (res.success && res.data) {
-                setStudents(res.data);
-                const data = res.data;
-                setStats({
-                    total: data.length,
-                    active: data.filter(s => s.status === 'ACTIVE').length,
-                    invited: data.filter(s => s.status === 'INVITED').length,
-                    seeded: data.filter(s => s.status === 'SEEDED').length,
-                });
-            }
+            // 🛡️ Robust Data Extraction: Handle wrapped {success, data} and direct array responses
+            const data = (res?.success && res?.data) ? res.data : (Array.isArray(res) ? res : []);
+
+            setStudents(data);
+            setStats({
+                total: data.length,
+                active: data.filter((s: any) => s.status === 'ACTIVE').length,
+                invited: 0, // TODO: Track invitations in registry
+                seeded: data.filter((s: any) => s.status === 'SEEDED').length,
+            });
         } catch (err: any) {
+            console.error("Failed to fetch students", err);
             toast.error("Failed to load student data.");
         } finally {
             setLoading(false);
@@ -54,9 +55,8 @@ export default function CoreStudentAdmin() {
     };
 
     const filteredStudents = students.filter(s =>
-        s.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.roll_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.stu_ref.toLowerCase().includes(searchTerm.toLowerCase())
+        s.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        s.roll_number?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     return (
@@ -74,7 +74,10 @@ export default function CoreStudentAdmin() {
                     >
                         <Loader2 className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
                     </button>
-                    <button className="flex items-center gap-2 px-6 py-3 premium-gradient text-white font-bold rounded-2xl shadow-xl shadow-primary/20 hover:scale-105 transition-all">
+                    <button
+                        onClick={() => setIsBulkModalOpen(true)}
+                        className="flex items-center gap-2 px-6 py-3 premium-gradient text-white font-bold rounded-2xl shadow-xl shadow-primary/20 hover:scale-105 transition-all"
+                    >
                         <Plus className="w-5 h-5" />
                         <span>Seed Batch</span>
                     </button>
@@ -148,7 +151,7 @@ export default function CoreStudentAdmin() {
                         </thead>
                         <tbody className="divide-y divide-white/5">
                             {filteredStudents.map((s) => (
-                                <tr key={s.stu_ref} className="hover:bg-white/5 transition-colors group border-white/5">
+                                <tr key={s.roll_number} className="hover:bg-white/5 transition-colors group border-white/5">
                                     <td className="px-8 py-5">
                                         <div className="flex items-center gap-4">
                                             <div className="w-12 h-12 rounded-2xl bg-white/5 text-primary flex items-center justify-center font-black text-sm border border-white/10 group-hover:bg-primary group-hover:text-white transition-all">
@@ -161,7 +164,7 @@ export default function CoreStudentAdmin() {
                                         </div>
                                     </td>
                                     <td className="px-8 py-5">
-                                        <span className="text-xs font-mono font-bold text-gray-400 bg-white/5 px-3 py-1.5 rounded-xl border border-white/10 uppercase">{s.stu_ref}</span>
+                                        <span className="text-xs font-mono font-bold text-gray-400 bg-white/5 px-3 py-1.5 rounded-xl border border-white/10 uppercase">{s.roll_number}</span>
                                     </td>
                                     <td className="px-8 py-5 text-sm">
                                         <p className="font-bold text-gray-300">{s.department}</p>
@@ -174,7 +177,7 @@ export default function CoreStudentAdmin() {
                                         <div className="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-all">
                                             {s.status === 'SEEDED' && (
                                                 <button
-                                                    onClick={() => handleInvite(s.stu_ref)}
+                                                    onClick={() => handleInvite(s.roll_number)}
                                                     className="p-2.5 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-xl border border-primary/20 transition-all"
                                                     title="Send Invitation"
                                                 >
@@ -194,7 +197,7 @@ export default function CoreStudentAdmin() {
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     {filteredStudents.map(s => (
-                        <div key={s.stu_ref} className="glass p-8 rounded-[3rem] space-y-6 hover:border-primary/50 transition-all group relative overflow-hidden">
+                        <div key={s.roll_number} className="glass p-8 rounded-[3rem] space-y-6 hover:border-primary/50 transition-all group relative overflow-hidden">
                             {/* status line */}
                             <div className={`absolute top-0 left-0 w-full h-1.5 opacity-40 ${getStatusColor(s.status)}`} />
 
@@ -216,15 +219,15 @@ export default function CoreStudentAdmin() {
                                     <p className="text-sm font-bold text-gray-300">{s.department}</p>
                                 </div>
                                 <div>
-                                    <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest mb-1">Reference</p>
-                                    <p className="text-sm font-mono font-bold text-gray-300">{s.stu_ref}</p>
+                                    <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest mb-1">Roll Number</p>
+                                    <p className="text-sm font-mono font-bold text-gray-300">{s.roll_number}</p>
                                 </div>
                             </div>
 
                             <div className="flex gap-3 pt-6">
                                 {s.status === 'SEEDED' && (
                                     <button
-                                        onClick={() => handleInvite(s.stu_ref)}
+                                        onClick={() => handleInvite(s.roll_number)}
                                         className="flex-1 py-3 px-4 premium-gradient text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2"
                                     >
                                         <Mail className="w-4 h-4" />

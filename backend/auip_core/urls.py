@@ -40,4 +40,7 @@ urlpatterns = [
 
     # Institution Selector (Public)
     path('api/v1/institutions/', include('apps.auip_tenant.urls')),
+
+    # Institution Isolated API (auth, data)
+    path('api/institution/', include('apps.auip_institution.urls')),
 ]

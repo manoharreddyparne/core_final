@@ -38,34 +38,67 @@ class PassportView(APIView):
             }, status=200) # ✅ 200 to keep console clean
 
         try:
-            # 2. Validate JWT (RS256)
+            # 2. Validate JWT 
+            # We use UntypedToken to extract claims without global user lookup yet
             refresh = RefreshToken(token_str)
             user_id = refresh.get("user_id")
+            role_claim = refresh.get("role")
+            schema_claim = refresh.get("schema")
+            email_claim = refresh.get("email")
             
-            user = User.objects.filter(id=user_id).first()
-            if not user:
-                return Response({
-                    "success": False,
-                    "stage": "INVALID_USER", 
-                    "message": "Identity mismatch."
-                }, status=200)
-
+            # --- IDENTITY RESOLUTION ---
+            # Prioritize Global User, but allow isolated Tenant Users (NULL global user)
+            # ⚠️ PREVENT ID COLLISION: Only look up User if role is Global
+            # INSTITUTION_ADMIN and FACULTY are TENANT-ISOLATED roles.
+            # They do NOT have a record in the global public.User table.
+            # Only SUPER_ADMIN lives in the public schema.
+            GLOBAL_ROLES = ["SUPER_ADMIN"]
+            
+            user = None
+            # If role is explicit and IS global, look up in public User table
+            is_global = bool(role_claim and role_claim in GLOBAL_ROLES)
+            
+            if is_global:
+                 # Robust ID conversion (handles stringified claims)
+                 try:
+                     search_id = int(user_id)
+                 except (ValueError, TypeError):
+                     search_id = user_id
+                 user = User.objects.filter(id=search_id).first()
+            
             # 3. Validate Session Persistence
-            session = LoginSession.objects.filter(id=session_id, user=user, is_active=True).first()
+            # Match by ID + identity binding (User FK or Email)
+            session_qs = LoginSession.objects.filter(id=session_id, is_active=True)
+            if user:
+                # For global users, allow match by FK OR email (resilience against isinstance mismatches)
+                from django.db.models import Q
+                session_qs = session_qs.filter(Q(user=user) | Q(tenant_email=user.email))
+            else:
+                # Isolated session verification
+                session_qs = session_qs.filter(tenant_email=email_claim)
+
+            session = session_qs.first()
             if not session:
-                return Response({
+                from apps.identity.utils.cookie_utils import clear_session_cookies
+                resp = Response({
                     "success": False,
                     "stage": "SESSION_EXPIRED", 
                     "message": "Session rotated or invalidated."
                 }, status=200)
-            
-            # TODO: Add StageMachine transition check here (JIT -> OTP)
-            # For now, we assume if session is active, user is in SECURE stage
+                # ✅ Definitive cleanup: If we know the session is dead, clean the browser
+                clear_session_cookies(resp)
+                return resp
             
             # 4. Issue Fresh RAM-only Access Token
-            access = str(refresh.access_token)
+            # We must propagate custom claims from the refresh token to the new access token
+            access_obj = refresh.access_token
+            for key in ['role', 'email', 'schema', 'tenant_user_id']:
+                if key in refresh:
+                    access_obj[key] = refresh[key]
             
-            # ✅ Sync DB session with the NEW JTI so it's valid for authenticate_access_token
+            access = str(access_obj)
+            
+            # ✅ Sync DB session with the NEW JTI
             from apps.identity.utils.security import hash_token_secure
             untyped = UntypedToken(access)
             
@@ -74,15 +107,70 @@ class PassportView(APIView):
             session.last_active = timezone.now()
             session.save(update_fields=["jti", "token_hash", "last_active"])
             
+            # --- IDENTITY HYDRATION ---
+            if user:
+                user_data = UserSerializer(user).data
+            else:
+                # Isolated User (No global record)
+                user_data = {
+                    "id": user_id,
+                    "email": email_claim,
+                    "username": email_claim,
+                    "role": role_claim,
+                    "is_active": True
+                }
+
+            if schema_claim and role_claim:
+                from django_tenants.utils import schema_context
+                from apps.auip_institution.models import (
+                    AdminAuthorizedAccount, 
+                    FacultyAuthorizedAccount, 
+                    StudentAuthorizedAccount,
+                )
+                from apps.identity.models.institution import Institution
+                
+                with schema_context(schema_claim):
+                    # Determine model based on role
+                    if role_claim == "INSTITUTION_ADMIN":
+                        acc_model = AdminAuthorizedAccount
+                    elif role_claim == "FACULTY":
+                        acc_model = FacultyAuthorizedAccount
+                    else:
+                        acc_model = StudentAuthorizedAccount
+
+                    # Email is the unique link for tenant accounts
+                    email_to_query = user.email if user else email_claim
+                    account = acc_model.objects.filter(email=email_to_query).first()
+                    
+                    if account:
+                        user_data["role"] = role_claim
+                        user_data["schema"] = schema_claim
+                        # Merge account-specific info (like designation)
+                        if hasattr(account, 'designation'):
+                            user_data["designation"] = account.designation
+                        
+                        institution = Institution.objects.filter(schema_name=schema_claim).first()
+                        if institution:
+                            user_data["institution_name"] = institution.name
+                        
+                        logger.debug(f"[PASSPORT] Switched to tenant context: {schema_claim} | role={role_claim}")
+
             data = {
                 "stage": "SECURE_SESSION",
                 "access": access,
-                "user": UserSerializer(user).data,
+                "user": user_data,
                 "session_id": str(session.id)
             }
             
-            logger.info(f"[PASSPORT] Hydrated session {session.id} for user {user.id}")
-            return success_response("Passport hydrated", data=data)
+            user_identity_label = user.id if user else email_claim
+            logger.info(f"[PASSPORT] Hydrated session {session.id} for user {user_identity_label} | Contextual Role={user_data.get('role')}")
+            
+            resp = success_response("Passport hydrated", data=data)
+            # Re-sync role-specific marker on successful hydration
+            from apps.identity.utils.cookie_utils import set_logged_in_cookie
+            set_logged_in_cookie(resp, "true", role=user_data.get("role"))
+            
+            return resp
 
         except Exception as e:
             logger.warning(f"[PASSPORT] Rejection: {e}")

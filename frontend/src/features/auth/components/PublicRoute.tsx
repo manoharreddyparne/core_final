@@ -28,8 +28,15 @@ const PublicRoute = ({ children }: Props) => {
   // ✅ logged-in users should NOT see login/register
   if (user && !isResetPage) {
     const role = user.role?.toLowerCase?.() ?? "";
-    const redirectTo =
-      role === "admin" ? "/admin-dashboard" : "/student-dashboard";
+
+    let redirectTo = "/student-dashboard";
+
+    if (role === "super_admin") {
+      redirectTo = "/superadmin/dashboard";
+    }
+    else if (role === "inst_admin" || role === "institution_admin") {
+      redirectTo = "/institution/dashboard";
+    }
 
     return <Navigate to={redirectTo} replace />;
   }

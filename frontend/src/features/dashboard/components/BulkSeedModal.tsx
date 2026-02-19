@@ -110,7 +110,7 @@ export function BulkSeedModal({ isOpen, onClose, onSuccess }: BulkSeedModalProps
                                     type="file"
                                     onChange={handleFileChange}
                                     accept=".csv"
-                                    className="absolute inset-0 opacity-0 cursor-pointer"
+                                    className="absolute inset-0 opacity-0 cursor-pointer z-50"
                                 />
                                 <div className="space-y-4">
                                     <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto transition-all ${file ? 'bg-primary text-white scale-110' : 'bg-white/5 text-gray-500 group-hover:text-primary group-hover:scale-110'}`}>
@@ -157,15 +157,15 @@ export function BulkSeedModal({ isOpen, onClose, onSuccess }: BulkSeedModalProps
                             <div className="grid grid-cols-3 gap-4">
                                 <div className="glass p-4 rounded-2xl border-white/5 text-center">
                                     <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1">Total</p>
-                                    <p className="text-2xl font-black text-white">{result.total_rows}</p>
+                                    <p className="text-2xl font-black text-white">{result.total || 0}</p>
                                 </div>
                                 <div className="glass p-4 rounded-2xl border-green-500/20 text-center">
                                     <p className="text-[10px] font-black text-green-500 uppercase tracking-widest mb-1">Success</p>
-                                    <p className="text-2xl font-black text-white">{result.successful}</p>
+                                    <p className="text-2xl font-black text-white">{result.success || 0}</p>
                                 </div>
                                 <div className="glass p-4 rounded-2xl border-red-500/20 text-center">
                                     <p className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-1">Failed</p>
-                                    <p className="text-2xl font-black text-white">{result.failed}</p>
+                                    <p className="text-2xl font-black text-white">{result.failed || 0}</p>
                                 </div>
                             </div>
 

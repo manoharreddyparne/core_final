@@ -1,9 +1,11 @@
 # users/views/admin_auth_views.py
 import logging
-from datetime import datetime, timezone as dt_timezone
+import secrets
+from datetime import datetime, timezone as dt_timezone, timedelta
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.db.models import Q
+from django.conf import settings
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
 
@@ -23,8 +25,58 @@ from apps.identity.utils.cookie_utils import (
 )
 from apps.identity.utils.request_utils import get_client_ip
 from apps.identity.utils.jit_admin import verify_jit_admin_ticket, burn_jit_admin_ticket
+from apps.identity.utils.security import hash_token
 
 logger = logging.getLogger(__name__)
+
+# ── Device Trust Cookie Helpers ─────────────────────────────────────────────
+# An HttpOnly cookie 'auip_dt' is set after the admin passes OTP.
+# Trust requires BOTH a DB RememberedDevice record AND this browser cookie.
+# Guest Chrome / Incognito → empty cookie jar → always triggers OTP.
+
+DEVICE_TRUST_COOKIE   = "auip_dt"          # HttpOnly, not JS-readable
+DEVICE_TRUST_COOKIE_AGE = 60 * 60 * 24 * 30  # 30 days — matches UI label "Remember this device for 30 days"
+
+
+def _get_trust_token_from_cookie(request) -> str | None:
+    """Read the raw trust token sent by the browser (HttpOnly cookie)."""
+    return request.COOKIES.get(DEVICE_TRUST_COOKIE)
+
+
+def _set_trust_cookie(response, trust_token: str) -> None:
+    """Write the trust token as an HttpOnly cookie."""
+    response.set_cookie(
+        DEVICE_TRUST_COOKIE,
+        trust_token,
+        max_age=DEVICE_TRUST_COOKIE_AGE,
+        httponly=True,
+        secure=not settings.DEBUG,
+        samesite="Lax" if settings.DEBUG else "None",
+        path="/",
+    )
+
+
+def _is_device_trusted(request, user, device_hash: str) -> bool:
+    """
+    Two-factor device trust:
+      1. DB: RememberedDevice row must exist with trusted=True AND not expired
+      2. Browser: 'auip_dt' cookie must be present and match the DB token
+    Both must pass. Guest Chrome / Incognito fails on step 2.
+    After 30 days: cookie expires in browser AND DB trusted_until passes → OTP required again.
+    """
+    cookie_token = _get_trust_token_from_cookie(request)
+    if not cookie_token:
+        return False   # No cookie → Guest/Incognito → trigger OTP
+
+    hashed_cookie = hash_token(cookie_token)
+    from django.utils import timezone
+    return RememberedDevice.objects.filter(
+        user=user,
+        device_hash=device_hash,
+        trusted=True,
+        trust_cookie_hash=hashed_cookie,
+        trusted_until__gt=timezone.now(),   # DB expiry must not be passed
+    ).exists()
 
 
 def _normalized_login_payload(user: User, access: str) -> dict:
@@ -95,42 +147,57 @@ class AdminTokenObtainPairView(TokenObtainPairView):
 
         # Avoid enumeration/timing leaks: generic error on bad creds/role mismatch
         if not user or not user.check_password(password):
-            fail_count = register_global_failure(ip, user_agent, login_field)
-            attempts_left = MAX_FAILED_ATTEMPTS - fail_count
+            attempts_left = register_global_failure(ip, user_agent, login_field)
             register_failed_attempt(login_field, ip)
             logger.warning(f"[ADMIN-LOGIN] fail login_field={login_field} ip={ip} attempts_left={attempts_left}")
-            
-            # 🔥 Requirement: Burn JIT if IP is locked out
+
+            # 🔥 IP locked out → burn JIT ticket to force fresh link
             if attempts_left <= 0:
                 jit_ticket = request.data.get("jit_ticket")
                 if jit_ticket:
                     burn_jit_admin_ticket(jit_ticket)
-                    logger.error(f"[SEC-GATE] Sustained attack detected. JIT ticket RECALLED for IP={ip}")
-            
-            msg = "Invalid credentials"
-            if attempts_left <= 2 and attempts_left > 0:
-                msg = f"Invalid credentials. Warning: {attempts_left} attempts remaining before total IP lockout."
-            elif attempts_left <= 0:
-                msg = "Access Revoked. IP Blacklisted."
+                    logger.error(f"[SEC-GATE] IP locked out. JIT ticket RECALLED for IP={ip}")
+                return error_response(
+                    "Access Revoked. Your IP has been locked for 10 minutes due to repeated failures.",
+                    code=403,
+                    data={"lockout_timer": 600}
+                )
+
+            # Professional message progression
+            if attempts_left <= 2:
+                msg = f"Invalid credentials. Warning: {attempts_left} attempt{'s' if attempts_left != 1 else ''} remaining before total IP lockout."
+            else:
+                msg = "Invalid credentials. Please check your email or password."
 
             return error_response(msg, code=401, data={"attempts_remaining": attempts_left})
 
-        # ✅ JIT TICKET ENFORCEMENT FOR SUPER ADMIN
+
+
+        # ✅ JIT TICKET ENFORCEMENT FOR SUPER ADMIN (Password Stage)
         if user.role == User.Roles.SUPER_ADMIN:
             jit_ticket = request.data.get("jit_ticket")
-            logger.info(f"[SEC-DEBUG] SuperAdmin JIT Ticket received: {jit_ticket[:10] if jit_ticket else 'NONE'}...")
-            if not jit_ticket or not verify_jit_admin_ticket(jit_ticket, email=user.email):
-                logger.warning(f"[SEC-GATE] SuperAdmin login attempt WITHOUT valid JIT ticket. User={user.id} IP={ip}")
-                return error_response("Infrastructure Protocol Violation. Identity Access Revoked.", code=403)
-            # We will burn it after successful full authentication (below)
+            institution_id = request.data.get("institution_id")
+
+            if institution_id:
+                logger.info(f"[SEC-GATE] SuperAdmin Scoped Login for Inst={institution_id}. JIT Bypassed.")
+            else:
+                logger.info(f"[SEC-DEBUG] SuperAdmin JIT Ticket received: {jit_ticket[:10] if jit_ticket else 'NONE'}...")
+                if not jit_ticket or not verify_jit_admin_ticket(jit_ticket, email=user.email):
+                    logger.warning(f"[SEC-GATE] SuperAdmin login attempt WITHOUT valid JIT ticket. User={user.id} IP={ip}")
+                    return error_response("Infrastructure Protocol Violation. Identity Access Revoked.", code=403)
+
+                # ✅ Store a short-lived OTP session proof so the OTP stage
+                # does NOT need to re-verify the same JIT ticket (avoids false rejections).
+                from django.core.cache import cache as dj_cache
+                otp_session_key = f"jit_otp_session:{user.id}"
+                dj_cache.set(otp_session_key, jit_ticket, timeout=600)  # 10-min window to enter OTP
+                logger.info(f"[SEC-GATE] JIT OTP session created for user={user.id}")
 
         # ✅ Good creds → clear fail attempts
         clear_failed_attempt(login_field, ip)
 
-        # ---------- Check trusted device ----------
-        trusted = RememberedDevice.objects.filter(
-            user=user, device_hash=device_hash, trusted=True
-        ).exists()
+        # ---------- Check trusted device (DB + Browser Cookie) ----------
+        trusted = _is_device_trusted(request, user, device_hash)
 
         # ---------- Require OTP if not trusted ----------
         if not trusted:
@@ -140,6 +207,35 @@ class AdminTokenObtainPairView(TokenObtainPairView):
                 "OTP required",
                 data={"require_otp": True, "user_id": user.id},
             )
+
+        # ✅ INSTITUTION VALIDATION (For Institutional Admins)
+        # If logging into a specific institution, verify the link.
+        institution_id = request.data.get("institution_id")
+        if user.role == User.Roles.INSTITUTION_ADMIN:
+            if not institution_id:
+                 # In a unified portal, we should ideally require this, 
+                 # but we might want to allow global lookup if permitted.
+                 # For now, if provided, we STICK to it.
+                 pass
+            else:
+                from apps.identity.models.institution import InstitutionAdmin
+                linked = InstitutionAdmin.objects.filter(user=user, institution_id=institution_id).exists()
+                if not linked:
+                    logger.warning(f"[SEC-GATE] Institutional Admin {user.email} attempted access to UNAUTHORIZED institution ID={institution_id}")
+                    return error_response("Identity Breach: Unauthorized access to this institution.", code=403)
+
+        # Prepare custom claims for Institutional Admin context
+        custom_claims = None
+        if institution_id:
+            from apps.identity.models.institution import Institution
+            inst = Institution.objects.filter(id=institution_id).first()
+            if inst:
+                custom_claims = {
+                    "schema": inst.schema_name,
+                    "role": "INSTITUTION_ADMIN",
+                    "email": user.email
+                }
+                logger.debug(f"[ADMIN-LOGIN] Injecting institutional claims for schema={inst.schema_name}")
 
         # ---------- Trusted → Complete login ----------
         from rest_framework.exceptions import AuthenticationFailed
@@ -151,6 +247,7 @@ class AdminTokenObtainPairView(TokenObtainPairView):
                 user_agent,
                 request=request,
                 role_context="admin",   # enforce admin/teacher serializer
+                custom_claims=custom_claims
             )
         except AuthenticationFailed as ae:
             # Propagate specific auth errors (like cooldown) to the user
@@ -163,7 +260,9 @@ class AdminTokenObtainPairView(TokenObtainPairView):
         # BURN JIT TICKET ON SUCCESS
         if user.role == User.Roles.SUPER_ADMIN:
             jit_ticket = request.data.get("jit_ticket")
-            if jit_ticket:
+            institution_id = request.data.get("institution_id")
+            # Only burn if it was a global login (no institution context)
+            if not institution_id and jit_ticket:
                 burn_jit_admin_ticket(jit_ticket)
                 logger.info(f"[SEC-GATE] SuperAdmin JIT ticket burned user={user.id}")
 
@@ -177,7 +276,7 @@ class AdminTokenObtainPairView(TokenObtainPairView):
         from apps.identity.utils.cookie_utils import set_quantum_shield
         set_quantum_shield(resp, token_data.get("fragments", {}))
         
-        set_logged_in_cookie(resp, "true")
+        set_logged_in_cookie(resp, "true", role=user.role)
         
         logger.info(f"[ADMIN-LOGIN] ✅ user={user.id} ip={ip} trusted=1")
         return resp
@@ -232,40 +331,101 @@ class AdminVerifyOTPView(APIView):
 
         # ---------- Verify OTP ----------
         if not verify_otp_for_user(user, otp_code):
-            fail_count = register_global_failure(ip, user_agent, f"USER_ID:{user_id}")
-            attempts_left = MAX_FAILED_ATTEMPTS - fail_count
+            attempts_left = register_global_failure(ip, user_agent, f"USER_ID:{user_id}")
             logger.warning(f"[ADMIN-OTP] invalid OTP user={user.id} ip={ip} attempts_left={attempts_left}")
             
             # 🔥 Requirement: Burn JIT if IP is locked out
-            if attempts_left <= 0 and jit_ticket:
-                burn_jit_admin_ticket(jit_ticket)
-                logger.error(f"[SEC-GATE] Sustained attack detected during MFA. JIT ticket RECALLED for IP={ip}")
+            if attempts_left <= 0:
+                jit_ticket = request.data.get("jit_ticket")
+                if jit_ticket:
+                    burn_jit_admin_ticket(jit_ticket)
+                    logger.error(f"[SEC-GATE] Sustained attack detected during MFA. JIT ticket RECALLED for IP={ip}")
 
             msg = "Invalid or expired OTP."
             if attempts_left <= 2:
-                msg = f"Invalid OTP. Warning: {attempts_left} attempts remaining."
+                msg = f"Invalid OTP. Warning: {attempts_left} attempt{'s' if attempts_left != 1 else ''} remaining before total IP lockout."
             return error_response(msg, code=401, data={"attempts_remaining": attempts_left})
 
-        # ✅ JIT TICKET ENFORCEMENT FOR SUPER ADMIN (Final Stage)
-        if user.role == User.Roles.SUPER_ADMIN:
-            logger.info(f"[SEC-DEBUG] SuperAdmin OTP stage JIT Ticket received: {jit_ticket[:10] if jit_ticket else 'NONE'}...")
-            if not jit_ticket or not verify_jit_admin_ticket(jit_ticket, email=user.email):
-                logger.warning(f"[SEC-GATE] SuperAdmin OTP attempt WITHOUT valid JIT ticket. User={user.id} IP={ip}")
-                return error_response("Infrastructure Protocol Violation. Identity Access Revoked.", code=403)
 
-        # ---------- Mark device trusted ----------
+        # ✅ OTP PASSED → clear all failure counters for this IP
+        # Professional requirement: successful auth resets all penalty state
+        from apps.identity.services.security_service import clear_global_failures
+        clear_global_failures(ip)
+        # Also clear the per-identifier brute force counter
+        clear_failed_attempt(f"USER_ID:{user_id}", ip)
+        logger.info(f"[ADMIN-OTP] Failure counters cleared for user={user.id} ip={ip}")
+
+        # ✅ JIT TICKET ENFORCEMENT FOR SUPER ADMIN (OTP Stage)
+        # We do NOT re-verify the raw JIT ticket here to avoid false failures.
+        # Instead, we verify the short-lived OTP session key set during password stage.
+        if user.role == User.Roles.SUPER_ADMIN:
+            institution_id = request.data.get("institution_id")
+            if institution_id:
+                logger.info(f"[SEC-GATE] SuperAdmin Scoped OTP for Inst={institution_id}. JIT Bypassed.")
+            else:
+                from django.core.cache import cache as dj_cache
+                otp_session_key = f"jit_otp_session:{user.id}"
+                stored_ticket = dj_cache.get(otp_session_key)
+                if not stored_ticket:
+                    logger.warning(f"[SEC-GATE] OTP stage: JIT OTP session missing/expired for user={user.id}")
+                    return error_response(
+                        "Security session expired. Please request a new access link and try again.",
+                        code=403
+                    )
+                # Read the original jit_ticket from session for burning later
+                jit_ticket = stored_ticket
+                logger.info(f"[SEC-GATE] OTP session validated for user={user.id}")
+
+        # ---------- Mark device trusted (DB + set browser cookie) ----------
         should_trust = request.data.get("remember_device", False)
-        
-        RememberedDevice.objects.update_or_create(
-            user=user,
-            device_hash=device_hash,
-            defaults={
-                "trusted": should_trust,
-                "last_active": datetime.now(tz=dt_timezone.utc),
-                "ip_address": ip,
-                "user_agent": user_agent,
-            },
-        )
+
+        # Only generate a new trust token when the user is GRANTING trust
+        # (i.e. checking "remember this device"). If should_trust=False, we
+        # intentionally preserve whatever trust_cookie_hash is already in the DB
+        # so that OTHER browsers that previously chose to trust this device-hash
+        # are not accidentally invalidated.
+        trust_token = None
+        if should_trust:
+            trust_token = secrets.token_hex(32)   # fresh browser-side secret
+            hashed_trust = hash_token(trust_token) # what goes in the DB
+            from django.utils import timezone as dj_timezone
+            trust_expiry = dj_timezone.now() + timedelta(seconds=DEVICE_TRUST_COOKIE_AGE)  # 30 days, matches cookie
+
+        # Shared non-trust fields (always updated)
+        common_fields = {
+            "last_active": datetime.now(tz=dt_timezone.utc),
+            "ip_address": ip,
+            "user_agent": user_agent,
+        }
+
+        existing = RememberedDevice.objects.filter(user=user, device_hash=device_hash).first()
+        if existing:
+            # Always update activity metadata
+            for k, v in common_fields.items():
+                setattr(existing, k, v)
+            update_fields = list(common_fields.keys())
+
+            # Only flip trusted / hash when user explicitly chose to trust
+            if should_trust:
+                existing.trusted = True
+                existing.trust_cookie_hash = hashed_trust
+                existing.trusted_until = trust_expiry  # DB expiry = cookie expiry (30 days)
+                update_fields += ["trusted", "trust_cookie_hash", "trusted_until"]
+
+            existing.save(update_fields=update_fields)
+            logger.debug(f"[ADMIN-OTP] Updated RememberedDevice for user={user.id} trust_changed={should_trust}")
+        else:
+            # First time for this device-hash: create record
+            RememberedDevice.objects.create(
+                user=user,
+                device_hash=device_hash,
+                trusted=bool(should_trust),
+                trust_cookie_hash=hashed_trust if should_trust else "",
+                trusted_until=trust_expiry if should_trust else None,  # None = never trusted
+                **common_fields,
+            )
+            logger.debug(f"[ADMIN-OTP] Created RememberedDevice for user={user.id} trusted={should_trust}")
+
 
         # ---------- Complete login ----------
         from rest_framework.exceptions import AuthenticationFailed
@@ -286,23 +446,30 @@ class AdminVerifyOTPView(APIView):
 
         access = token_data.get("access")
         resp = success_response("Login OK", data=_normalized_login_payload(user, access))
-        
+
         # ✅ Set 4-segment Quantum Shield
         from apps.identity.utils.cookie_utils import set_quantum_shield
         set_quantum_shield(resp, token_data.get("fragments", {}))
-        set_logged_in_cookie(resp, "true")
-        
-        # BURN JIT TICKET ON SUCCESS & Reset Cooldown
+        set_logged_in_cookie(resp, "true", role=user.role)
+
+        # ✅ Set browser-side device trust cookie (HttpOnly, JS-invisible)
+        # Only set if user ticked "remember this device"
+        if should_trust:
+            _set_trust_cookie(resp, trust_token)
+            logger.info(f"[ADMIN-OTP] Device trust cookie set for user={user.id}")
+
+        # BURN JIT TICKET ON SUCCESS & Reset Cooldown & clean OTP session
         if user.role == User.Roles.SUPER_ADMIN:
-            if jit_ticket:
+            institution_id = request.data.get("institution_id")
+            if not institution_id and jit_ticket:
                 from apps.identity.utils.jit_admin import burn_jit_admin_ticket
                 burn_jit_admin_ticket(jit_ticket)
-                # ✅ Requirement: Reset JIT cooldown on success
-                from django.core.cache import cache
-                cache.delete(f"jit_burst_{user.email.lower().strip()}")
-                logger.info(f"[SEC-GATE] SuperAdmin JIT burned & cooldown reset user={user.id}")
+                from django.core.cache import cache as dj_cache
+                dj_cache.delete(f"jit_burst_{user.email.lower().strip()}")
+                dj_cache.delete(f"jit_otp_session:{user.id}")  # clean up session proof
+                logger.info(f"[SEC-GATE] SuperAdmin JIT burned & session cleaned user={user.id}")
 
-        logger.info(f"[ADMIN-OTP] ✅ user={user.id} ip={ip} trusted={should_trust}")
+        logger.info(f"[ADMIN-OTP] OK user={user.id} ip={ip} trusted={should_trust}")
         return resp
 
 

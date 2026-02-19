@@ -1,0 +1,1 @@
+http://localhost:3000/auth/secure-gateway?ticket=cGFybmVtYW5vaGFycmVkZHkxOUBnbWFpbC5jb206MTc3MTQ4NzY0OToxMzE3NDQ0MDRiYzBmYTg4MmNmNTgwMGMzZjdiMWM1OGUxNjA2Zjk5MGM5YmJhMjVlYTE2YmYwYjFkNWFkY2Iw

@@ -51,6 +51,7 @@ services:
       - ./backend/.env
     environment:
       - REDIS_HOST=redis
+      - REDIS_URL=redis://redis:6379/0
       - DB_HOST=aws-1-ap-southeast-1.pooler.supabase.com
       - TURNSTILE_ENABLED=True
     depends_on:

@@ -10,9 +10,27 @@ from apps.identity.serializers.auth_serializers import (
     CustomTokenObtainPairSerializer,
 )
 from apps.identity.services.token_service import create_login_session_safe
-from apps.identity.models.core_models import User
+from apps.identity.models import User
+from django.conf import settings
 
 logger = logging.getLogger(__name__)
+
+class TenantRefreshToken(RefreshToken):
+    """
+    Custom RefreshToken that bypasses simple-jwt's BlacklistMixin
+    to avoid crashing on non-User identities (AuthorizedAccount).
+    We rely on apps.identity.models.BlacklistedAccessToken instead.
+    """
+    def blacklist(self):
+        # Override to do nothing, preventing OutstandingToken creation attempt
+        pass
+    
+    @classmethod
+    def for_user(cls, user):
+        # Override to avoid setting current_user which triggers blacklist logic
+        token = cls()
+        token[settings.SIMPLE_JWT.get('USER_ID_CLAIM', 'user_id')] = user.id
+        return token
 
 
 def handle_login(
@@ -22,7 +40,8 @@ def handle_login(
     user_agent: Optional[str] = None,
     request=None,
     role_context: str = "student",                # "student" | "admin"
-    allowed_roles: Optional[Sequence[str]] = None # dynamic override
+    allowed_roles: Optional[Sequence[str]] = None, # dynamic override
+    custom_claims: Optional[dict] = None          # ✅ Extra claims (schema, role, etc)
 ) -> dict:
     """
     ✅ Purpose:
@@ -60,13 +79,46 @@ def handle_login(
         else:
             # For localized models (AuthorizedAccount), we assume password was already checked in View
             # Generative tokens for non-User objects
-            refresh = RefreshToken.for_user(identity)
-            access_token = str(refresh.access_token)
+            refresh = TenantRefreshToken.for_user(identity)
+            
+            # ✅ Inject custom claims if provided
+            if custom_claims:
+                for key, value in custom_claims.items():
+                    refresh[key] = value
+                    
+            # ✅ MANUALLY PROPAGATE CLAIMS
+            access = refresh.access_token
+            for key in ['role', 'email', 'schema', 'tenant_user_id']:
+                if key in refresh:
+                    access[key] = refresh[key]
+                    
+            access_token = str(access)
             refresh_token = str(refresh)
     else:
-        # OTP / MFA success path
-        refresh = RefreshToken.for_user(identity)
-        access_token = str(refresh.access_token)
+        # OTP / MFA success path: generate tokens for the already validated identity
+        if isinstance(identity, User):
+            refresh = RefreshToken.for_user(identity)
+            # ✅ Essential Identity Claims for Zero-Trust session restoration
+            refresh['role'] = getattr(identity, 'role', 'STUDENT')
+            refresh['email'] = identity.email
+        else:
+            refresh = TenantRefreshToken.for_user(identity)
+            refresh['role'] = getattr(identity, 'role', 'STUDENT')
+            refresh['email'] = getattr(identity, 'email', '')
+        
+        # ✅ Inject additional custom claims (schema, etc.) if provided
+        if custom_claims:
+            for key, value in custom_claims.items():
+                refresh[key] = value
+                
+        # ✅ MANUALLY PROPAGATE CLAIMS: Simple-JWT doesn't copy custom claims to 
+        # the access token by default when using refresh.access_token.
+        access = refresh.access_token
+        for key in ['role', 'email', 'schema', 'tenant_user_id']:
+            if key in refresh:
+                access[key] = refresh[key]
+                
+        access_token = str(access)
         refresh_token = str(refresh)
 
     # 2. Persist Traces (Standardized property names)
@@ -80,17 +132,23 @@ def handle_login(
     except Exception as e:
         logger.warning(f"[AUTH] failed to persist last_login for {identity}: {e}")
 
-    # 3. Secure Session Creation (identity.LoginSession)
-    # ⚠️ NOTE: LoginSession expects a Global User. 
-    # If using AuthorizedAccount, ensure we can either link them or create a shadow User.
-    # For now, we attempt to pass identity. 
-    # (Refactoring of token_service.py might be needed to allow generic IDs)
+    # 3. Secure Session Creation
+    # LoginSession.user is now nullable. For tenant-scoped logins (AdminAuthorizedAccount, etc.),
+    # identity may NOT be a global User. token_service handles this by storing tenant metadata.
+    # Determine effective role for WebSocket group isolation
+    effective_role = role_context
+    if custom_claims and custom_claims.get("role"):
+        effective_role = custom_claims.get("role")
+    elif hasattr(identity, 'role'):
+        effective_role = identity.role
+
     session = create_login_session_safe(
         user=identity,
         access_token=access_token,
         refresh_token=refresh_token,
         ip=ip,
         user_agent=user_agent,
+        role=effective_role,
     )
 
     # 4. Generate Quantum Shield Fragments
@@ -107,6 +165,12 @@ def handle_login(
         QuantumShieldService.SEGMENT_P: header_payload[mid:],
         QuantumShieldService.SEGMENT_S: signature
     }
+
+    # ✅ REFRESH SECURITY REPUTATION: 
+    # If login is successful, we MUST clear any global failure counts/blocks for this IP.
+    from apps.identity.services.security_service import clear_global_failures
+    if ip:
+        clear_global_failures(ip)
 
     logger.info(
         f"[AUTH] ✅ {identity.__class__.__name__} login SUCCESS "

@@ -1,5 +1,5 @@
 // ✅ src/features/auth/api/institutionAdminApi.ts
-import { apiClient, authHeaders } from "./base";
+import { instApiClient, authHeaders } from "./base";
 import type { ApiResponse } from "./types";
 
 export interface CoreStudent {
@@ -16,39 +16,37 @@ export interface CoreStudent {
 }
 
 export const getCoreStudents = async (params?: any): Promise<ApiResponse<CoreStudent[]>> => {
-    const res = await apiClient.get<ApiResponse<CoreStudent[]>>("/admin/core-students/", {
+    // Uses instApiClient -> BaseURL: /api/institution/
+    const res = await instApiClient.get<ApiResponse<CoreStudent[]>>("students/", {
         params,
-        headers: authHeaders()
+        // headers: authHeaders() // instApiClient interceptors handle this!
     });
     return res.data;
 };
 
 export const inviteStudent = async (stu_ref: string): Promise<ApiResponse<any>> => {
-    const res = await apiClient.post<ApiResponse<any>>(
-        `/admin/core-students/${stu_ref}/send_invitation/`,
-        {},
-        { headers: authHeaders() }
+    const res = await instApiClient.post<ApiResponse<any>>(
+        `students/${stu_ref}/send_invitation/`,
+        {}
     );
     return res.data;
 };
 
 export const updateStudentAcademic = async (stu_ref: string, data: any): Promise<ApiResponse<CoreStudent>> => {
-    const res = await apiClient.patch<ApiResponse<CoreStudent>>(
-        `/admin/core-students/${stu_ref}/`,
-        data,
-        { headers: authHeaders() }
+    const res = await instApiClient.patch<ApiResponse<CoreStudent>>(
+        `students/${stu_ref}/`,
+        data
     );
     return res.data;
 };
 export const bulkUploadStudents = async (file: File): Promise<ApiResponse<any>> => {
     const formData = new FormData();
     formData.append("file", file);
-    const res = await apiClient.post<ApiResponse<any>>(
-        "/admin/bulk-seed-students/",
+    const res = await instApiClient.post<ApiResponse<any>>(
+        "bulk-seed-students/",
         formData,
         {
             headers: {
-                ...authHeaders(),
                 "Content-Type": "multipart/form-data"
             }
         }

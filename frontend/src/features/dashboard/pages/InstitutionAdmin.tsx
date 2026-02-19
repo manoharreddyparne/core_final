@@ -108,7 +108,9 @@ export const InstitutionAdmin = () => {
             setSelectedInst(null);
         } catch (err: any) {
             console.error(`Failed to perform action ${action}`, err);
-            toast.error(err?.response?.data?.message || err?.response?.data?.detail || `Failed to ${action} institution.`);
+            const detail = err?.response?.data?.errors?.detail || err?.response?.data?.detail;
+            const mainMsg = err?.response?.data?.message || `Failed to ${action} institution.`;
+            toast.error(detail ? `${mainMsg}: ${detail}` : mainMsg);
         } finally {
             setIsActionLoading(false);
             if (action === "approve") {

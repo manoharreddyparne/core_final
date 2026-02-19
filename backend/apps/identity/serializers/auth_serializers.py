@@ -56,6 +56,14 @@ class BaseRoleTokenSerializer(TokenObtainPairSerializer):
     username_field = "username"
     allowed_roles = []
 
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        # ✅ Add custom claims for Zero-Trust identity resolution
+        token['role'] = getattr(user, 'role', 'STUDENT')
+        token['email'] = user.email
+        return token
+
     def build_user_payload(self, user: User) -> dict:
         return {
             "id": user.id,
@@ -113,8 +121,10 @@ class BaseRoleTokenSerializer(TokenObtainPairSerializer):
         cache.delete(attempts_key)
         cache.set(cooldown_key, True, LOGIN_COOLDOWN_SECONDS)
 
-        refresh = RefreshToken.for_user(user)
+        refresh = self.get_token(user)
         access = refresh.access_token
+        
+        # Ensure serializer data returns raw strings
         data = {"refresh": str(refresh), "access": str(access)}
         data.update(self.build_user_payload(user))
         self.user = user

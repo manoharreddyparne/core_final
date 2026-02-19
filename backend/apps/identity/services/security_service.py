@@ -15,6 +15,7 @@ def register_global_failure(ip, user_agent="unknown", identifier="unknown"):
     """
     Increments failure count for an IP. 
     Triggers lockout and incident reporting if threshold reached.
+    Returns: attempts_remaining (int, min 0)
     """
     key = GLOBAL_IP_FAIL_KEY.format(ip=ip)
     count = cache.get(key, 0) + 1
@@ -25,7 +26,7 @@ def register_global_failure(ip, user_agent="unknown", identifier="unknown"):
     if count >= MAX_FAILURES:
         _trigger_lockout(ip, user_agent, identifier, count)
     
-    return count
+    return max(0, MAX_FAILURES - count)
 
 def _trigger_lockout(ip, user_agent, identifier, count):
     """
@@ -92,3 +93,18 @@ def get_remaining_attempts(ip):
     """
     count = cache.get(GLOBAL_IP_FAIL_KEY.format(ip=ip), 0)
     return max(0, MAX_FAILURES - count)
+
+def clear_global_failures(ip):
+    """
+    Resets the failure counter and removes any existing IP block.
+    """
+    cache.delete(GLOBAL_IP_FAIL_KEY.format(ip=ip))
+    cache.delete(GLOBAL_IP_BLOCK_KEY.format(ip=ip))
+    logger.info(f"[SECURITY] ✅ Cleared global failures and block for IP {ip}")
+
+def unblock_ip(ip):
+    """
+    Specifically removes any active block for an IP.
+    """
+    cache.delete(GLOBAL_IP_BLOCK_KEY.format(ip=ip))
+    logger.info(f"[SECURITY] ✅ Manual unblock executed for IP {ip}")

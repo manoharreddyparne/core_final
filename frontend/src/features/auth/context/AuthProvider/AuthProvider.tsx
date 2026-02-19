@@ -132,9 +132,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   useEffect(() => {
     const guardShield = () => {
       if (user && !sessionHydration.hydrating) {
+        const role = user.role || (user as any).role;
         const shieldPresent = getCookie("auip_logged_in");
-        if (shieldPresent !== "true") {
-          console.warn("[AUTH] 🛡️ AQOUS Shield signal lost. Server-side invalidation detected.");
+        const roleShieldPresent = getCookie(`auip_logged_in_${role}`);
+
+        // If BOTH are missing, then the session was truly cleared server-side.
+        // We check for both for backward compatibility and surgical isolation.
+        if (shieldPresent !== "true" && roleShieldPresent !== "true") {
+          console.warn(`[AUTH] 🛡️ AQOUS Shield signal lost for role ${role}. Server-side invalidation detected.`);
           logout();
         }
       }

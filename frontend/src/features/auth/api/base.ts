@@ -28,9 +28,19 @@ export const API_BASE_URL =
     ? `${import.meta.env.VITE_BACKEND_URL}/api/users/`
     : `http://localhost:8000/api/users/`;
 
+export const INST_API_BASE_URL =
+  import.meta.env.VITE_BACKEND_URL
+    ? `${import.meta.env.VITE_BACKEND_URL}/api/institution/`
+    : `http://localhost:8000/api/institution/`;
+
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  withCredentials: true, // ✅ sends HttpOnly refresh cookie automatically
+  withCredentials: true,
+});
+
+export const instApiClient = axios.create({
+  baseURL: INST_API_BASE_URL,
+  withCredentials: true,
 });
 
 /* ===================================
@@ -42,144 +52,144 @@ export const authHeaders = () => {
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
-// ✅ Request Interceptor: Automatic Header Injection
-apiClient.interceptors.request.use(
-  (config) => {
-    const token = getAccessToken();
-    if (token) {
-      config.headers["Authorization"] = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
 
 /* ===================================
-   🔄 SILENT REFRESH INTERCEPTOR
-   ─────────────────────────────────
-   On 401 → try /auth/passport/ ONCE
-   If passport also fails → clear state, reject
-   
-   ⛔ NEVER retry passport/login/logout endpoints
-      to prevent infinite 401 loops
+   🔄 REFRESH QUEUE LOGIC
 =================================== */
 
+// URLs that should NOT trigger a refresh loop
+const SKIP_REFRESH_URLS = [
+  "auth/login/",
+  "auth/v2/student/login/",
+  "auth/v2/faculty/login/",
+  "auth/inst-admin/login/",
+  "admin/login/",
+  "admin/verify-otp/",
+  "auth/passport/",
+  "auth/token/secure/"
+];
+
+// Queue state
 let isRefreshing = false;
-let failedQueue: { resolve: (v: any) => void; reject: (e: any) => void }[] = [];
+let failedQueue: Array<{
+  resolve: (value: unknown) => void;
+  reject: (reason?: any) => void;
+}> = [];
 
 const processQueue = (error: any, token: string | null = null) => {
   failedQueue.forEach((prom) => {
-    if (error) prom.reject(error);
-    else prom.resolve(token);
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
   });
   failedQueue = [];
 };
 
-// Start listening for token updates from other tabs
-if (typeof window !== "undefined") {
-  subscribeToTokenUpdates((token) => {
-    if (token && failedQueue.length > 0) {
-      console.info("⚡ [Auth] Queue flushed via cross-tab token sync");
-      processQueue(null, token);
-    }
-  });
-}
+import { AxiosInstance } from "axios";
 
-// Endpoints that must NEVER trigger silent refresh (Auth/OTP flows)
-const SKIP_REFRESH_URLS = [
-  "auth/passport",
-  "auth/config",
-  "/login/",
-  "/logout/",
-  "/auth/otp/",
-  "admin/login/",
-  "admin/verify-otp/",
-  "auth/v2/faculty/login/",
-  "auth/v2/faculty/mfa/",
-  "auth/v2/student/login/",
-];
-
-apiClient.interceptors.response.use(
-  (response) => {
-    // Check for silent rotation token from backend
-    const newToken = response.headers["x-new-access-token"];
-    if (newToken) {
-      console.debug("[Auth] 🔄 Silent rotation detected via header (RAM state synced)");
-      setAccessToken(newToken);
-    }
-
-    console.debug(`[API-SUCCESS] ${response.status} ${response.config.url}`, response.data);
-    return response;
-  },
-  async (error) => {
-    // Even on error, we might have a new token in headers (e.g. 403 or 400 that still rotated)
-    const newToken = error.response?.headers["x-new-access-token"];
-    if (newToken) {
-      setAccessToken(newToken);
-    }
-
-    const originalRequest = error.config;
-    const url = originalRequest?.url || "";
-    const isPassport = url.includes("auth/passport");
-
-    if (error.response?.status === 401 && isPassport) {
-      console.debug(`[API-READY] Passport rehydration standby (login required).`);
-    } else {
-      console.error(`[API-ERROR] ${error.response?.status || "NET_FAIL"} ${url}`, error.response?.data);
-    }
-
-    // ⛔ Skip auth endpoints — prevents infinite 401 loop
-    const isAuthEndpoint = SKIP_REFRESH_URLS.some((u) => url.includes(u));
-
-    if (
-      error.response?.status === 401 &&
-      !originalRequest._retry &&
-      !isAuthEndpoint
-    ) {
-      if (isRefreshing || isHydrating()) {
-        console.info("⏳ [Auth] Queuing request: refresh already in progress (cross-tab aware)");
-        // Queue this request until refresh completes
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        }).then((token) => {
-          originalRequest.headers["Authorization"] = "Bearer " + token;
-          return apiClient(originalRequest);
-        });
+// ✅ Shared Interceptor Logic
+const attachInterceptors = (client: AxiosInstance) => {
+  // Request Interceptor
+  client.interceptors.request.use(
+    (config) => {
+      const token = getAccessToken();
+      if (token) {
+        config.headers["Authorization"] = `Bearer ${token}`;
       }
+      return config;
+    },
+    (error) => Promise.reject(error)
+  );
 
-      originalRequest._retry = true;
-      isRefreshing = true;
-      startHydrating();
+  // Response Interceptor
+  client.interceptors.response.use(
+    (response) => {
+      const newToken = response.headers["x-new-access-token"];
+      if (newToken) {
+        console.debug("[Auth] 🔄 Silent rotation detected via header");
+        setAccessToken(newToken);
+      }
+      return response;
+    },
+    async (error) => {
+      const originalRequest = error.config;
 
-      try {
-        const res = await apiClient.get("auth/passport/");
-        const newAccess = res.data?.data?.access;
+      // Update token if new one came in error headers (rare but possible)
+      const newToken = error.response?.headers["x-new-access-token"];
+      if (newToken) setAccessToken(newToken);
 
-        if (newAccess) {
-          setAccessToken(newAccess);
-          // ✅ CRITICAL: Update the original request's header BEFORE retrying
-          originalRequest.headers["Authorization"] = `Bearer ${newAccess}`;
-          processQueue(null, newAccess);
-          return apiClient(originalRequest);
+      // Prevent infinite loops / crashes if originalRequest is missing
+      if (!originalRequest) return Promise.reject(error);
+
+      const url = originalRequest.url || "";
+
+      // Skip auth endpoints
+      const isAuthEndpoint = SKIP_REFRESH_URLS.some((u) => url.includes(u));
+
+      if (
+        error.response?.status === 401 &&
+        !originalRequest._retry &&
+        !isAuthEndpoint
+      ) {
+        if (isRefreshing || isHydrating()) {
+          return new Promise((resolve, reject) => {
+            failedQueue.push({ resolve, reject });
+          })
+            .then((token) => {
+              originalRequest.headers["Authorization"] = "Bearer " + token;
+              return client(originalRequest);
+            })
+            .catch((err) => Promise.reject(err));
         }
 
-        // No access token in response → session truly expired
-        processQueue(new Error("No access token"), null);
-        clearAccessToken();
-        return Promise.reject(error);
-      } catch (refreshError) {
-        processQueue(refreshError, null);
-        clearAccessToken();
-        return Promise.reject(refreshError);
-      } finally {
-        isRefreshing = false;
-        stopHydrating();
-      }
-    }
+        originalRequest._retry = true;
+        isRefreshing = true;
+        startHydrating();
 
-    return Promise.reject(error);
+        try {
+          // Attempt refresh using global axios instance (fresh config)
+          // We target the Passport endpoint which validates the HTTP-only cookie
+          const res = await axios.get(
+            `${API_BASE_URL}auth/passport/`,
+            { withCredentials: true }
+          );
+
+          const newAccess = res.data?.data?.access; // Adjust based on actual response structure
+
+          if (newAccess) {
+            setAccessToken(newAccess);
+            originalRequest.headers["Authorization"] = `Bearer ${newAccess}`;
+            processQueue(null, newAccess);
+            return client(originalRequest);
+          }
+
+          throw new Error("No access token returned from passport");
+        } catch (refreshError) {
+          processQueue(refreshError, null);
+          clearAccessToken();
+          return Promise.reject(refreshError);
+        } finally {
+          isRefreshing = false;
+          stopHydrating();
+        }
+      }
+      return Promise.reject(error);
+    }
+  );
+};
+
+// Listen for token updates from other tabs
+subscribeToTokenUpdates((token) => {
+  if (token) {
+    processQueue(null, token);
   }
-);
+});
+
+// Apply to both clients
+attachInterceptors(apiClient);
+attachInterceptors(instApiClient);
 
 /* ===================================
    RE-EXPORT low-level storage

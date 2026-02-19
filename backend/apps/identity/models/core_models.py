@@ -171,6 +171,18 @@ class CoreStudent(models.Model):
     is_eligible_for_placement = models.BooleanField(default=False)
     placement_eligibility_reason = models.TextField(blank=True)
 
+    @property
+    def academic_summary(self):
+        return f"{self.department or ''} - Batch {self.batch_year or ''}"
+
+    @property
+    def is_invited(self):
+        return self.status == self.IdentityState.INVITED
+
+    @property
+    def is_active(self):
+        return self.status == self.IdentityState.ACTIVE
+
     def __str__(self):
         return f"{self.full_name} ({self.stu_ref})"
 

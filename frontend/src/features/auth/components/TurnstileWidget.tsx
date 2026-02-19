@@ -20,41 +20,38 @@ export const TurnstileWidget: FC<Props> = ({
     const retryCountRef = useRef(0);
     const MAX_RETRIES = 3;
 
-    useEffect(() => {
-        const checkInterference = () => {
-            // Check for common adblock/trackers blocking Cloudflare
-            if (!(window as any).turnstile && document.querySelector('script[src*="turnstile"]')) {
-                console.error("[TURNSTILE] 🕵️ Script detected but object missing. Likely blocked by an extension (AdBlock/uBlock).");
-            }
-        };
+    const onSuccessRef = useRef(onSuccess);
+    const onExpireRef = useRef(onExpire);
+    const onErrorRef = useRef(onError);
 
+    // Update refs when props change
+    useEffect(() => {
+        onSuccessRef.current = onSuccess;
+        onExpireRef.current = onExpire;
+        onErrorRef.current = onError;
+    }, [onSuccess, onExpire, onError]);
+
+    useEffect(() => {
         const renderWidget = () => {
-            if (containerRef.current && (window as any).turnstile && !widgetIdRef.current && siteKey) {
-                // console.debug(`[TURNSTILE] 🛡️ Initializing human verification protocol (Attempt ${retryCountRef.current + 1}/${MAX_RETRIES + 1})...`);
+            const trimmedKey = siteKey?.trim();
+            if (containerRef.current && (window as any).turnstile && !widgetIdRef.current && trimmedKey) {
                 widgetIdRef.current = (window as any).turnstile.render(containerRef.current, {
-                    sitekey: siteKey,
+                    sitekey: trimmedKey,
                     callback: (token: string) => {
-                        // console.debug("[TURNSTILE] ✅ Identity verified. Token acquired.");
-                        retryCountRef.current = 0; // Reset on success
-                        onSuccess(token);
+                        retryCountRef.current = 0;
+                        onSuccessRef.current(token);
                     },
                     "expired-callback": () => {
-                        // console.warn("[TURNSTILE] ⚠️ Challenge session expired. Refreshing...");
-                        onExpire?.();
+                        onExpireRef.current?.();
                     },
                     "error-callback": (code: string) => {
-                        // console.error("[TURNSTILE] ❌ Challenge execution error. Code:", code);
-
-                        // Retry logic
                         if (retryCountRef.current < MAX_RETRIES) {
                             retryCountRef.current++;
-                            // console.info(`[TURNSTILE] 🔄 Automated retry initiated (${retryCountRef.current}/${MAX_RETRIES})...`);
                             if (widgetIdRef.current) {
                                 (window as any).turnstile.reset(widgetIdRef.current);
                             }
                         } else {
-                            // Only log critical failure if absolutely necessary, but keep it quiet for now based on user request
-                            onError?.();
+                            onErrorRef.current?.();
                         }
                     },
                     theme: theme,
@@ -62,44 +59,30 @@ export const TurnstileWidget: FC<Props> = ({
             }
         };
 
-        // Load Turnstile script if not already present
         if (!(window as any).turnstile) {
-            // console.debug("[TURNSTILE] Loading remote security layer...");
             if (!document.querySelector('script[src*="turnstile/v0/api.js"]')) {
                 const script = document.createElement("script");
                 script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
                 script.async = true;
                 script.defer = true;
-                script.onload = () => {
-                    // console.debug("[TURNSTILE] Remote security layer loaded.");
-                    renderWidget();
-                };
-                script.onerror = () => {
-                    // console.error("[TURNSTILE] 🚨 FAILED to reach security servers. Please disable AdBlockers/VPNs.");
-                }
+                script.onload = renderWidget;
                 document.head.appendChild(script);
             }
         } else {
-            // If script is already loaded but widget not rendered (e.g. navigation back)
             renderWidget();
         }
 
-        // 🛑 REMOVED: Interval check was causing noise.
-        // const interval = setInterval(checkInterference, 5000);
-
         return () => {
-            // clearInterval(interval);
             if (widgetIdRef.current && (window as any).turnstile) {
-                // console.debug("[TURNSTILE] Handshake cleanup.");
                 try {
                     (window as any).turnstile.remove(widgetIdRef.current);
                 } catch (err) {
-                    // console.warn("[TURNSTILE] Cleanup warning:", err);
+                    // ignore error on cleanup
                 }
                 widgetIdRef.current = null;
             }
         };
-    }, [onSuccess, onExpire, onError, theme, siteKey]);
+    }, [siteKey, theme]);
 
     return (
         <div className="flex flex-col items-center space-y-3 w-full">

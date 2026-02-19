@@ -8,7 +8,7 @@ import { useAuth } from "../context/AuthProvider/AuthProvider";
 
 interface Props {
   children: ReactNode;
-  allowedRoles?: ("student" | "admin" | "inst_admin" | "super_admin")[];
+  allowedRoles?: ("student" | "admin" | "inst_admin" | "institution_admin" | "super_admin")[];
 }
 
 /**
@@ -51,12 +51,27 @@ const ProtectedRoute = ({ children, allowedRoles }: Props) => {
    */
   if (
     allowedRoles &&
-    !allowedRoles.includes(user.role?.toLowerCase() as any)
+    !allowedRoles.some((allowed) => {
+      const userRole = user.role?.toLowerCase();
+      // Normalize institution_admin <-> inst_admin
+      if (allowed === "inst_admin" || allowed === "institution_admin") {
+        return userRole === "inst_admin" || userRole === "institution_admin";
+      }
+      return userRole === allowed;
+    })
   ) {
-    const role = user.role?.toLowerCase();
-    const fallback = role === "student" ? "/student-dashboard" : "/admin-dashboard";
-
-    return <Navigate to={fallback} replace />;
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-[#0a0a0b] text-white">
+        <h1 className="text-4xl font-black text-red-500 mb-4">403 FORBIDDEN</h1>
+        <p className="text-gray-400">Access Restricted: Your role does not have permission to view this resource.</p>
+        <button
+          onClick={() => window.history.back()}
+          className="mt-8 px-6 py-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all font-bold uppercase tracking-widest text-xs"
+        >
+          Go Back
+        </button>
+      </div>
+    );
   }
 
   /**

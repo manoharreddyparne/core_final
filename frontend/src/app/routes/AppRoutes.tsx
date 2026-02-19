@@ -4,10 +4,10 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 
 import StudentLogin from "../../features/auth/pages/StudentLogin";
-import FacultyLogin from "../../features/auth/pages/FacultyLogin";
 import SuperAdminLogin from "../../features/auth/pages/SuperAdminLogin";
 import StudentRegistration from "../../features/auth/pages/StudentRegistration";
 import Dashboard from "../../features/dashboard/pages/Dashboard";
+import InstAdminDashboard from "../../features/dashboard/pages/InstAdminDashboard";
 import ActivatePage from "../../features/auth/pages/Activate";
 import InstAdminLogin from "../../features/auth/pages/InstAdminLogin";
 import InstAdminActivate from "../../features/auth/pages/InstAdminActivate";
@@ -15,6 +15,7 @@ import AdminRecovery from "../../features/auth/pages/AdminRecovery";
 import { PageNotFound } from "../../components/PageNotFound";
 import CoreStudentAdmin from "../../features/dashboard/pages/CoreStudentAdmin";
 import InstitutionAdmin from "../../features/dashboard/pages/InstitutionAdmin";
+import FacultyAdmin from "../../features/dashboard/pages/FacultyAdmin";
 import { RegisterUniversity } from "../../features/auth/pages/RegisterUniversity";
 import { LandingPage } from "../../features/dashboard/pages/LandingPage";
 import { AppLayout } from "../../features/auth/layouts/AppLayout";
@@ -49,7 +50,14 @@ export const AppRoutes = () => {
   const { user, bootstrapping } = useAuth();
 
   const role = user?.role?.toLowerCase();
-  const landing = role === "student" ? "/student-dashboard" : "/admin-dashboard";
+  const landing =
+    role === "student"
+      ? "/student-dashboard"
+      : role === "super_admin"
+        ? "/superadmin/dashboard"
+        : (role === "inst_admin" || role === "institution_admin")
+          ? "/institution/dashboard"
+          : "/institution/dashboard";
 
   return (
     <Routes>
@@ -84,7 +92,7 @@ export const AppRoutes = () => {
         path="/auth/faculty/login"
         element={
           <PublicRoute>
-            <FacultyLogin />
+            <InstAdminLogin />
           </PublicRoute>
         }
       />
@@ -194,15 +202,17 @@ export const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
+        {/* --- ADMINISTRATIVE DOMAINS (SEGREGATED) --- */}
+
+        {/* GLOBAL GOVERNANCE (SUPER ADMIN) */}
         <Route
-          path="/admin-dashboard"
+          path="/superadmin/dashboard"
           element={
-            <ProtectedRoute allowedRoles={["admin", "inst_admin", "super_admin"]}>
+            <ProtectedRoute allowedRoles={["super_admin"]}>
               <Dashboard />
             </ProtectedRoute>
           }
         />
-
         <Route
           path="/superadmin/institutions"
           element={
@@ -211,6 +221,35 @@ export const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
+
+        {/* INSTITUTIONAL HUB (INST ADMIN & PROXY SUPER ADMIN) */}
+        <Route
+          path="/institution/dashboard"
+          element={
+            <ProtectedRoute allowedRoles={["institution_admin", "super_admin"]}>
+              <InstAdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/institution/students"
+          element={
+            <ProtectedRoute allowedRoles={["institution_admin", "super_admin", "admin"]}>
+              <CoreStudentAdmin />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/institution/faculty"
+          element={
+            <ProtectedRoute allowedRoles={["institution_admin", "super_admin"]}>
+              <FacultyAdmin />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* LEGACY REDIRECT */}
+        <Route path="/admin-dashboard" element={<Navigate to="/" replace />} />
 
         {/* PROFILE */}
         <Route path="/profile" element={<MyProfile />} />
@@ -223,7 +262,7 @@ export const AppRoutes = () => {
         <Route
           path="/admin/students"
           element={
-            <ProtectedRoute allowedRoles={["admin", "inst_admin", "super_admin"]}>
+            <ProtectedRoute allowedRoles={["admin", "institution_admin", "super_admin"]}>
               <StudentProfileSearch />
             </ProtectedRoute>
           }
@@ -231,7 +270,7 @@ export const AppRoutes = () => {
         <Route
           path="/admin/core-students"
           element={
-            <ProtectedRoute allowedRoles={["inst_admin", "super_admin"]}>
+            <ProtectedRoute allowedRoles={["institution_admin", "super_admin"]}>
               <CoreStudentAdmin />
             </ProtectedRoute>
           }

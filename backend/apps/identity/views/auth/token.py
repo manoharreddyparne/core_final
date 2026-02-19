@@ -76,7 +76,8 @@ class CustomTokenSecureView(APIView):
 
             # ✅ New Refresh → Set 4-segment fragments
             set_quantum_shield(resp, rotated_tokens.get("fragments", {}))
-            set_logged_in_cookie(resp, "true")
+            role = getattr(request.user, 'role', None) or getattr(request.auth, 'get', lambda x, y: None)('role', None)
+            set_logged_in_cookie(resp, "true", role=role)
 
             cache.delete(bf_key)
 

@@ -156,6 +156,9 @@ export const useSessionSocket = (user: User | null, isReady: boolean = true) => 
           });
           window.dispatchEvent(customEvent);
           console.log("[WS] ✅ Dispatched 'force_logout' event to window | reason:", data?.reason);
+
+          // 🔄 Refresh internal session list so the UI updates
+          loadSessions();
           break;
         }
 

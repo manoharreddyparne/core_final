@@ -1,0 +1,6 @@
+roll_number,full_name,official_email,personal_email,program,branch,batch_year,current_semester,section,cgpa,admission_year,passout_year,date_of_birth
+2024-CSE-001,P. Manohar Reddy,manohar@university.edu,parne@gmail.com,B.Tech,CSE,2024,1,A,9.5,2024,2028,2002-05-15
+2024-CSE-002,Alice Smith,alice@university.edu,alice.smith@gmail.com,B.Tech,CSE,2024,1,A,8.8,2024,2028,2003-01-20
+2024-ECE-010,Bob Johnson,bob@university.edu,bob.j@outlook.com,B.Tech,ECE,2024,1,B,7.5,2024,2028,2002-11-30
+2023-ME-045,Charlie Brown,charlie@university.edu,c.brown@yahoo.com,B.Tech,ME,2023,3,C,8.2,2023,2027,2002-03-12
+2022-CE-089,Diana Prince,diana@university.edu,wonder@gmail.com,B.Tech,CE,2022,5,A,9.8,2022,2026,2001-08-05

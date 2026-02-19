@@ -15,6 +15,7 @@ import {
     PanelLeftOpen,
     KeyRound,
     Building2,
+    Users,
     Search
 } from "lucide-react";
 import { toast } from "react-hot-toast";
@@ -79,10 +80,55 @@ export const AppLayout = () => {
         return () => window.removeEventListener('keydown', handleSearchShortcut);
     }, []);
 
+    const isInstitutionContext = location.pathname.startsWith("/institution");
+    // ✅ STRICT CONTEXT: If Super Admin is not explicitly in /institution, they are in Global Context
+    // This covers /profile, /settings, / etc.
+    const isGlobalContext = location.pathname.startsWith("/superadmin") ||
+        (user?.role?.toUpperCase() === 'SUPER_ADMIN' && !isInstitutionContext);
+
     const navItems = [
+        // STUDENT HUB
         { to: "/student-dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["student"] },
-        { to: "/admin-dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["admin", "inst_admin", "super_admin"] },
-        { to: "/superadmin/institutions", label: "Institutions", icon: Building2, roles: ["super_admin"] },
+
+        // GLOBAL HUB (SUPER ADMIN)
+        {
+            to: "/superadmin/dashboard",
+            label: "Global Status",
+            icon: LayoutDashboard,
+            roles: ["super_admin"],
+            hideInInstitution: true
+        },
+        {
+            to: "/superadmin/institutions",
+            label: "Institutions",
+            icon: Building2,
+            roles: ["super_admin"],
+            hideInInstitution: true
+        },
+
+        // INSTITUTIONAL HUB (INST ADMIN & PROXY)
+        {
+            to: "/institution/dashboard",
+            label: "Dashboard",
+            icon: LayoutDashboard,
+            roles: ["institution_admin", "super_admin", "admin"],
+            hideInGlobal: true
+        },
+        {
+            to: "/institution/students",
+            label: "Student Base",
+            icon: User,
+            roles: ["institution_admin", "super_admin", "admin"],
+            hideInGlobal: true
+        },
+        {
+            to: "/institution/faculty",
+            label: "Faculty Hub",
+            icon: Users,
+            roles: ["institution_admin", "super_admin"],
+            hideInGlobal: true
+        },
+
         { to: "/profile", label: "My Profile", icon: User, roles: ["all"] },
     ];
 
@@ -92,9 +138,20 @@ export const AppLayout = () => {
         { to: "/settings/sessions", label: "Device Management", icon: Smartphone },
     ];
 
-    const filteredNav = navItems.filter(item =>
-        item.roles.includes("all") || (user?.role && item.roles.includes(user.role.toLowerCase()))
-    );
+    const filteredNav = navItems.filter(item => {
+        // 1. Role Check
+        const roleMatch = item.roles.includes("all") || (user?.role && item.roles.includes(user.role.toLowerCase()));
+        if (!roleMatch) return false;
+
+        // 2. Context Check
+        // If we are in Global Dashboard, hide items meant for Institution-only
+        if (isGlobalContext && (item as any).hideInGlobal) return false;
+
+        // If we are in Institution Dashboard, hide items meant for Global-only
+        if (isInstitutionContext && (item as any).hideInInstitution) return false;
+
+        return true;
+    });
 
     const handleSecureDevice = async () => {
         setSecureModalOpen(true);

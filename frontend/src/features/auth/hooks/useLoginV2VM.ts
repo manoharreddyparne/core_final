@@ -28,10 +28,34 @@ export const useLoginV2VM = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [emailHint, setEmailHint] = useState("");
     const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+    const [turnstileSiteKey, setTurnstileSiteKey] = useState<string>("");
+
+    const handleTurnstileSuccess = useCallback((token: string | null) => {
+        setTurnstileToken(token);
+    }, []);
+
+    const handleTurnstileExpire = useCallback(() => {
+        setTurnstileToken(null);
+    }, []);
 
     const [tempUserId, setTempUserId] = useState<number | null>(null);
     const [lockoutTimer, setLockoutTimer] = useState<number>(0);
     const [resendCooldown, setResendCooldown] = useState<number>(0);
+
+    // Fetch Public Config (Turnstile Site Key)
+    useEffect(() => {
+        const fetchConfig = async () => {
+            try {
+                const config = await v2AuthApi.getPublicConfig();
+                if (config.turnstile_site_key) {
+                    setTurnstileSiteKey(config.turnstile_site_key);
+                }
+            } catch (err) {
+                console.error("[V2-AUTH] Failed to load public security config", err);
+            }
+        };
+        fetchConfig();
+    }, []);
 
     useEffect(() => {
         if (lockoutTimer <= 0) return;
@@ -162,7 +186,7 @@ export const useLoginV2VM = () => {
         }
     }, [selectedInstitution, identifier, password, turnstileToken]);
 
-    const handleAdminLogin = useCallback(async (jitTicket?: string | null) => {
+    const handleAdminLogin = useCallback(async (jitTicket?: string | null, options?: { forceGlobal?: boolean }) => {
         if (!identifier || !password) {
             toast.error("Please fill in all fields.");
             return;
@@ -174,57 +198,105 @@ export const useLoginV2VM = () => {
 
         setIsLoading(true);
         try {
-            const res = await v2AuthApi.adminLogin({
-                username: identifier,
-                password,
-                turnstile_token: turnstileToken,
-                jit_ticket: jitTicket
-            });
+            let res;
+            // ✅ ISOLATED AUTH SWITCH
+            // If forceGlobal is true OR direct JIT ticket is present, we bypass institutional login logic
+            if (options?.forceGlobal || !selectedInstitution) {
+                // Global Super Admin Login
+                res = await v2AuthApi.adminLogin({
+                    username: identifier,
+                    password,
+                    turnstile_token: turnstileToken,
+                    jit_ticket: jitTicket
+                });
+            } else {
+                // Institutional Login (Tenant Schema)
+                res = await v2AuthApi.instAdminLogin({
+                    institution_id: selectedInstitution.id,
+                    email: identifier, // passed as 'email' expected by backend
+                    password,
+                    turnstile_token: turnstileToken
+                });
+            }
 
-            // ✅ Check for OTP requirement (Step 1 success)
             if (res.data?.require_otp) {
                 setOtpRequired(true);
                 setTempUserId(res.data.user_id ?? null);
-                // Start resend cooldown immediately upon initial delivery
                 setResendCooldown(300);
                 toast.success("Credentials valid. 2FA Required.");
                 return;
             }
 
-            // ✅ Direct success (Trusted device)
             if (res.success) {
                 if (res.data?.access) {
                     setAccessToken(res.data.access);
-                    if (res.data?.user) {
-                        setUser(res.data.user);
-                    } else {
-                        const boot = await hydratePassport();
-                        setUser(boot?.user ?? null);
-                    }
                 }
-                toast.success("Super Admin authenticated.");
-                navigate("/superadmin/institutions");
+
+                // ✅ For institutional logins, user is directly in the response.
+                // Only fall back to hydratePassport for super admin (global) logins.
+                let userData = res.data?.user;
+                if (!userData && !selectedInstitution) {
+                    // Global admin: passport hydration needed
+                    userData = (await hydratePassport()).user;
+                }
+
+                if (userData) {
+                    setUser(userData);
+                    const role = (userData.role || "").toUpperCase();
+                    if (role === 'SUPER_ADMIN') {
+                        toast.success("Super Admin authenticated.");
+                        navigate("/superadmin/dashboard");
+                    } else if (role === 'INSTITUTION_ADMIN') {
+                        toast.success("Institutional Admin authenticated.");
+                        navigate("/institution/dashboard");
+                    } else {
+                        toast.success("Authentication successful.");
+                        navigate("/institution/dashboard");
+                    }
+                } else {
+                    toast.error("Session sync failed. Please try again.");
+                }
             } else {
-                toast.error("Access Denied: Invalid root certificates.");
+                toast.error(res.message || "Access Denied: Invalid root certificates.");
             }
         } catch (err: any) {
+            console.error("[useLoginV2VM] Login Error:", err);
             const data = err.response?.data;
-            if (data?.lockout_timer) {
-                setLockoutTimer(data.lockout_timer);
+            const status = err.response?.status;
+
+            if (status === 403) {
+                if (data?.lockout_timer) {
+                    // IP locked out — trigger the full lockout overlay
+                    setLockoutTimer(data.lockout_timer);
+                    toast.error(data.message || "Access revoked. Your IP has been temporarily locked.");
+                } else {
+                    // Protocol Violation / JIT Expired
+                    toast.error(data?.message || "Security protocol violation. Please request a new link.");
+                    setTimeout(() => navigate("/auth/infrastructure-status"), 2000);
+                }
+            } else {
+                // Robust message extraction: check message, detail, or nested data.message
+                const backendMsg = data?.message || data?.detail || data?.data?.message;
+                const finalMsg = backendMsg || "Authentication failed. Please check your credentials and try again.";
+
+                toast.error(finalMsg);
+
+                // If backend sent attempts_remaining, we could use it for specific UI effects if needed
+                if (data?.data?.attempts_remaining !== undefined) {
+                    console.warn(`[useLoginV2VM] Attempts remaining: ${data.data.attempts_remaining}`);
+                }
             }
-            const msg = data?.message || data?.detail || "Security Breach: Invalid gateway credentials.";
-            toast.error(msg);
         } finally {
             setIsLoading(false);
         }
-    }, [identifier, password, turnstileToken, navigate]);
+    }, [identifier, password, turnstileToken, navigate, selectedInstitution]);
 
     const handleResendAdminOTP = useCallback(async () => {
         if (!tempUserId || resendCooldown > 0) return;
         setIsLoading(true);
         try {
             const res = await v2AuthApi.resendAdminOTP(tempUserId);
-            setResendCooldown(300); // 5 minutes
+            setResendCooldown(300);
             toast.success(res.detail || "Security token resent.");
         } catch (err: any) {
             const data = err.response?.data;
@@ -248,7 +320,7 @@ export const useLoginV2VM = () => {
 
             if (res.success && res.data) {
                 toast.success("MFA verified! Redirecting...");
-                navigate("/admin-dashboard");
+                navigate("/institution/dashboard");
             } else {
                 toast.error(res.message || "Invalid OTP.");
             }
@@ -275,29 +347,27 @@ export const useLoginV2VM = () => {
             if (res.success) {
                 if (res.data?.access) {
                     setAccessToken(res.data.access);
-                    if (res.data?.user) {
-                        setUser(res.data.user);
-                        toast.success("2FA Verified. Access Granted.");
-                        setTimeout(() => navigate("/superadmin/institutions"), 100);
-                        return;
-                    } else {
-                        try {
-                            const boot = await hydratePassport();
-                            if (boot?.user) {
-                                setUser(boot.user);
-                                toast.success("2FA Verified.");
-                                navigate("/superadmin/institutions");
-                                return;
-                            }
-                        } catch (e) {
-                            console.error("Hydration fallback failed", e);
-                        }
-                        toast.error("Login successful but session failed to start.");
-                        return;
-                    }
                 }
-                toast.success("2FA Verified.");
-                navigate("/superadmin/institutions");
+
+                const userData = res.data?.user || (await hydratePassport()).user;
+
+                if (userData) {
+                    setUser(userData);
+                    toast.success("2FA Verified. Access Granted.");
+                    const role = userData.role?.toUpperCase();
+
+                    let target = "/student-dashboard";
+                    if (role === 'SUPER_ADMIN') {
+                        target = "/superadmin/dashboard";
+                    } else if (role === 'INSTITUTION_ADMIN' || role === 'ADMIN') {
+                        target = "/institution/dashboard";
+                    }
+
+                    // Using a small timeout to ensure state settles
+                    setTimeout(() => navigate(target), 100);
+                } else {
+                    toast.error("Login successful but session failed to start.");
+                }
             } else {
                 toast.error(res.message || "Invalid 2FA Code.");
             }
@@ -306,11 +376,20 @@ export const useLoginV2VM = () => {
             if (data?.lockout_timer) {
                 setLockoutTimer(data.lockout_timer);
             }
-            toast.error(data?.message || data?.detail || "Verification failed.");
+
+            const msg = data?.message || data?.detail || "Verification failed. Please try again.";
+            toast.error(msg);
+
+            // ✅ Professional Redirect: If session expired, user must request a new JIT link
+            if (msg.toLowerCase().includes("session expired")) {
+                setTimeout(() => {
+                    navigate("/auth/infrastructure-status");
+                }, 1500);
+            }
         } finally {
             setIsLoading(false);
         }
-    }, [tempUserId, otp, password, rememberDevice, navigate]);
+    }, [tempUserId, otp, password, rememberDevice, navigate, selectedInstitution]);
 
     const resetForm = () => {
         setOtpRequired(false);
@@ -337,7 +416,9 @@ export const useLoginV2VM = () => {
         otp,
         setOtp,
         turnstileToken,
-        setTurnstileToken,
+        setTurnstileToken: handleTurnstileSuccess,
+        onTurnstileExpire: handleTurnstileExpire,
+        turnstileSiteKey, // ✅ Expose site key
         otpRequired,
         setOtpRequired,
         isLoading,

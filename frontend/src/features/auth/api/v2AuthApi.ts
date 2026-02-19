@@ -1,4 +1,4 @@
-import { apiClient } from "./base";
+import { apiClient, instApiClient } from "./base";
 import { ApiResponse, AuthResponse } from "./types";
 
 export interface Institution {
@@ -140,6 +140,17 @@ export const v2AuthApi = {
     },
 
     /**
+     * Institutional Admin: Isolated Login (Schema-Specific).
+     * Authenticates against tenant AuthorizedAccount table.
+     * URL: /api/institution/auth/inst-admin/login/
+     */
+    instAdminLogin: async (data: any): Promise<ApiResponse<AuthResponse>> => {
+        // Authenticate using the institutional client (targets /api/institution/)
+        const res = await instApiClient.post<ApiResponse<AuthResponse>>("auth/inst-admin/login/", data);
+        return res.data;
+    },
+
+    /**
      * SuperAdmin/Admin: Resend OTP with cooldown.
      */
     resendAdminOTP: async (user_id: number): Promise<{ detail: string; cooldown?: number }> => {
@@ -161,6 +172,14 @@ export const v2AuthApi = {
      */
     instAdminActivate: async (data: ActivationPayload): Promise<ApiResponse<AuthResponse>> => {
         const res = await apiClient.post<ApiResponse<AuthResponse>>("auth/v2/inst-admin/activate/", data);
+        return res.data;
+    },
+
+    /**
+     * Institutional Admin: Validate activation token (GET).
+     */
+    validateInstAdminToken: async (token: string): Promise<ApiResponse<{ email: string; already_activated: boolean }>> => {
+        const res = await apiClient.get<ApiResponse<{ email: string; already_activated: boolean }>>(`auth/v2/inst-admin/activate/?token=${token}`);
         return res.data;
     }
 };

@@ -20,7 +20,9 @@ class VerifyAdminTicketView(generics.GenericAPIView):
             return Response({"valid": False}, status=status.HTTP_400_BAD_REQUEST)
         
         is_valid = verify_jit_admin_ticket(ticket)
-        return Response({"valid": is_valid}, status=status.HTTP_200_OK if is_valid else status.HTTP_403_FORBIDDEN)
+        logger.info(f"[SEC-GATE] Ticket check: ticket={ticket[:15]}... valid={is_valid}")
+        return Response({"valid": is_valid}, status=status.HTTP_200_OK if is_valid else status.HTTP_200_OK) # Return 200 even for invalid to avoid Axios throw 404 immediately
+
 
 
 class RequestAdminAccessView(generics.GenericAPIView):
@@ -49,6 +51,17 @@ class RequestAdminAccessView(generics.GenericAPIView):
         identifier = request.data.get("identifier") or request.data.get("email", "")
         email = identifier.strip().lower()
         target_email = settings.SUPER_ADMIN_EMAIL.lower()
+        
+        # 🔥 DEBUG LOGGING
+        try:
+            with open("email_debug.log", "a") as f:
+                f.write(f"\\n--- Request at {time.time()} ---\\n")
+                f.write(f"Incoming Email: '{email}'\\n")
+                f.write(f"Target Email: '{target_email}'\\n")
+                f.write(f"Match: {email == target_email}\\n")
+                f.write(f"Backend: {settings.EMAIL_BACKEND}\\n")
+        except:
+            pass
 
         if email == target_email:
             # Burst Protection (3 minutes per user request)
@@ -90,7 +103,16 @@ class RequestAdminAccessView(generics.GenericAPIView):
             # Generate and Send Ticket (Bound to Email)
             ticket = generate_jit_admin_ticket(email=target_email)
             access_url = f"{settings.FRONTEND_URL}/auth/secure-gateway?ticket={ticket}"
-            
+
+            # ✅ New JIT link = fresh start: clear all previous failure counters for this IP
+            # Professional requirement: a legitimately requested new link should not carry
+            # over penalties from previous sessions/fat-finger mistakes.
+            from apps.identity.services.security_service import clear_global_failures
+            from apps.identity.services.brute_force_service import clear_failed_attempt
+            clear_global_failures(ip)
+            clear_failed_attempt(target_email, ip)
+            logger.info(f"[SEC-GATE] JIT generated for {target_email} — failure counters reset for IP={ip}")
+
             subject = "SECURITY: Dynamic Admin Gate Initialization"
             message = (
                 f"A secure gateway request was initiated for AUIP Platform.\n\n"
@@ -112,8 +134,12 @@ class RequestAdminAccessView(generics.GenericAPIView):
                 # Set 3 minute burst cooldown
                 cache.set(cooldown_key, True, 180) 
                 logger.info(f"✅ JIT Link sent to {target_email}")
+                with open("email_debug.log", "a") as f:
+                    f.write("Status: EMAIL SENT SUCCESSFULLY\\n")
             except Exception as e:
                 logger.error(f"Failed to send admin recovery email: {e}")
+                with open("email_debug.log", "a") as f:
+                    f.write(f"Status: FAILED - {str(e)}\\n")
 
         # Always return generic success to public
         return Response({

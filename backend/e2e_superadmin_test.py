@@ -17,7 +17,7 @@ from apps.identity.utils.cache_utils import make_cache_key, cache_get, cache_set
 from apps.identity.utils.security import hash_token_secure
 from apps.identity.constants import OTP_TTL_SECONDS
 
-BASE = "http://localhost:8000/api/users"
+BASE = "http://127.0.0.1:8000/api/users"
 EMAIL = "parnemanoharreddy19@gmail.com"
 PASSWORD = "superpassword123"
 passed = 0
@@ -78,6 +78,7 @@ print("  PHASE 1: JIT LINK + COOLDOWN + TICKET VALIDATION")
 print("="*70)
 
 session = requests.Session()
+session.headers.update({"Host": "localhost"})
 
 print("\n--- TEST 1.1: Request JIT Link ---")
 r = session.post(f"{BASE}/auth/admin/request-access/", json={"identifier": EMAIL})
@@ -298,6 +299,7 @@ print("="*70)
 # Logout
 LoginSession.objects.filter(user_id=user_id).update(is_active=False)
 session2 = requests.Session()
+session2.headers.update({"Host": "localhost"})
 ticket = fresh_ticket()
 clear_brute_force()
 
@@ -332,6 +334,8 @@ test("Signal cookie on trust login", "auip_logged_in" in cookies2)
 
 print("\n--- TEST 5.2: Next login skips OTP ---")
 session3 = requests.Session()
+session3.headers.update({"Host": "localhost"})
+session3.headers.update({"Host": "localhost"})
 ticket = fresh_ticket()
 clear_brute_force()
 r = session3.post(f"{BASE}/admin/login/", json={
@@ -360,6 +364,7 @@ print("="*70)
 
 print("\n--- TEST 6.1: Passport with missing shield cookie ---")
 session4 = requests.Session()
+session4.headers.update({"Host": "localhost"})
 for name, val in session3.cookies.items():
     if name != "_auip_sh_s":  # Remove signature
         session4.cookies.set(name, val)
@@ -394,7 +399,7 @@ latest_access = tokens_collected[-1] if tokens_collected else None
 
 print("\n--- TEST 7.2: Hydrated Token Is Valid ---")
 if latest_access:
-    r = requests.get(f"{BASE}/sessions/validate/", headers={"Authorization": f"Bearer {latest_access}"})
+    r = requests.get(f"{BASE}/sessions/validate/", headers={"Authorization": f"Bearer {latest_access}", "Host": "localhost"})
     vdata = safe_json(r).get("data", {})
     print(f"  Status: {r.status_code}")
     test("Hydrated token validates session", vdata.get("is_valid") == True)
@@ -616,6 +621,7 @@ if current_session:
 
 print("\n--- TEST 11.2: Create Second Session (Re-login) ---")
 session_extra = requests.Session()
+session_extra.headers.update({"Host": "localhost"})
 ticket = fresh_ticket()
 clear_brute_force()
 r = session_extra.post(f"{BASE}/admin/login/", json={
@@ -683,7 +689,7 @@ test("Current session is valid", vdata.get("is_valid") == True)
 print("\n--- TEST 11.6: Invalidated Session Detected ---")
 # Use the extra_access token from the logged-out session
 if extra_access:
-    r = requests.get(f"{BASE}/sessions/validate/", headers={"Authorization": f"Bearer {extra_access}"})
+    r = requests.get(f"{BASE}/sessions/validate/", headers={"Authorization": f"Bearer {extra_access}", "Host": "localhost"})
     vdata_invalid = safe_json(r).get("data", {})
     print(f"  Status: {r.status_code}")
     print(f"  is_valid: {vdata_invalid.get('is_valid')}")
@@ -764,6 +770,7 @@ Institution.objects.filter(name="E2E Test University").delete()
 
 print("\n--- TEST 13.1: Public Registration ---")
 public_session = requests.Session()
+public_session.headers.update({"Host": "localhost"})
 r = public_session.post(f"{BASE}/public/register/", json={
     "name": "E2E Test University",
     "domain": "e2e-test.edu",
@@ -913,7 +920,7 @@ test("SuperAdmin can manually create institution (201)", r.status_code == 201)
 
 # Verify unauthenticated access fails
 print("\n--- TEST 14.4: Unauthenticated Access Blocked ---")
-r = requests.get(f"{BASE}/superadmin/institutions/")
+r = requests.get(f"{BASE}/superadmin/institutions/", headers={"Host": "localhost"})
 print(f"  Status (no auth): {r.status_code}")
 test("Unauthenticated institution access blocked", r.status_code in [401, 403])
 
@@ -961,6 +968,7 @@ test("Passport fails after logout", passport_after.get("access") is None or r.st
 print("\n--- TEST 15.4: Logout All Sessions ---")
 # Re-login to get a valid session for logout-all
 session_final = requests.Session()
+session_final.headers.update({"Host": "localhost"})
 ticket = fresh_ticket()
 clear_brute_force()
 r = session_final.post(f"{BASE}/admin/login/", json={
