@@ -71,8 +71,41 @@ class ChangePasswordSerializer(serializers.Serializer):
     old_password = serializers.CharField(write_only=True, required=False, allow_blank=True)
     new_password = serializers.CharField(write_only=True, required=True)
 
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+
     def validate_new_password(self, value):
         return validate_password_complexity(value)
+
+    def validate(self, attrs):
+        if not self.user:
+             return attrs
+             
+        # Detect if password check is required (not for forced resets/first time)
+        is_forced = getattr(self.user, 'first_time_login', False) or getattr(self.user, 'need_password_reset', False)
+        
+        if not is_forced:
+            old_password = attrs.get('old_password')
+            if not old_password:
+                raise serializers.ValidationError({"old_password": "Old password is required."})
+            if not self.user.check_password(old_password):
+                raise serializers.ValidationError({"old_password": "Incorrect old password."})
+        
+        return attrs
+
+    def save(self):
+        new_password = self.validated_data['new_password']
+        self.user.set_password(new_password)
+        
+        # Clear security flags if present
+        if hasattr(self.user, 'first_time_login'):
+            self.user.first_time_login = False
+        if hasattr(self.user, 'need_password_reset'):
+            self.user.need_password_reset = False
+            
+        self.user.save()
+        return self.user
 
 class ResetPasswordRequestSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)

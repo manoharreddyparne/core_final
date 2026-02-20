@@ -79,3 +79,12 @@
 .animate-progress-buffer {
   animation: progress-buffer 20s ease-in-out infinite;
 }
+
+/* Scrollbar: Hidden but scrollable */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE / Edge */
+  scrollbar-width: none;     /* Firefox */
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;             /* Chrome / Safari */
+}

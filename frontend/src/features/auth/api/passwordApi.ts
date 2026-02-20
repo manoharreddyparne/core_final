@@ -7,6 +7,7 @@ import {
 } from "./base";
 
 import { setAccessToken } from "../utils/tokenStorage";
+import { extractApiError } from "../utils/extractApiError";
 import type {
   ApiResponse,
   PasswordChangeResponse,
@@ -41,12 +42,16 @@ export const changePassword = async (
   } catch (err: any) {
     const r = err?.response;
     const data = (r?.data?.data ?? {}) as PasswordChangeResponse;
+    // Extract field-level DRF errors (e.g. {new_password: ["..."] })
+    // They may live at r?.data?.errors OR directly at r?.data
+    const rawErrors = r?.data?.errors ?? r?.data ?? {};
 
     return {
       ...data,
       success: false,
-      message: r?.data?.message ?? "Password change failed",
-    };
+      message: extractApiError(err, "Password change failed"),
+      errors: rawErrors,
+    } as any;
   }
 };
 
@@ -77,7 +82,7 @@ export const resetPasswordRequest = async (
     return {
       ...data,
       success: false,
-      message: r?.data?.message ?? "Failed to request password reset",
+      message: extractApiError(err, "Failed to request password reset"),
     };
   }
 };
@@ -115,12 +120,14 @@ export const resetPasswordConfirm = async (
   } catch (err: any) {
     const r = err?.response;
     const data = (r?.data?.data ?? {}) as ResetPasswordConfirmResponse;
+    const rawErrors = r?.data?.errors ?? r?.data ?? {};
 
     return {
       ...data,
       success: false,
-      message: r?.data?.message ?? "Reset password failed",
-    };
+      message: extractApiError(err, "Reset password failed"),
+      errors: rawErrors,
+    } as any;
   }
 };
 

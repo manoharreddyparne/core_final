@@ -16,10 +16,11 @@ export interface User {
   id: number;
   username: string;
   email: string;
-  role: "STUDENT" | "ADMIN" | "TEACHER" | "SUPER_ADMIN" | "INST_ADMIN";
+  role: "STUDENT" | "ADMIN" | "TEACHER" | "SUPER_ADMIN" | "INSTITUTION_ADMIN" | "FACULTY";
 
   first_name?: string;
   last_name?: string;
+  full_name?: string;
   avatar?: string;
 
   first_time_login?: boolean;
@@ -54,6 +55,8 @@ export interface AuthResponse {
   user?: User | null;
 
   require_otp?: boolean;
+  requires_otp?: boolean;
+  email_hint?: string;
   user_id?: number;
 
   cooldown?: number;

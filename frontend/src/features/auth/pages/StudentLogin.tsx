@@ -25,7 +25,8 @@ export default function StudentLogin() {
         turnstileToken,
         setTurnstileToken,
         onTurnstileExpire,
-        turnstileSiteKey
+        turnstileSiteKey,
+        turnstileKey
     } = useLoginV2VM();
 
     const { institutions, isLoading: loadingInstitutions } = useInstitutions();
@@ -102,6 +103,7 @@ export default function StudentLogin() {
                             </div>
 
                             <TurnstileWidget
+                                key={turnstileKey}
                                 siteKey={turnstileSiteKey}
                                 onSuccess={setTurnstileToken}
                                 onExpire={onTurnstileExpire}

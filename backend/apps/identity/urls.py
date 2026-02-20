@@ -54,6 +54,7 @@ from apps.identity.views.auth.v2_auth import (
 )
 from apps.identity.views.public.tenants import PublicInstitutionListView
 from apps.identity.views.public.registration import InstitutionRegistrationView
+from apps.identity.views.public.interest_views import InstitutionInterestCreateView
 
 from apps.identity.views.auth.inst_admin_activation import InstAdminActivateView
 
@@ -130,6 +131,7 @@ urlpatterns = [
     path("superadmin/global-search/", GlobalAdvancedSearchView.as_view(), name="superadmin-global-search"),
     path("public/institutions/", PublicInstitutionListView.as_view(), name="public-institution-list"),
     path("public/register/", InstitutionRegistrationView.as_view(), name="institution-register"),
+    path("public/interest/", InstitutionInterestCreateView.as_view(), name="institution-interest"),
 
     # ============================
     # DEVICE / SESSION MANAGEMENT

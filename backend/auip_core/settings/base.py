@@ -177,7 +177,7 @@ LQIDAQAB
 -----END PUBLIC KEY-----"""
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
@@ -215,16 +215,27 @@ REFRESH_COOKIE_AGE = SIMPLE_JWT.get("REFRESH_TOKEN_LIFETIME", timedelta(days=7))
 REFRESH_COOKIE_MAX_AGE = int(REFRESH_COOKIE_AGE.total_seconds())
 
 # -----------------------------
-# CORS
+# CORS & CSRF (Development Resilience)
 # -----------------------------
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOWED_ORIGINS = config(
-    "CORS_ALLOWED_ORIGINS", default="http://localhost:3000,http://localhost:5173"
-).split(",")
 
-CSRF_TRUSTED_ORIGINS = config(
-    "CSRF_TRUSTED_ORIGINS", default="http://localhost:3000,http://localhost:5173"
-).split(",")
+if DEBUG:
+    # Blanket permission for local development to prevent origin mismatch lockouts
+    CORS_ALLOW_ALL_ORIGINS = True
+    CSRF_TRUSTED_ORIGINS = [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173",
+        "http://0.0.0.0:3000"
+    ]
+else:
+    CORS_ALLOW_ALL_ORIGINS = False
+    _CORS_BASE = config("CORS_ALLOWED_ORIGINS", default="").split(",")
+    CORS_ALLOWED_ORIGINS = [o for o in _CORS_BASE if o]
+    
+    _CSRF_BASE = config("CSRF_TRUSTED_ORIGINS", default="").split(",")
+    CSRF_TRUSTED_ORIGINS = [o for o in _CSRF_BASE if o]
 
 FRONTEND_URL = config("FRONTEND_URL", default="http://localhost:3000")
 

@@ -26,7 +26,8 @@ export default function StudentRegistration() {
         turnstileToken,
         setTurnstileToken,
         onTurnstileExpire,
-        turnstileSiteKey
+        turnstileSiteKey,
+        turnstileKey
     } = useLoginV2VM();
 
     const { institutions, isLoading: loadingInstitutions } = useInstitutions();
@@ -39,7 +40,7 @@ export default function StudentRegistration() {
     const isFormValid = identifier && email && selectedInstitution && turnstileToken;
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-[#0a0a0b] p-4 text-white font-inter">
+        <div className="flex flex-col items-center justify-start min-h-screen bg-[#0a0a0b] py-8 px-4 text-white font-inter overflow-y-auto">
             <div className="fixed top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
                 <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-primary/20 blur-[120px] rounded-full" />
                 <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-500/10 blur-[120px] rounded-full" />
@@ -103,6 +104,7 @@ export default function StudentRegistration() {
                             </div>
 
                             <TurnstileWidget
+                                key={turnstileKey}
                                 siteKey={turnstileSiteKey}
                                 onSuccess={setTurnstileToken}
                                 onExpire={onTurnstileExpire}

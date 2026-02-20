@@ -109,6 +109,10 @@ class LoginSession(models.Model):
     last_secure_check = models.DateTimeField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
 
+    # 🔄 Grace Period for Rotation
+    previous_jti = models.CharField(max_length=255, blank=True, null=True, db_index=True)
+    rotated_at = models.DateTimeField(blank=True, null=True)
+
     class Meta:
         indexes = [
             models.Index(fields=["user", "is_active"]),
@@ -210,8 +214,15 @@ class RememberedDevice(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name="remembered_devices"
+        related_name="remembered_devices",
+        null=True,
+        blank=True
     )
+    # Metadata for isolated Tenant Users (Students/Faculty/InstAdmins)
+    tenant_user_id = models.IntegerField(null=True, blank=True)
+    tenant_schema = models.CharField(max_length=255, blank=True)
+    tenant_email = models.EmailField(blank=True)
+
     device_hash = models.CharField(max_length=128)
     trusted = models.BooleanField(default=False)
     trust_cookie_hash = models.CharField(max_length=128, blank=True, default="")  # HMAC of browser auip_dt cookie
@@ -222,12 +233,13 @@ class RememberedDevice(models.Model):
     latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     device = models.CharField(max_length=50, blank=True, default="web")
+    role = models.CharField(max_length=50, blank=True, null=True, db_index=True) # ✅ Isolation support
     user_agent = models.TextField(blank=True, null=True)
 
     class Meta:
         verbose_name = "Remembered Device"
         verbose_name_plural = "Remembered Devices"
-        unique_together = ('user', 'device_hash')
+        unique_together = ('user', 'device_hash', 'tenant_user_id', 'tenant_schema', 'role')
 
     def __str__(self):
         return f"{self.user.email} - {'Trusted' if self.trusted else 'Untrusted'}"

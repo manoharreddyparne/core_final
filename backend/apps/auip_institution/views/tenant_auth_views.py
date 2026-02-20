@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.response import Response
 from django.contrib.auth.hashers import check_password
+from django.shortcuts import get_object_or_404
 
 from apps.identity.utils.response_utils import success_response, error_response
 from apps.identity.utils.request_utils import get_client_ip
@@ -39,66 +40,104 @@ class InstAdminTokenObtainPairView(APIView):
         if not (institution_id and email and password):
             return error_response("Institution ID, Email, and Password required.", code=400)
 
-        # 2. Resolve Schema from Institution ID
-        # We need to access the public `Institution` model to get the schema_name
-        from apps.identity.models.institution import Institution
-        try:
-            institution = Institution.objects.get(id=institution_id)
-        except Institution.DoesNotExist:
-            return error_response("Invalid Institution.", code=404)
+        # 🛡️ SECURITY: Global security check
+        from apps.identity.services.security_service import is_ip_blocked, register_global_failure
+        ip = get_client_ip(request)
+        ua = request.META.get('HTTP_USER_AGENT', 'unknown')
+        
+        lockout_time = is_ip_blocked(ip)
+        if lockout_time:
+            return error_response(f"IP blocked for {lockout_time // 60} minutes.", code=403, data={"lockout_timer": lockout_time})
 
-        if not institution.schema_name:
-             return error_response("Institution schema not ready.", code=400)
+        # 🛡️ SECURITY: Human Verification
+        from apps.identity.utils.turnstile import verify_turnstile_token
+        if not verify_turnstile_token(turnstile_token):
+            register_global_failure(ip, ua, email)
+            return error_response("Human verification failed.", code=403)
+
+        # 2. Resolve Schema from Institution ID
+        from apps.identity.models.institution import Institution
+        institution = get_object_or_404(Institution, id=institution_id)
 
         # 3. Switch to Tenant Schema & Authenticate
         with schema_context(institution.schema_name):
             try:
-                # Find the account in this specific tenant (Institutional Admin only for this view)
                 from apps.auip_institution.models import AdminAuthorizedAccount
-                account = AdminAuthorizedAccount.objects.filter(email=email, is_active=True).first()
+                account = AdminAuthorizedAccount.objects.filter(email__iexact=email, is_active=True).first()
                 
-                # Verify Password
                 if not account or not check_password(password, account.password_hash):
-                    logger.warning(f"[INST-AUTH] Failed login for {email} in schema {institution.schema_name}")
-                    return error_response("Invalid credentials.", code=401)
+                    attempts_left = register_global_failure(ip, ua, email)
+                    return error_response("Invalid credentials.", code=401, data={"attempts_remaining": attempts_left})
                 
+                # 🛡️ ADAPTIVE 2FA: Check if device is trusted
+                from apps.identity.utils.device_utils import get_device_hash
+                from apps.identity.utils.trust_utils import is_device_trusted
+                device_hash = get_device_hash(ip, ua)
+                
+                # Check global link first for device trust
+                from apps.identity.models.core_models import User
+                global_user = User.objects.filter(email=account.email).first()
+                
+                trusted = is_device_trusted(request, user=global_user, device_hash=device_hash, role="INSTITUTION_ADMIN") if global_user else False
+                if not trusted:
+                    # Fallback to tenant trust
+                    trusted = is_device_trusted(request, tenant_user_id=account.id, tenant_schema=institution.schema_name, device_hash=device_hash, role="INSTITUTION_ADMIN")
+
+                if not trusted:
+                    # Trigger OTP
+                    from apps.identity.utils.otp_utils import send_otp_to_identifier
+                    send_otp_to_identifier(account.email, account.email)
+                    logger.info(f"[INST-AUTH] OTP Required for {account.email} in {institution.schema_name}")
+                    return success_response("MFA Required", data={
+                        "require_otp": True, 
+                        "user_id": account.id,
+                        "email_hint": account.email[:2] + "***" + account.email[account.email.find("@"):]
+                    })
+
+                logger.info(f"[INST-AUTH] Device Trusted for {account.email} in {institution.schema_name}")
+
                 # 4. Success -> Centralized Login Handshake
                 from apps.identity.services.auth_service import handle_login
                 from apps.identity.utils.cookie_utils import set_quantum_shield, set_logged_in_cookie
 
-                # Passing the tenant-specific 'account' instead of global 'User'
-                # This ensures institutional isolation: no record in public.User table.
+                identity_to_login = global_user if global_user else account
+
                 login_data = handle_login(
-                    identity=account,
-                    password=None,  # Already verified in tenant context
-                    ip=get_client_ip(request),
-                    user_agent=request.META.get("HTTP_USER_AGENT", "unknown"),
+                    identity=identity_to_login,
+                    password=None,
+                    ip=ip,
+                    user_agent=ua,
                     request=request,
                     role_context="INSTITUTION_ADMIN",
                     custom_claims={
                         "schema": institution.schema_name,
                         "role": "INSTITUTION_ADMIN",
                         "email": account.email,
-                        "tenant_user_id": account.id
+                        "tenant_user_id": account.id,
+                        "user_id": identity_to_login.id if hasattr(identity_to_login, 'id') else None
                     }
                 )
 
                 resp = success_response("Login Successful", data={
                     "access": login_data["access"],
-                    "refresh": login_data["refresh"],
+                    "role": "INSTITUTION_ADMIN",
+                    "institution": institution.name,
+                    "identifier": account.email,
+                    "user_id": account.id,
                     "user": {
-                        "id": account.id, 
+                        "id": identity_to_login.id if hasattr(identity_to_login, 'id') else account.id,
                         "email": account.email,
+                        "username": account.email,
                         "role": "INSTITUTION_ADMIN",
-                        "institution_name": institution.name
+                        "first_name": getattr(account, "first_name", ""),
+                        "last_name": getattr(account, "last_name", ""),
+                        "full_name": f"{getattr(account, 'first_name', '')} {getattr(account, 'last_name', '')}".strip()
                     }
                 })
 
-                # 5. Set 4-segment Quantum Shield & Flags
                 set_quantum_shield(resp, login_data["fragments"])
-                set_logged_in_cookie(resp, "true")  # ✅ Set to "true" for frontend guard
+                set_logged_in_cookie(resp, "true", role="INSTITUTION_ADMIN")
                 
-                logger.info(f"[INST-AUTH] ✅ Login SUCCESS for {email} in {institution.schema_name}")
                 return resp
 
             except AdminAuthorizedAccount.DoesNotExist:

@@ -155,6 +155,16 @@ class InstitutionViewSet(viewsets.ModelViewSet):
             institution.status = Institution.RegistrationStatus.APPROVED
             institution.save()
 
+            # ── Pre-check: Is this contact email already used by another Institution Admin? ──
+            existing_user = User.objects.filter(email__iexact=institution.contact_email).first()
+            if existing_user and existing_user.role == User.Roles.INSTITUTION_ADMIN:
+                profile = InstitutionAdmin.objects.filter(user=existing_user).exclude(institution=institution).first()
+                if profile:
+                    return error_response(
+                        f"The email {institution.contact_email} is already registered as an admin for {profile.institution.name}. Duplicate admin emails across different institutions are not permitted.",
+                        code=status.HTTP_400_BAD_REQUEST
+                    )
+
             # ── Provision Institutional Admin ──
             admin_name = reg_data.get("admin_name", "") or reg_data.get("contact_person", "")
             name_parts = admin_name.strip().split() if admin_name else []

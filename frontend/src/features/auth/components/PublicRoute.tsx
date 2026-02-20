@@ -37,6 +37,9 @@ const PublicRoute = ({ children }: Props) => {
     else if (role === "inst_admin" || role === "institution_admin") {
       redirectTo = "/institution/dashboard";
     }
+    else if (role === "faculty") {
+      redirectTo = "/faculty-dashboard";
+    }
 
     return <Navigate to={redirectTo} replace />;
   }

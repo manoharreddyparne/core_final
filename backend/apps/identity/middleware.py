@@ -78,8 +78,27 @@ class AccessTokenSessionMiddleware:
             jti = validated_token.get("jti")
             
             if jti:
-                # Update last_active for active session
-                LoginSession.objects.filter(user=user, jti=jti, is_active=True).update(last_active=timezone.now())
+                # Update last_active for active session (Tenant-Aware)
+                from django_tenants.utils import schema_context
+                schema = validated_token.get('schema', '')
+                tenant_user_id = validated_token.get('tenant_user_id')
+                
+                with schema_context('public'):
+                    if schema and tenant_user_id:
+                        LoginSession.objects.filter(
+                            tenant_user_id=tenant_user_id, 
+                            tenant_schema=schema, 
+                            jti=jti, 
+                            is_active=True
+                        ).update(last_active=timezone.now())
+                    else:
+                        # Global user session
+                        if hasattr(user, 'id'):
+                            LoginSession.objects.filter(
+                                user=user, 
+                                jti=jti, 
+                                is_active=True
+                            ).update(last_active=timezone.now())
 
             return user
         except Exception as e:
@@ -129,15 +148,37 @@ class SilentRotationMiddleware:
                 # Threshold: 15 seconds remaining
                 if remaining < 15:
                     user_id = token.get("user_id")
-                    user = User.objects.filter(id=user_id).first()
+                    schema = token.get("schema")
+                    role = token.get("role")
+                    
+                    user = None
+                    # Resolve identity based on context (Global vs Tenant)
+                    if schema:
+                        from django_tenants.utils import schema_context
+                        with schema_context(schema):
+                            from apps.auip_institution.models import AdminAuthorizedAccount, FacultyAuthorizedAccount, StudentAuthorizedAccount
+                            models = {
+                                'STUDENT': StudentAuthorizedAccount,
+                                'FACULTY': FacultyAuthorizedAccount,
+                                'INSTITUTION_ADMIN': AdminAuthorizedAccount,
+                            }
+                            model = models.get(role)
+                            if model:
+                                try:
+                                    user = model.objects.get(id=user_id)
+                                except model.DoesNotExist:
+                                    pass
+                    else:
+                        user = User.objects.filter(id=user_id).first()
+
                     if user:
                         ip = get_client_ip(request)
                         ua = request.META.get("HTTP_USER_AGENT", "unknown")
                         
-                        logger.info(f"[SILENT-ROTATE] Near expiry ({int(remaining)}s). Rotating for {user.email}")
+                        logger.info(f"[SILENT-ROTATE] Near expiry ({int(remaining)}s). Rotating for {getattr(user, 'email', 'unknown')} | Context={schema or 'global'}")
                         
                         # Service handles rotation logic (new session, blacklist old)
-                        data = rotate_tokens_secure(user, refresh_token_str, ip, ua)
+                        data = rotate_tokens_secure(user, refresh_token_str, ip, ua, schema=schema)
                         
                         # Attach new Quantum Shield segments
                         from apps.identity.utils.cookie_utils import set_quantum_shield

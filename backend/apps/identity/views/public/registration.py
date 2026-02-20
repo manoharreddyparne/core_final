@@ -35,14 +35,19 @@ class InstitutionRegistrationView(APIView):
             return error_response("Name, domain, and contact email are required.", 
                                  code=status.HTTP_400_BAD_REQUEST)
 
-        if Institution.objects.filter(name=name).exists():
+        if Institution.objects.filter(name__iexact=name).exists():
             logger.warning(f"[Institution-Registration] Rejected: Name conflict '{name}'")
             return error_response("An institution with this name already exists.", 
                                  code=status.HTTP_400_BAD_REQUEST)
 
-        if Institution.objects.filter(domain=domain).exists():
+        if Institution.objects.filter(domain__iexact=domain).exists():
             logger.warning(f"[Institution-Registration] Rejected: Domain conflict '{domain}'")
             return error_response("An institution with this domain already exists.", 
+                                 code=status.HTTP_400_BAD_REQUEST)
+
+        if Institution.objects.filter(contact_email__iexact=contact_email).exists():
+            logger.warning(f"[Institution-Registration] Rejected: Contact email conflict '{contact_email}'")
+            return error_response("An application with this contact email already exists.", 
                                  code=status.HTTP_400_BAD_REQUEST)
 
         try:

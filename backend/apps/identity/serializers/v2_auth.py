@@ -15,7 +15,9 @@ class IdentityCheckSerializer(serializers.Serializer):
         email = data.get('email')
         role = data.get('role')
 
-        client = get_object_or_404(Client, id=institution_id)
+        from apps.identity.models.institution import Institution
+        institution = get_object_or_404(Institution, id=institution_id)
+        client = get_object_or_404(Client, schema_name=institution.schema_name)
         
         from apps.auip_institution.models import (
             StudentPreSeededRegistry, 
@@ -32,16 +34,19 @@ class IdentityCheckSerializer(serializers.Serializer):
                 else:
                     registry_model = AdminPreSeededRegistry
 
+                # ✅ Case-Insensitive Lookup (__iexact)
                 registry_entry = registry_model.objects.get(
-                    identifier=identifier,
-                    email=email if role != 'ADMIN' else identifier # Admin identifier IS email
+                    identifier__iexact=identifier,
+                    email__iexact=email if role != 'ADMIN' else identifier
                 )
                 if registry_entry.is_activated:
-                    raise serializers.ValidationError("Account already activated.")
+                    # ✅ Return a response that the view can catch to return 200 already_activated
+                    raise serializers.ValidationError({"detail": "Account already activated.", "code": "ALREADY_ACTIVATED"})
+                
                 data['registry_entry'] = registry_entry
                 data['client'] = client
             except registry_model.DoesNotExist:
-                raise serializers.ValidationError(f"Identity not found in {role} registry.")
+                raise serializers.ValidationError(f"No user record found for {identifier}. Please contact your institution.")
         
         return data
 

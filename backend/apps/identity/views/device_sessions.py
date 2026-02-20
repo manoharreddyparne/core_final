@@ -30,8 +30,8 @@ class SessionListView(APIView):
         schema = getattr(request.auth, 'get', lambda x, y: '')('schema', '')
 
         if hasattr(user, 'email') and not isinstance(user, User):
-            # Tenant isolated User (Student/Faculty)
-            session_filter = Q(tenant_user_id=user.id, tenant_schema=schema)
+            # Tenant isolated User (Student/Faculty/InstAdmin)
+            session_filter = Q(tenant_user_id=user.id, tenant_schema=schema, role=role)
         else:
             # Global User (Super Admin/Inst Admin)
             # 🛡️ ISOLATION: Only show sessions belonging to the current ROLE and SCHEMA context.
@@ -91,7 +91,7 @@ class SessionLogoutView(APIView):
 
         try:
             if hasattr(user, 'email') and not isinstance(user, User):
-                 session = LoginSession.objects.get(pk=pk, tenant_user_id=user.id, tenant_schema=schema)
+                 session = LoginSession.objects.get(pk=pk, tenant_user_id=user.id, tenant_schema=schema, role=role)
             else:
                  # 🛡️ ISOLATION: Verify context ownership before allowing logout
                  session = LoginSession.objects.get(pk=pk, user=user, role=role, tenant_schema=schema if schema else '')
@@ -182,19 +182,57 @@ class SessionValidateView(APIView):
         
         try:
             from django.db.models import Q
-            if hasattr(user, 'email') and not isinstance(user, User):
-                 schema = getattr(request.auth, 'get', lambda x, y: '')('schema', '')
-                 session = LoginSession.objects.filter(tenant_user_id=user.id, tenant_schema=schema, jti=jti).first()
-            else:
-                 session = LoginSession.objects.filter(user=user, jti=jti).first()
+            from django_tenants.utils import schema_context
             
-            if not session:
-                logger.warning(f"[SESSION-VAL] ⚠️ Session NOT FOUND in DB: {jti} for user {getattr(user, 'email', 'unknown')}")
-                return success_response("Session not found", data={
-                    "is_valid": False,
-                    "was_logged_out": True,
-                    "reason": "session_not_found"
-                })
+            with schema_context('public'):
+                schema = getattr(request.auth, 'get', lambda x, y: '')('schema', '')
+                tenant_user_id = getattr(request.auth, 'get', lambda x, y: None)('tenant_user_id', None)
+                
+                # Broad lookup by JTI first (check current and previous for rotation grace)
+                session = LoginSession.objects.filter(
+                    Q(jti=jti) | Q(previous_jti=jti),
+                    is_active=True
+                ).first()
+                
+                if not session:
+                    logger.warning(f"[SESSION-VAL] ⚠️ Physical JTI NOT FOUND: {jti}")
+                    return success_response("Session not found", data={
+                        "is_valid": False,
+                        "was_logged_out": True,
+                        "reason": "session_not_found"
+                    })
+
+                # Check Grace Period if matching by previous_jti
+                if session.jti != jti and session.previous_jti == jti:
+                    from django.utils import timezone
+                    grace_seconds = 60
+                    if not session.rotated_at or (timezone.now() - session.rotated_at).total_seconds() > grace_seconds:
+                         logger.warning(f"[SESSION-VAL] 🛑 Previous JTI used AFTER grace period: {jti}")
+                         return success_response("Rotation grace expired", data={
+                            "is_valid": False,
+                            "was_logged_out": True,
+                            "reason": "rotation_grace_expired"
+                        })
+                    logger.debug(f"[SESSION-VAL] 🔄 Allowing previous JTI within grace period: {jti}")
+
+                # Identity Verification: Ensure the session belongs to the requesting user
+                identity_match = False
+                if schema and tenant_user_id:
+                    # Tenant user
+                    if session.tenant_user_id == tenant_user_id and session.tenant_schema == schema:
+                        identity_match = True
+                else:
+                    # Global user
+                    if session.user_id == user.id:
+                        identity_match = True
+                        
+                if not identity_match:
+                    logger.warning(f"[SESSION-VAL] 🛑 Identity Mismatch for JTI {jti}")
+                    return success_response("Identity mismatch", data={
+                        "is_valid": False,
+                        "was_logged_out": True,
+                        "reason": "identity_mismatch"
+                    })
             
             if not session.is_active:
                 logger.warning(f"[SESSION-VAL] 🛑 Session INACTIVE in DB: {jti} (IP: {session.ip_address})")

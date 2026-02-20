@@ -8,6 +8,9 @@ export default function App() {
     <BrowserRouter>
       <Toaster
         position="top-right"
+        containerStyle={{
+          zIndex: 999999,
+        }}
         toastOptions={{
           style: {
             background: '#1a1a1a',

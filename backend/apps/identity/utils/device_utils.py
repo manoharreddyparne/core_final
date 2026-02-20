@@ -10,6 +10,11 @@ def get_device_hash(ip: str, user_agent: str, salt: str = "") -> str:
     """
     ua = user_agent or "unknown"
     addr = ip or "unknown"
+    
+    # ✅ Normalize localhost to avoid fragile hashes on dev machines
+    if addr in ("127.0.0.1", "::1", "localhost"):
+        addr = "127.0.0.1"
+        
     raw = f"{addr}:{ua}:{salt or ''}"
     return sha256(raw.encode()).hexdigest()
 

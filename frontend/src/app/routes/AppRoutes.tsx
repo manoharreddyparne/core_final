@@ -8,9 +8,11 @@ import SuperAdminLogin from "../../features/auth/pages/SuperAdminLogin";
 import StudentRegistration from "../../features/auth/pages/StudentRegistration";
 import Dashboard from "../../features/dashboard/pages/Dashboard";
 import InstAdminDashboard from "../../features/dashboard/pages/InstAdminDashboard";
+import FacultyDashboard from "../../features/dashboard/pages/FacultyDashboard";
 import ActivatePage from "../../features/auth/pages/Activate";
 import InstAdminLogin from "../../features/auth/pages/InstAdminLogin";
 import InstAdminActivate from "../../features/auth/pages/InstAdminActivate";
+import FacultyLogin from "../../features/auth/pages/FacultyLogin";
 import AdminRecovery from "../../features/auth/pages/AdminRecovery";
 import { PageNotFound } from "../../components/PageNotFound";
 import CoreStudentAdmin from "../../features/dashboard/pages/CoreStudentAdmin";
@@ -19,6 +21,8 @@ import FacultyAdmin from "../../features/dashboard/pages/FacultyAdmin";
 import { RegisterUniversity } from "../../features/auth/pages/RegisterUniversity";
 import { LandingPage } from "../../features/dashboard/pages/LandingPage";
 import { AppLayout } from "../../features/auth/layouts/AppLayout";
+import { StudentRegistry } from "../../features/institution/pages/StudentRegistry";
+import { FacultyRegistry } from "../../features/institution/pages/FacultyRegistry";
 
 import ProtectedRoute from "../../features/auth/components/ProtectedRoute";
 import PublicRoute from "../../features/auth/components/PublicRoute";
@@ -57,7 +61,9 @@ export const AppRoutes = () => {
         ? "/superadmin/dashboard"
         : (role === "inst_admin" || role === "institution_admin")
           ? "/institution/dashboard"
-          : "/institution/dashboard";
+          : role === "faculty"
+            ? "/faculty-dashboard"
+            : "/institution/dashboard";
 
   return (
     <Routes>
@@ -84,15 +90,6 @@ export const AppRoutes = () => {
         element={
           <PublicRoute>
             <StudentLogin />
-          </PublicRoute>
-        }
-      />
-
-      <Route
-        path="/auth/faculty/login"
-        element={
-          <PublicRoute>
-            <InstAdminLogin />
           </PublicRoute>
         }
       />
@@ -130,6 +127,15 @@ export const AppRoutes = () => {
         element={
           <PublicRoute>
             <InstAdminActivate />
+          </PublicRoute>
+        }
+      />
+
+      <Route
+        path="/auth/faculty/login"
+        element={
+          <PublicRoute>
+            <FacultyLogin />
           </PublicRoute>
         }
       />
@@ -232,10 +238,19 @@ export const AppRoutes = () => {
           }
         />
         <Route
+          path="/faculty-dashboard"
+          element={
+            <ProtectedRoute allowedRoles={["faculty"]}>
+              <FacultyDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
           path="/institution/students"
           element={
-            <ProtectedRoute allowedRoles={["institution_admin", "super_admin", "admin"]}>
-              <CoreStudentAdmin />
+            <ProtectedRoute allowedRoles={["institution_admin", "super_admin"]}>
+              <StudentRegistry />
             </ProtectedRoute>
           }
         />
@@ -243,7 +258,7 @@ export const AppRoutes = () => {
           path="/institution/faculty"
           element={
             <ProtectedRoute allowedRoles={["institution_admin", "super_admin"]}>
-              <FacultyAdmin />
+              <FacultyRegistry />
             </ProtectedRoute>
           }
         />

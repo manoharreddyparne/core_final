@@ -15,7 +15,7 @@ class CSPMiddleware:
         directives = {
             "default-src": ["'self'", "https:"],
             "script-src": ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://challenges.cloudflare.com", "https://accounts.google.com", "blob:", "data:"],
-            "connect-src": ["'self'", "ws://localhost:8000", "http://localhost:8000", "https://*.cloudflare.com"],
+            "connect-src": ["'self'", "ws://localhost:8000", "http://localhost:8000", "http://127.0.0.1:8000", "https://*.cloudflare.com"],
             "frame-src": ["'self'", "https://challenges.cloudflare.com", "blob:", "data:"],
             "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
             "font-src": ["'self'", "https://fonts.gstatic.com", "data:"],

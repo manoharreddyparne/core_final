@@ -1,172 +1,168 @@
 // ✅ src/features/auth/components/ChangePassword.tsx
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthProvider/AuthProvider";
-import { useNavigate } from "react-router-dom";
-
-interface Toast {
-  id: number;
-  message: string;
-  type: "success" | "error";
-  leaving?: boolean;
-}
-
-interface StrengthRule {
-  label: string;
-  passed: boolean;
-  check: () => boolean;
-}
+import toast from "react-hot-toast";
+import { Lock, Eye, EyeOff, CheckCircle, XCircle, Loader2 } from "lucide-react";
 
 const ChangePassword = () => {
-  const { user, changePassword } = useAuth();
-  const navigate = useNavigate();
+  const { changePassword } = useAuth();
 
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [showOld, setShowOld] = useState(false);
+  const [showNew, setShowNew] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const [toasts, setToasts] = useState<Toast[]>([]);
-  const toastCounter = useRef(0);
-
-  /** redirect logic */
-  useEffect(() => {
-    if (!user) return;
-    // if this is a forced‐password scenario → hide old pwd input
-    if (!user.first_time_login && !user.need_password_reset) return;
-  }, [user]);
-
-  /* ---------------- TOAST ---------------- */
-  const addToast = (message: string, type: "success" | "error" = "success") => {
-    const id = toastCounter.current++;
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => removeToast(id), 5000);
-  };
-
-  const removeToast = (id: number) => {
-    setToasts((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, leaving: true } : t))
-    );
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 400);
-  };
-
   /* ---------------- PASSWORD RULES ---------------- */
-  const strengthRules: StrengthRule[] = [
-    { label: "At least 8 characters", check: () => newPassword.length >= 8, passed: false },
-    { label: "1 lowercase letter", check: () => /[a-z]/.test(newPassword), passed: false },
-    { label: "1 uppercase letter", check: () => /[A-Z]/.test(newPassword), passed: false },
-    { label: "1 number", check: () => /\d/.test(newPassword), passed: false },
-    { label: "1 special character", check: () => /[\W_]/.test(newPassword), passed: false },
-    { label: "No spaces", check: () => !/\s/.test(newPassword), passed: false },
-    { label: "Max 16 characters", check: () => newPassword.length <= 16, passed: false },
+  const strengthRules = [
+    { label: "At least 8 characters", check: () => newPassword.length >= 8 },
+    { label: "1 lowercase letter", check: () => /[a-z]/.test(newPassword) },
+    { label: "1 uppercase letter", check: () => /[A-Z]/.test(newPassword) },
+    { label: "1 number", check: () => /\d/.test(newPassword) },
+    { label: "1 special character", check: () => /[\W_]/.test(newPassword) },
+    { label: "No spaces", check: () => !/\s/.test(newPassword) },
+    { label: "Max 16 characters", check: () => newPassword.length <= 16 },
   ];
 
-  const [strengthState, setStrengthState] = useState(strengthRules);
+  const [strengthState, setStrengthState] = useState(
+    strengthRules.map(r => ({ ...r, passed: false }))
+  );
 
   useEffect(() => {
-    setStrengthState(
-      strengthRules.map((rule) => ({ ...rule, passed: rule.check() }))
-    );
+    setStrengthState(strengthRules.map(r => ({ ...r, passed: r.check() })));
   }, [newPassword]);
 
-  const strengthScore = strengthState.filter((r) => r.passed).length;
-  const strengthPercentage =
-    (strengthScore / strengthState.length) * 100;
+  const strengthScore = strengthState.filter(r => r.passed).length;
+  const strengthPct = (strengthScore / strengthState.length) * 100;
+  const strengthColor = strengthPct <= 40 ? "bg-red-500" : strengthPct < 80 ? "bg-yellow-400" : "bg-emerald-500";
+  const strengthLabel = strengthPct <= 40 ? "Weak" : strengthPct < 80 ? "Moderate" : "Strong";
 
   /* ---------------- SUBMIT ---------------- */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading) return;
+
+    if (oldPassword === newPassword) {
+      toast.error("New password cannot be the same as the current password.");
+      return;
+    }
+
     setLoading(true);
-
     try {
-      if (!user?.first_time_login && !user?.need_password_reset) {
-        if (oldPassword === newPassword) {
-          addToast("New password cannot be the same as old.", "error");
-          setLoading(false);
-          return;
-        }
-      }
-
-      // changePassword now returns { success: boolean, message: string } or similar if updated
-      // but current hook returns msg: string. Let's update usePasswordHandler next.
-      // For now, let's fix the catch block and useToast correctly.
       const result: any = await changePassword(oldPassword, newPassword);
 
-      if (result === false || (typeof result === 'object' && result?.success === false)) {
-        addToast(result?.message || "Failed to change password ❌", "error");
+      if (result?.success === false || result === false) {
+        // result.message is the human-readable string already built by extractApiError in passwordApi.ts
+        toast.error(result?.message || "Failed to change password.", { duration: 6000 });
       } else {
-        addToast(typeof result === 'string' ? result : (result?.message || "Password changed successfully ✅"), "success");
+        // ✅ Password changed — don't echo the backend's "session renewal" noise, session stays alive via passport/
+        toast.success("Password changed successfully! 🔐", { duration: 5000 });
         setOldPassword("");
         setNewPassword("");
       }
     } catch (err: any) {
-      const data = err?.response?.data || err;
-      const errorMsg = data?.message || data?.detail || "Something went wrong ❌";
-      addToast(errorMsg, "error");
+      toast.error(err?.message || "Something went wrong.", { duration: 6000 });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <>
-      <div className="relative max-w-lg mx-auto my-6 p-8 bg-gray-900 border border-gray-700 rounded-3xl shadow-2xl text-white">
-        <h3 className="text-3xl font-extrabold mb-6 tracking-wider text-cyan-400 text-center">
-          Change Password
-        </h3>
+    <div className="w-full max-w-md mx-auto my-8 px-4">
+      <div className="bg-[#0d1117] border border-white/10 rounded-3xl shadow-2xl p-8 space-y-7 relative overflow-hidden">
+        {/* Ambient glow */}
+        <div className="absolute top-0 right-0 w-48 h-48 bg-primary/10 blur-[80px] rounded-full pointer-events-none -z-0" />
 
-        <form className="space-y-6" onSubmit={handleSubmit}>
-          {/* Always show old password for authenticated password changes */}
-          <div className="relative">
-            <input
-              type="password"
-              value={oldPassword}
-              onChange={(e) => setOldPassword(e.target.value)}
-              placeholder=" "
-              required
-              className="peer w-full p-4 rounded-2xl bg-gray-800 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 text-white text-lg"
-            />
-            <label className="absolute left-4 top-4 text-gray-400 pointer-events-none transition-all text-sm peer-focus:-top-2 peer-focus:text-cyan-400 peer-focus:text-xs peer-placeholder-shown:top-4 peer-placeholder-shown:text-gray-400">
-              Old Password
+        {/* Title */}
+        <div className="relative text-center space-y-1">
+          <div className="w-12 h-12 rounded-2xl bg-primary/15 border border-primary/20 flex items-center justify-center text-primary mx-auto">
+            <Lock className="w-6 h-6" />
+          </div>
+          <h3 className="text-2xl font-black text-white tracking-tight mt-3">
+            Change <span className="text-primary italic">Password</span>
+          </h3>
+          <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">
+            Keep your account secure
+          </p>
+        </div>
+
+        <form className="relative space-y-5" onSubmit={handleSubmit}>
+          {/* ── Current Password ── */}
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 px-1">
+              Current Password
             </label>
+            <div className="relative group">
+              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600 group-focus-within:text-primary transition-colors" />
+              <input
+                type={showOld ? "text" : "password"}
+                value={oldPassword}
+                onChange={(e) => setOldPassword(e.target.value)}
+                placeholder="Your current password"
+                required
+                className="w-full h-12 pl-11 pr-11 bg-white/5 border border-white/10 rounded-2xl text-white font-bold text-sm placeholder:text-gray-700 outline-none focus:ring-2 focus:ring-primary/40 transition-all"
+              />
+              <button
+                type="button"
+                onClick={() => setShowOld(v => !v)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors"
+                tabIndex={-1}
+              >
+                {showOld ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
 
-          <div className="relative">
-            <input
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder=" "
-              required
-              className="peer w-full p-4 rounded-2xl bg-gray-800 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500 text-white text-lg"
-            />
-            <label className="absolute left-4 top-4 text-gray-400 pointer-events-none transition-all text-sm peer-focus:-top-2 peer-focus:text-purple-400 peer-focus:text-xs peer-placeholder-shown:top-4 peer-placeholder-shown:text-gray-400">
+          {/* ── New Password ── */}
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 px-1">
               New Password
             </label>
+            <div className="relative group">
+              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600 group-focus-within:text-primary transition-colors" />
+              <input
+                type={showNew ? "text" : "password"}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="New strong password"
+                required
+                className="w-full h-12 pl-11 pr-11 bg-white/5 border border-white/10 rounded-2xl text-white font-bold text-sm placeholder:text-gray-700 outline-none focus:ring-2 focus:ring-primary/40 transition-all"
+              />
+              <button
+                type="button"
+                onClick={() => setShowNew(v => !v)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors"
+                tabIndex={-1}
+              >
+                {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
 
+            {/* Strength bar + rules */}
             {newPassword && (
-              <div className="mt-4 space-y-2">
-                <div className="w-full bg-gray-800 rounded-full h-2 overflow-hidden">
-                  <div
-                    className={`h-2 transition-all duration-500 ${strengthPercentage <= 40
-                      ? "bg-red-500"
-                      : strengthPercentage < 80
-                        ? "bg-yellow-400"
-                        : "bg-green-500"
-                      }`}
-                    style={{ width: `${strengthPercentage}%` }}
-                  />
+              <div className="mt-3 space-y-3 animate-in fade-in duration-200">
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${strengthColor}`}
+                      style={{ width: `${strengthPct}%` }}
+                    />
+                  </div>
+                  <span className={`text-[10px] font-black uppercase tracking-widest w-16 text-right ${strengthPct <= 40 ? "text-red-400" : strengthPct < 80 ? "text-yellow-400" : "text-emerald-400"
+                    }`}>
+                    {strengthLabel}
+                  </span>
                 </div>
 
-                <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                <ul className="grid grid-cols-2 gap-x-4 gap-y-1.5">
                   {strengthState.map((rule, i) => (
                     <li key={i} className="flex items-center gap-2">
-                      <span
-                        className={`w-3 h-3 rounded-full ${rule.passed ? "bg-green-400" : "bg-gray-600"
-                          }`}
-                      />
-                      {rule.label}
+                      {rule.passed
+                        ? <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                        : <XCircle className="w-3.5 h-3.5 text-gray-600 shrink-0" />}
+                      <span className={`text-[11px] font-medium ${rule.passed ? "text-gray-300" : "text-gray-600"}`}>
+                        {rule.label}
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -174,52 +170,21 @@ const ChangePassword = () => {
             )}
           </div>
 
+          {/* ── Submit ── */}
           <button
             type="submit"
             disabled={loading}
-            className={`w-full p-4 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl font-extrabold hover:from-purple-600 hover:to-pink-600 text-lg transition-all ${loading ? "opacity-50 cursor-not-allowed" : ""
-              }`}
+            className="w-full h-12 bg-primary hover:bg-primary/90 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
           >
-            {loading ? "Updating..." : "Change Password"}
+            {loading ? (
+              <><Loader2 className="w-4 h-4 animate-spin" /> Updating...</>
+            ) : (
+              "Update Password"
+            )}
           </button>
         </form>
       </div>
-
-      {/* TOASTS */}
-      <div className="fixed top-5 left-1/2 -translate-x-1/2 flex flex-col gap-4 z-50 w-[95%] max-w-3xl">
-        {toasts.map((t) => (
-          <div
-            key={t.id}
-            className={`relative px-8 py-6 rounded-3xl shadow-2xl text-white font-extrabold text-center text-lg transition-all duration-200
-              ${t.leaving
-                ? "opacity-0 -translate-y-6 rotate-[10deg] scale-95"
-                : "opacity-100 animate-toast-flick"
-              }
-              ${t.type === "error"
-                ? "bg-gradient-to-r from-red-500 via-pink-500 to-purple-500"
-                : "bg-gradient-to-r from-green-400 via-teal-400 to-cyan-400"
-              }`}
-          >
-            {t.message}
-          </div>
-        ))}
-      </div>
-
-      <style>{`
-        @keyframes toast-flick {
-          0% { transform: rotate(-12deg) translateX(0); }
-          10% { transform: rotate(12deg) translateX(-8px); }
-          20% { transform: rotate(-12deg) translateX(8px); }
-          30% { transform: rotate(12deg) translateX(-8px); }
-          40% { transform: rotate(-12deg) translateX(8px); }
-          50% { transform: rotate(0deg) translateX(0); }
-          100% { transform: rotate(0deg) translateX(0); }
-        }
-        .animate-toast-flick {
-          animation: toast-flick 0.6s ease-in-out infinite;
-        }
-      `}</style>
-    </>
+    </div>
   );
 };
 

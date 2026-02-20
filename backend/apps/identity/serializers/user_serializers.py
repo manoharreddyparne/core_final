@@ -62,6 +62,30 @@ class TeacherProfileSerializer(serializers.ModelSerializer):
         fields = ["user", "department"]
 
 
+class StudentAcademicRecordSerializer(serializers.ModelSerializer):
+    """Surgical Profile data from the Academic Registry (Read-Only)"""
+    class Meta:
+        from apps.auip_institution.models import StudentAcademicRegistry
+        model = StudentAcademicRegistry
+        fields = [
+            "roll_number", "full_name", "program", "branch", "batch_year", 
+            "current_semester", "cgpa", "section", "official_email", "personal_email"
+        ]
+        read_only_fields = fields
+
+
+class StudentMeSerializer(serializers.ModelSerializer):
+    """Hydrates the student profile with academic intelligence."""
+    academic_data = StudentAcademicRecordSerializer(source="academic_ref", read_only=True)
+    role = serializers.CharField(default="STUDENT", read_only=True)
+    
+    class Meta:
+        from apps.auip_institution.models import StudentAuthorizedAccount
+        model = StudentAuthorizedAccount
+        fields = ["id", "email", "role", "academic_data"]
+        read_only_fields = fields
+
+
 # =====================================================================
 # Creation (Admin bulk + single)
 # =====================================================================
@@ -120,9 +144,8 @@ class UserUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["first_name", "last_name", "email", "avatar"]
+        fields = ["first_name", "last_name", "avatar"]
         extra_kwargs = {
-            "email": {"required": False},
             "first_name": {"required": False},
             "last_name": {"required": False},
         }

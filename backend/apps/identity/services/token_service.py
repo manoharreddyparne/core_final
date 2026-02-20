@@ -209,17 +209,52 @@ def rotate_tokens_secure(
     old_refresh: str,
     ip: Optional[str] = None,
     user_agent: Optional[str] = None,
+    schema: Optional[str] = None,
 ) -> dict:
+    from django.db.models import Q
     old = RefreshToken(old_refresh)
-    session = LoginSession.objects.filter(user=user, refresh_jti=old.get("jti"), is_active=True).first()
+    jti_look = old.get("jti")
+    
+    # 🛡️ Multi-tenant aware session lookup
+    from apps.identity.models.core_models import User as GlobalUser
+    
+    if schema and hasattr(user, 'id') and not isinstance(user, GlobalUser):
+        # Tenant User
+        session = LoginSession.objects.filter(tenant_user_id=user.id, tenant_schema=schema, refresh_jti=jti_look, is_active=True).first()
+    else:
+        # Global User
+        session = LoginSession.objects.filter(user=user, refresh_jti=jti_look, is_active=True).first()
+        
     if not session:
+        logger.warning(f"[ROTATE] Session not found for user={getattr(user, 'email', 'unknown')} jti={jti_look} schema={schema}")
         raise AuthenticationFailed("Session not found or expired.")
 
     verify_session_fingerprint(session, ip or DEFAULT_IP, user_agent or "unknown")
 
-    # Mint new pair
-    new_refresh = RefreshToken.for_user(user)
+    # Mint new pair — use correct token class based on user type
+    from apps.identity.models.core_models import User as GlobalUser
+    is_global = isinstance(user, GlobalUser)
+    
+    if is_global:
+        new_refresh = RefreshToken.for_user(user)
+    else:
+        from apps.identity.services.auth_service import TenantRefreshToken
+        new_refresh = TenantRefreshToken.for_user(user)
+    
+    # ✅ Propagate custom claims from old token to new token
+    # During login, claims like schema/role/email/tenant_user_id are injected.
+    # These MUST survive rotation or the new token becomes unidentifiable.
+    custom_claim_keys = ['role', 'email', 'schema', 'tenant_user_id']
+    for claim_key in custom_claim_keys:
+        old_val = old.get(claim_key)
+        if old_val is not None:
+            new_refresh[claim_key] = old_val
+
     new_access = new_refresh.access_token
+    # Propagate claims to access token as well (SimpleJWT doesn't auto-copy)
+    for claim_key in custom_claim_keys:
+        if claim_key in new_refresh:
+            new_access[claim_key] = new_refresh[claim_key]
 
     # Build Quantum Shield fragments from new refresh token
     from apps.identity.services.quantum_shield import QuantumShieldService
@@ -229,12 +264,16 @@ def rotate_tokens_secure(
     signature = parts[2]
     mid = len(header_payload) // 2
 
-    # ✅ Update session with new refresh JTI
+    # ✅ Update session with new Access JTI and Refresh JTI
     from django.utils import timezone
+    now = timezone.now()
     session.is_active = True
+    session.previous_jti = session.jti # 🔄 Store old JTI for grace period
+    session.jti = new_access.get("jti") # 🗝️ Critical: Update linked access token JTI
     session.refresh_jti = new_refresh.get("jti")  # Update to new refresh JTI
-    session.expires_at = timezone.now() + timezone.timedelta(days=7)
-    session.save(update_fields=["is_active", "refresh_jti", "expires_at"])
+    session.expires_at = now + timezone.timedelta(days=7)
+    session.rotated_at = now
+    session.save(update_fields=["is_active", "jti", "refresh_jti", "expires_at", "previous_jti", "rotated_at"])
     
     blacklist_refresh_jti(old.get("jti"), user=user)
     send_session_ws_event(user.id, "rotated", session_id=session.id, jti=session.jti)
@@ -267,9 +306,10 @@ def logout_single_session_secure(user, session_id=None, access_jti=None, refresh
         session_ids.add(session_id)
 
     # Multi-tenant filtering logic
+    effective_role = getattr(user, 'role', 'anonymous')
     if hasattr(user, 'role') and user.role in ('STUDENT', 'FACULTY', 'INSTITUTION_ADMIN'):
         effective_schema = schema or getattr(getattr(user, 'institution', None), 'schema_name', '')
-        user_filter = Q(tenant_user_id=user.id, tenant_schema=effective_schema)
+        user_filter = Q(tenant_user_id=user.id, tenant_schema=effective_schema, role=effective_role)
     else:
         # Global User
         user_filter = Q(user=user)
@@ -304,9 +344,10 @@ def logout_all_sessions_secure(user, exclude_session_id=None, exclude_jti=None, 
     from apps.identity.models.core_models import User
 
     # Determine filter based on Identity type
+    effective_role = getattr(user, 'role', 'anonymous')
     if hasattr(user, 'role') and user.role in ('STUDENT', 'FACULTY', 'INSTITUTION_ADMIN'):
         effective_schema = schema or getattr(getattr(user, 'institution', None), 'schema_name', '')
-        user_filter = Q(tenant_user_id=user.id, tenant_schema=effective_schema)
+        user_filter = Q(tenant_user_id=user.id, tenant_schema=effective_schema, role=effective_role)
     else:
         # Global User
         user_filter = Q(user=user)
@@ -331,7 +372,7 @@ def logout_all_sessions_secure(user, exclude_session_id=None, exclude_jti=None, 
             user_obj = s.user if hasattr(s, 'user') else None
             blacklist_refresh_jti(s.refresh_jti, user=user_obj)
             # ✅ SURGICAL TARGETING: Use the role recorded for this specific session
-            role_to_notify = s.role or getattr(user, 'role', 'anonymous')
+            role_to_notify = s.role or effective_role
             send_session_ws_event(ws_id, "force_logout", s.id, s.jti, role=role_to_notify)
         except Exception as e:
             logger.warning(f"[SESSION] Failed logout session_id={s.id} user_id={user.id}: {e}")
@@ -343,20 +384,25 @@ def logout_all_sessions_secure(user, exclude_session_id=None, exclude_jti=None, 
 # Access Token Validation
 # -------------------------------
 def authenticate_access_token(token_str: str, ip: str = DEFAULT_IP, user_agent: str = "unknown") -> User:
+    """
+    Standard HTTP validation: Token signature -> DB whitelist -> Fingerprint
+    """
+    from apps.identity.authentication import SafeJWTAuthentication
+    from rest_framework.request import Request
+    from django.test import RequestFactory
+    
+    # We leverage the hardened SafeJWTAuthentication which already handles
+    # all multi-tenant and session lookup logic correctly.
+    factory = RequestFactory()
+    dummy_request = factory.get('/')
+    dummy_request.META['HTTP_AUTHORIZATION'] = f"Bearer {token_str}"
+    dummy_request.META['HTTP_USER_AGENT'] = user_agent
+    dummy_request.META['REMOTE_ADDR'] = ip
+    
+    auth = SafeJWTAuthentication()
     try:
-        untoken = UntypedToken(token_str)
-        jti = untoken.get("jti")
-        user_id = untoken.get("user_id")
-        if not user_id:
-            raise AuthenticationFailed("Token missing user info.")
-        user = User.objects.get(id=user_id)
-
-        session = user.login_sessions.filter(jti=jti, is_active=True).first()
-        if not session:
-            raise AuthenticationFailed("Session not found or expired.")
-
-        verify_session_fingerprint(session, ip, user_agent)
+        user, token = auth.authenticate(dummy_request)
         return user
-    except Exception:
-        # Do not leak specifics to the client
+    except Exception as e:
+        logger.warning(f"[TOKEN-AUTH] Manual authentication failed: {e}")
         raise AuthenticationFailed("Invalid or expired access token")

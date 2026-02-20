@@ -64,7 +64,6 @@ export interface CreateTeacherResponse {
 export interface ProfilePayload {
   first_name?: string;
   last_name?: string;
-  email?: string;
   roll_number?: string;
   admission_year?: string;
   batch?: string;

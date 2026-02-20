@@ -23,7 +23,7 @@ class StudentInvitation(models.Model):
     )
     
     token = models.CharField(
-        max_length=100,
+        max_length=512,
         unique=True,
         db_index=True,
         help_text="Secure activation token"

@@ -1,5 +1,5 @@
-import { ReactNode, useEffect, useRef } from "react";
-import { X } from "lucide-react";
+import { ReactNode, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 
 interface DialogProps {
@@ -9,7 +9,12 @@ interface DialogProps {
 }
 
 export const Dialog = ({ open, onOpenChange, children }: DialogProps) => {
+    const [mounted, setMounted] = useState(false);
     const dialogRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     useEffect(() => {
         const handleEscape = (e: KeyboardEvent) => {
@@ -28,36 +33,37 @@ export const Dialog = ({ open, onOpenChange, children }: DialogProps) => {
         };
     }, [open, onOpenChange]);
 
-    if (!open) return null;
+    if (!open || !mounted) return null;
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+    return createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 lg:p-8">
+            {/* Blurred backdrop — click to close */}
             <div
-                className="relative bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 p-6 animate-in zoom-in-95 duration-200"
+                className="absolute inset-0 bg-black/60 backdrop-blur-xl animate-in fade-in duration-300"
+                onClick={() => onOpenChange(false)}
+            />
+            {/* Modal content sits on top — centered */}
+            <div
                 ref={dialogRef}
+                className="relative z-10 w-full flex items-center justify-center animate-in zoom-in-90 fade-in duration-300"
             >
-                <button
-                    onClick={() => onOpenChange(false)}
-                    className="absolute top-4 right-4 p-1 rounded-full hover:bg-gray-100 transition"
-                >
-                    <X className="w-4 h-4 text-gray-500" />
-                </button>
                 {children}
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 
 export const DialogContent = ({ children, className }: { children: ReactNode; className?: string }) => (
-    <div className={cn("space-y-4", className)}>{children}</div>
+    <div className={cn("relative", className)}>{children}</div>
 );
 
 export const DialogHeader = ({ children, className }: { children: ReactNode; className?: string }) => (
-    <div className={cn("space-y-1.5 text-center sm:text-left", className)}>{children}</div>
+    <div className={cn("", className)}>{children}</div>
 );
 
 export const DialogFooter = ({ children, className }: { children: ReactNode; className?: string }) => (
-    <div className={cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2 mt-4", className)}>{children}</div>
+    <div className={cn("flex flex-col-reverse sm:flex-row sm:justify-end gap-3", className)}>{children}</div>
 );
 
 export const DialogTitle = ({ children, className }: { children: ReactNode; className?: string }) => (
@@ -65,5 +71,5 @@ export const DialogTitle = ({ children, className }: { children: ReactNode; clas
 );
 
 export const DialogDescription = ({ children, className }: { children: ReactNode; className?: string }) => (
-    <p className={cn("text-sm text-gray-500", className)}>{children}</p>
+    <p className={cn("text-sm text-gray-400", className)}>{children}</p>
 );

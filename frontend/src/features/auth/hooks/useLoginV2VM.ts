@@ -29,6 +29,12 @@ export const useLoginV2VM = () => {
     const [emailHint, setEmailHint] = useState("");
     const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
     const [turnstileSiteKey, setTurnstileSiteKey] = useState<string>("");
+    const [turnstileKey, setTurnstileKey] = useState(0);
+
+    const resetTurnstile = useCallback(() => {
+        setTurnstileToken(null);
+        setTurnstileKey(prev => prev + 1);
+    }, []);
 
     const handleTurnstileSuccess = useCallback((token: string | null) => {
         setTurnstileToken(token);
@@ -92,22 +98,61 @@ export const useLoginV2VM = () => {
             toast.error("Please fill in both Roll Number and Email.");
             return;
         }
+        if (!turnstileToken) {
+            toast.error("Please complete the human verification.");
+            setIsLoading(false);
+            return;
+        }
 
         setIsLoading(true);
         try {
             const res = await v2AuthApi.checkIdentity({
                 institution_id: selectedInstitution.id,
                 identifier,
-                email
+                email,
+                role: (role || "student").toUpperCase(),
+                turnstile_token: turnstileToken
             });
 
             if (res.success) {
-                toast.success("Identity verified! Activation link sent to your email.");
+                if (res.data?.already_activated) {
+                    toast.success("Account already activated. Please login with your credentials.", {
+                        duration: 5000,
+                        icon: '✅'
+                    });
+                    setTimeout(() => navigate("/auth/student/login"), 2000);
+                } else {
+                    toast.success("Identity verified! Activation link sent to your email.");
+                }
             } else {
                 toast.error(res.detail || "Identity verification failed.");
             }
         } catch (err: any) {
-            toast.error(err.response?.data?.message || err.response?.data?.detail || "Something went wrong.");
+            const data = err.response?.data;
+            let errorMsg = "Something went wrong.";
+
+            if (data) {
+                // 1. Check for standard message/detail
+                errorMsg = data.message || data.detail || errorMsg;
+
+                // 2. Check for non_field_errors (common in Django REST Framework)
+                if (data.non_field_errors) {
+                    errorMsg = Array.isArray(data.non_field_errors)
+                        ? data.non_field_errors[0]
+                        : data.non_field_errors;
+                }
+
+                // 3. Check for specific field errors if it's just a flat object of lists
+                if (errorMsg === "Something went wrong." && typeof data === 'object') {
+                    const firstKey = Object.keys(data)[0];
+                    if (firstKey && Array.isArray(data[firstKey])) {
+                        errorMsg = `${firstKey}: ${data[firstKey][0]}`;
+                    }
+                }
+            }
+
+            toast.error(errorMsg);
+            resetTurnstile(); // 🛡️ Burned token: Force fresh human verification
         } finally {
             setIsLoading(false);
         }
@@ -137,13 +182,25 @@ export const useLoginV2VM = () => {
             });
 
             if (res.success && res.data) {
-                toast.success("Login successful!");
-                navigate("/student-dashboard");
+                if (res.data.access) {
+                    setAccessToken(res.data.access);
+                }
+
+                // Hydrate full user session (including role, email, etc.)
+                const passport = await hydratePassport();
+                if (passport.user) {
+                    setUser(passport.user);
+                    toast.success("Login successful!");
+                    navigate("/student-dashboard");
+                } else {
+                    toast.error("Session sync failed. Please try again.");
+                }
             } else {
                 toast.error(res.message || "Invalid credentials.");
             }
         } catch (err: any) {
             toast.error(err.response?.data?.message || err.response?.data?.detail || "Login failed.");
+            resetTurnstile(); // 🛡️ Burned token: Force fresh human verification
         } finally {
             setIsLoading(false);
         }
@@ -172,15 +229,39 @@ export const useLoginV2VM = () => {
                 turnstile_token: turnstileToken
             });
 
-            if (res.data?.requires_otp) {
+            if (res.data?.require_otp || res.data?.requires_otp) {
                 setOtpRequired(true);
-                setEmailHint(res.data.email_hint);
+                setEmailHint(res.data?.email_hint || "");
+                setTempUserId(res.data?.user_id || null);
                 toast.success("Password verified. OTP sent.");
+                return;
+            } else if (res.success && res.data?.access) {
+                // ✅ Trusted Device Path: Immediate Login
+                setAccessToken(res.data.access);
+
+                // Use user data from response or hydrate
+                const userData = res.data.user || (await hydratePassport()).user;
+                if (userData) {
+                    setUser(userData);
+                    toast.success("Device recognized. Login successful!");
+
+                    const role = (userData.role || "").toUpperCase();
+                    if (role === 'FACULTY') {
+                        navigate("/faculty-dashboard");
+                    } else if (role === 'INSTITUTION_ADMIN' || role === 'ADMIN') {
+                        navigate("/institution/dashboard");
+                    } else {
+                        navigate("/");
+                    }
+                } else {
+                    toast.error("Session sync failed.");
+                }
             } else {
                 toast.error(res.message || "Login failed.");
             }
         } catch (err: any) {
             toast.error(err.response?.data?.message || err.response?.data?.detail || "Invalid credentials.");
+            resetTurnstile(); // 🛡️ Burned token: Force fresh human verification
         } finally {
             setIsLoading(false);
         }
@@ -199,6 +280,7 @@ export const useLoginV2VM = () => {
         setIsLoading(true);
         try {
             let res;
+            console.log(`[useLoginV2VM] Initiating Admin Login: mode=${selectedInstitution ? 'Institutional' : 'Global'}`);
             // ✅ ISOLATED AUTH SWITCH
             // If forceGlobal is true OR direct JIT ticket is present, we bypass institutional login logic
             if (options?.forceGlobal || !selectedInstitution) {
@@ -219,9 +301,13 @@ export const useLoginV2VM = () => {
                 });
             }
 
-            if (res.data?.require_otp) {
+            console.log("[useLoginV2VM] Login Response:", res);
+
+            if (res.data?.require_otp || res.data?.requires_otp) {
+                console.log("[useLoginV2VM] OTP Required. Switching form...");
                 setOtpRequired(true);
-                setTempUserId(res.data.user_id ?? null);
+                setTempUserId(res.data?.user_id ?? null);
+                setEmailHint(res.data?.email_hint || identifier);
                 setResendCooldown(300);
                 toast.success("Credentials valid. 2FA Required.");
                 return;
@@ -286,6 +372,7 @@ export const useLoginV2VM = () => {
                     console.warn(`[useLoginV2VM] Attempts remaining: ${data.data.attempts_remaining}`);
                 }
             }
+            resetTurnstile(); // 🛡️ Burned token: Force fresh human verification
         } finally {
             setIsLoading(false);
         }
@@ -315,12 +402,33 @@ export const useLoginV2VM = () => {
             const res = await v2AuthApi.verifyFacultyMFA({
                 institution_id: selectedInstitution.id,
                 email: identifier,
-                otp
+                otp,
+                remember_device: rememberDevice
             });
 
             if (res.success && res.data) {
-                toast.success("MFA verified! Redirecting...");
-                navigate("/institution/dashboard");
+                if (res.data.access) {
+                    setAccessToken(res.data.access);
+                }
+
+                // ✅ IMMEDIATE USER SYNC: Use data from response if available, fallback to hydrate
+                const userData = res.data.user || (await hydratePassport()).user;
+
+                if (userData) {
+                    setUser(userData);
+                    toast.success("MFA verified! Redirecting...");
+
+                    const role = (userData.role || "").toUpperCase();
+                    if (role === 'FACULTY') {
+                        navigate("/faculty-dashboard");
+                    } else if (role === 'INSTITUTION_ADMIN' || role === 'ADMIN') {
+                        navigate("/institution/dashboard");
+                    } else {
+                        navigate("/");
+                    }
+                } else {
+                    toast.error("Session sync failed. Please try again.");
+                }
             } else {
                 toast.error(res.message || "Invalid OTP.");
             }
@@ -329,7 +437,7 @@ export const useLoginV2VM = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [selectedInstitution, identifier, otp, navigate]);
+    }, [selectedInstitution, identifier, otp, navigate, rememberDevice]);
 
     const handleVerifyAdminMFA = useCallback(async (jitTicket?: string | null) => {
         if (!tempUserId || !otp || !password) return;
@@ -361,6 +469,8 @@ export const useLoginV2VM = () => {
                         target = "/superadmin/dashboard";
                     } else if (role === 'INSTITUTION_ADMIN' || role === 'ADMIN') {
                         target = "/institution/dashboard";
+                    } else if (role === 'FACULTY') {
+                        target = "/faculty-dashboard";
                     }
 
                     // Using a small timeout to ensure state settles
@@ -419,6 +529,8 @@ export const useLoginV2VM = () => {
         setTurnstileToken: handleTurnstileSuccess,
         onTurnstileExpire: handleTurnstileExpire,
         turnstileSiteKey, // ✅ Expose site key
+        turnstileKey,    // ✅ Expose key for force-reset
+        resetTurnstile,   // ✅ Expose reset function
         otpRequired,
         setOtpRequired,
         isLoading,

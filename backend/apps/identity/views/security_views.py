@@ -27,7 +27,14 @@ class SecureDeviceView(APIView):
         session_obj = None
         if jti:
             from apps.identity.models import LoginSession
-            session_obj = LoginSession.objects.filter(user=user, jti=jti, is_active=True).first()
+            from apps.identity.models.core_models import User as GlobalUser
+            
+            if isinstance(user, GlobalUser):
+                session_obj = LoginSession.objects.filter(user=user, jti=jti, is_active=True).first()
+            else:
+                # Tenant Isolated account
+                schema = getattr(request.auth, 'get', lambda x, y: None)('schema', None)
+                session_obj = LoginSession.objects.filter(tenant_user_id=user.id, tenant_schema=schema, jti=jti, is_active=True).first()
 
         # 1. 6-Hour Cooldown Check (DB-backed)
         if session_obj and session_obj.last_secure_check:
@@ -67,12 +74,16 @@ class SecureDeviceView(APIView):
 
             from rest_framework.exceptions import AuthenticationFailed
             try:
+                # Resolve schema from token for correct multi-tenant context
+                schema = getattr(request.auth, 'get', lambda x, y: None)('schema', None)
+
                 # Use the robust service to rotate & fragment
                 rotated = rotate_tokens_secure(
                     user=user,
                     old_refresh=old_refresh,
                     ip=ip,
-                    user_agent=user_agent
+                    user_agent=user_agent,
+                    schema=schema
                 )
             except AuthenticationFailed as ae:
                 logger.warning(f"Rotation failed during secure-device: {ae}")

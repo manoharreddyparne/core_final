@@ -40,6 +40,28 @@ class StudentAcademicRegistry(models.Model):
     class Meta:
         verbose_name_plural = "Student Academic Registries"
 
+    def sync_to_preseeded(self):
+        """
+        Synchronizes this academic record with the PreSeeded Identity Registry (Table 2).
+        Ensures that an invitation can always be sent if the identity exists.
+        """
+        email_to_use = self.official_email or self.personal_email
+        if not email_to_use:
+            return # Cannot sync without email
+            
+        StudentPreSeededRegistry.objects.update_or_create(
+            identifier=self.roll_number,
+            defaults={
+                "email": email_to_use,
+            }
+        )
+
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        super().save(*args, **kwargs)
+        # 🛡️ Auto-Sync to Identity Registry (Table 2)
+        self.sync_to_preseeded()
+
     def __str__(self):
         return f"{self.roll_number} - {self.full_name}"
 
@@ -53,9 +75,11 @@ class StudentPreSeededRegistry(models.Model):
     is_activated = models.BooleanField(default=False)
     activated_at = models.DateTimeField(null=True, blank=True)
     
-    # Invitation Tracking
+    # Invitation & Activation Security
     invitation_sent_at = models.DateTimeField(null=True, blank=True)
     invitation_count = models.IntegerField(default=0)
+    activation_token = models.CharField(max_length=512, unique=True, null=True, blank=True, db_index=True)
+    token_expires_at = models.DateTimeField(null=True, blank=True)
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -72,6 +96,8 @@ class StudentAuthorizedAccount(models.Model):
     academic_ref = models.OneToOneField(StudentAcademicRegistry, on_delete=models.SET_NULL, null=True, blank=True)
     
     email = models.EmailField(unique=True, db_index=True)
+    first_name = models.CharField(max_length=150, blank=True, default='')
+    last_name = models.CharField(max_length=150, blank=True, default='')
     password_hash = models.CharField(max_length=255)
     mfa_secret = models.CharField(max_length=255, blank=True, null=True)
     
@@ -101,6 +127,14 @@ class StudentAuthorizedAccount(models.Model):
 
     def get_username(self):
         return self.email
+
+    def set_password(self, raw_password):
+        from django.contrib.auth.hashers import make_password
+        self.password_hash = make_password(raw_password)
+
+    def check_password(self, raw_password):
+        from django.contrib.auth.hashers import check_password
+        return check_password(raw_password, self.password_hash)
 
     def __str__(self):
         return f"Student: {self.email}"
@@ -123,9 +157,11 @@ class FacultyPreSeededRegistry(models.Model):
     is_activated = models.BooleanField(default=False)
     activated_at = models.DateTimeField(null=True, blank=True)
     
-    # Invitation Tracking
+    # Invitation & Activation Security
     invitation_sent_at = models.DateTimeField(null=True, blank=True)
     invitation_count = models.IntegerField(default=0)
+    activation_token = models.CharField(max_length=512, unique=True, null=True, blank=True, db_index=True)
+    token_expires_at = models.DateTimeField(null=True, blank=True)
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -141,8 +177,8 @@ class FacultyAcademicRegistry(models.Model):
     full_name = models.CharField(max_length=255)
     email = models.EmailField(unique=True)
     
-    designation = models.CharField(max_length=100)
-    department = models.CharField(max_length=100)
+    designation = models.CharField(max_length=100, blank=True, default='')
+    department = models.CharField(max_length=100, blank=True, default='')
     joining_date = models.DateField(null=True, blank=True)
     courses_handling = ArrayField(models.CharField(max_length=100), default=list, blank=True)
     
@@ -160,6 +196,8 @@ class FacultyAuthorizedAccount(models.Model):
     academic_ref = models.OneToOneField(FacultyAcademicRegistry, on_delete=models.SET_NULL, null=True, blank=True)
     
     email = models.EmailField(unique=True, db_index=True)
+    first_name = models.CharField(max_length=150, blank=True, default='')
+    last_name = models.CharField(max_length=150, blank=True, default='')
     password_hash = models.CharField(max_length=255)
     mfa_secret = models.CharField(max_length=255, blank=True, null=True)
     
@@ -189,6 +227,14 @@ class FacultyAuthorizedAccount(models.Model):
 
     def get_username(self):
         return self.email
+
+    def set_password(self, raw_password):
+        from django.contrib.auth.hashers import make_password
+        self.password_hash = make_password(raw_password)
+
+    def check_password(self, raw_password):
+        from django.contrib.auth.hashers import check_password
+        return check_password(raw_password, self.password_hash)
 
     def __str__(self):
         return f"Faculty: {self.email}"
@@ -209,6 +255,13 @@ class AdminPreSeededRegistry(models.Model):
     identifier = models.CharField(max_length=255, unique=True, db_index=True) # Email
     is_activated = models.BooleanField(default=False)
     activated_at = models.DateTimeField(null=True, blank=True)
+    
+    # Invitation & Activation Security
+    invitation_sent_at = models.DateTimeField(null=True, blank=True)
+    invitation_count = models.IntegerField(default=0)
+    activation_token = models.CharField(max_length=512, unique=True, null=True, blank=True, db_index=True)
+    token_expires_at = models.DateTimeField(null=True, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -222,6 +275,8 @@ class AdminAuthorizedAccount(models.Model):
     registry_ref = models.OneToOneField(AdminPreSeededRegistry, on_delete=models.CASCADE)
     
     email = models.EmailField(unique=True, db_index=True)
+    first_name = models.CharField(max_length=150, blank=True, default='')
+    last_name = models.CharField(max_length=150, blank=True, default='')
     password_hash = models.CharField(max_length=255)
     mfa_secret = models.CharField(max_length=255, blank=True, null=True)
     
@@ -251,6 +306,14 @@ class AdminAuthorizedAccount(models.Model):
 
     def get_username(self):
         return self.email
+
+    def set_password(self, raw_password):
+        from django.contrib.auth.hashers import make_password
+        self.password_hash = make_password(raw_password)
+
+    def check_password(self, raw_password):
+        from django.contrib.auth.hashers import check_password
+        return check_password(raw_password, self.password_hash)
 
     def __str__(self):
         return f"InstAdmin: {self.email}"

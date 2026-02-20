@@ -17,5 +17,20 @@ class MeView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        serializer = UserSerializer(request.user)
-        return success_response("Current user fetched", serializer.data)
+        user = request.user
+        
+        # Determine serializer based on Identity Type
+        from apps.auip_institution.models import StudentAuthorizedAccount, FacultyAuthorizedAccount, AdminAuthorizedAccount
+        from apps.identity.serializers.user_serializers import StudentMeSerializer
+        from apps.identity.models import User
+        
+        if isinstance(user, StudentAuthorizedAccount):
+            serializer = StudentMeSerializer(user)
+        elif isinstance(user, (FacultyAuthorizedAccount, AdminAuthorizedAccount)):
+            # Fallback for Faculty/TenantAdmins - we can expand this later
+            serializer = UserSerializer(user)
+        else:
+            # Global SuperAdmin / Admin
+            serializer = UserSerializer(user)
+            
+        return success_response("Current profile hydrated", serializer.data)

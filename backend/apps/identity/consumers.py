@@ -34,7 +34,7 @@ class SessionConsumer(AsyncWebsocketConsumer):
         role = "anonymous"
         payload = self.scope.get("token_payload")
         if payload:
-            role = payload.get("role", self.user.role)
+            role = payload.get("role") or getattr(self.user, 'role', 'anonymous')
         
         self.group_name = f"user_sessions_{self.user.id}_{role}"
         await self.channel_layer.group_add(self.group_name, self.channel_name)
@@ -159,6 +159,7 @@ class SessionConsumer(AsyncWebsocketConsumer):
                 self._broadcast_to_group({
                     "action": "force_logout",
                     "session_id": session.id,
+                    "jti": session.jti,
                     "reason": "terminated_by_admin"
                 })
         except Exception as e:
@@ -184,6 +185,7 @@ class SessionConsumer(AsyncWebsocketConsumer):
                 self._broadcast_to_group({
                     "action": "force_logout",
                     "session_id": session.id,
+                    "jti": session.jti,
                     "origin_session_id": origin_jti,
                     "reason": "terminated_by_other_device"
                 })

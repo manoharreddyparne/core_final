@@ -1,0 +1,6 @@
+employee_id,full_name,email,designation,department,joining_date
+EMP101,Dr. Alan Turing,alan.turing@university.edu,Professor,Computer Science,2024-01-15
+EMP102,Grace Hopper,grace.hopper@university.edu,Associate Professor,Information Technology,2024-02-01
+EMP103,Ada Lovelace,ada.lovelace@university.edu,Assistant Professor,Mathematics,2024-03-10
+EMP104,John von Neumann,john.neumann@university.edu,Professor,Computer Science,2024-01-20
+EMP105,Margaret Hamilton,margaret.hamilton@university.edu,Lead Scientist,Software Engineering,2024-04-05

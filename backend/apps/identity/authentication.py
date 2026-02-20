@@ -49,10 +49,26 @@ class SafeJWTAuthentication(JWTAuthentication):
         
         # ✅ CRITICAL: Session lookup MUST happen in public schema
         with schema_context('public'):
-            session = LoginSession.objects.filter(jti=jti, is_active=True).first()
+            from django.db.models import Q
+            from django.utils import timezone
+            
+            # 🔄 Allow graceful rotation: check both current AND previous JTI
+            session = LoginSession.objects.filter(
+                Q(jti=jti) | Q(previous_jti=jti),
+                is_active=True
+            ).first()
+
             if not session:
                 logger.warning(f"[AUTH] Session not found or inactive for JTI {jti}")
                 raise AuthenticationFailed("Invalid or expired access token", code="token_not_valid")
+            
+            # If matching by previous_jti, verify within 60s grace period
+            if session.jti != jti and session.previous_jti == jti:
+                grace_seconds = 60
+                if not session.rotated_at or (timezone.now() - session.rotated_at).total_seconds() > grace_seconds:
+                    logger.warning(f"[AUTH] Previous JTI used AFTER grace period: {jti}")
+                    raise AuthenticationFailed("Access token has been rotated and grace period expired.", code="token_not_valid")
+                logger.debug(f"[AUTH] 🔄 Allowing previous JTI within grace period: {jti}")
             
             # Verify identity binding
             # Check if this session belongs to the user we resolved

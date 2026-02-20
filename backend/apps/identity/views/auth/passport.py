@@ -48,11 +48,9 @@ class PassportView(APIView):
             
             # --- IDENTITY RESOLUTION ---
             # Prioritize Global User, but allow isolated Tenant Users (NULL global user)
-            # ⚠️ PREVENT ID COLLISION: Only look up User if role is Global
-            # INSTITUTION_ADMIN and FACULTY are TENANT-ISOLATED roles.
-            # They do NOT have a record in the global public.User table.
-            # Only SUPER_ADMIN lives in the public schema.
-            GLOBAL_ROLES = ["SUPER_ADMIN"]
+            # INSTITUTION_ADMIN and FACULTY are TENANT-ISOLATED roles usually,
+            # but Institutional Admins who onboarded via Super Admin are Global Users.
+            GLOBAL_ROLES = ["SUPER_ADMIN", "INSTITUTION_ADMIN", "INST_ADMIN", "ADMIN"]
             
             user = None
             # If role is explicit and IS global, look up in public User table
@@ -98,14 +96,17 @@ class PassportView(APIView):
             
             access = str(access_obj)
             
-            # ✅ Sync DB session with the NEW JTI
+            # ✅ Sync DB session with the NEW JTI (with Grace Period support)
             from apps.identity.utils.security import hash_token_secure
             untyped = UntypedToken(access)
+            now = timezone.now()
             
+            session.previous_jti = session.jti # 🔄 Grace period anchor
             session.jti = untyped.get("jti")
             session.token_hash = hash_token_secure(access)
-            session.last_active = timezone.now()
-            session.save(update_fields=["jti", "token_hash", "last_active"])
+            session.last_active = now
+            session.rotated_at = now
+            session.save(update_fields=["jti", "token_hash", "last_active", "previous_jti", "rotated_at"])
             
             # --- IDENTITY HYDRATION ---
             if user:
@@ -140,12 +141,19 @@ class PassportView(APIView):
 
                     # Email is the unique link for tenant accounts
                     email_to_query = user.email if user else email_claim
-                    account = acc_model.objects.filter(email=email_to_query).first()
+                    account = acc_model.objects.filter(email__iexact=email_to_query).first()
                     
                     if account:
                         user_data["role"] = role_claim
                         user_data["schema"] = schema_claim
-                        # Merge account-specific info (like designation)
+                        user_data["first_name"] = getattr(account, "first_name", "")
+                        user_data["last_name"] = getattr(account, "last_name", "")
+                        
+                        # Full name helper
+                        full_name = f"{user_data['first_name']} {user_data['last_name']}".strip()
+                        if full_name:
+                            user_data["full_name"] = full_name
+                        
                         if hasattr(account, 'designation'):
                             user_data["designation"] = account.designation
                         

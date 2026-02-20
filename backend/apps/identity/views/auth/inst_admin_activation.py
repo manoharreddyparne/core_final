@@ -89,16 +89,17 @@ class InstAdminActivateView(APIView):
         
         try:
             with schema_context(institution.schema_name):
+                from apps.auip_institution.models import AdminPreSeededRegistry, AdminAuthorizedAccount
                 # ✅ V2 Robust Check:
                 # 1. Try to find the AuthorizedAccount
-                account = AuthorizedAccount.objects.filter(email=identifier, role='ADMIN').first()
+                account = AdminAuthorizedAccount.objects.filter(email__iexact=identifier).first()
                 if account:
                     if account.is_active and account.password_hash:
                         already_activated = True
                 else:
                     # 2. If no account, check if they are at least in the Registry
-                    registry_entry = PreSeededRegistry.objects.filter(identifier=identifier, role='ADMIN').exists()
-                    if not registry_entry:
+                    registry_exists = AdminPreSeededRegistry.objects.filter(identifier__iexact=identifier).exists()
+                    if not registry_exists:
                         return error_response("Identity not found in this institution's registry.", code=404)
         except Exception as e:
             logger.error(f"[InstAdmin-Activate] Error checking status: {e}")
@@ -143,21 +144,27 @@ class InstAdminActivateView(APIView):
                 # ✅ V2 Robust Activation:
                 # 1. Find the Registry entry (must exist from approval/seeding)
                 from apps.auip_institution.models import AdminPreSeededRegistry, AdminAuthorizedAccount
-                registry_entry = AdminPreSeededRegistry.objects.get(identifier=identifier)
+                registry_entry = AdminPreSeededRegistry.objects.get(identifier__iexact=identifier)
                 
                 # 2. Get or Create the AuthorizedAccount
                 from django.contrib.auth.hashers import make_password
                 account, created = AdminAuthorizedAccount.objects.get_or_create(
                     registry_ref=registry_entry,
                     defaults={
-                        "email": identifier,
+                        "email": identifier.lower(), # Normalize email
                         "password_hash": make_password(password),
                         "is_active": True
                     }
                 )
                 
-                # 3. If already exists but not active, activate it
+                # 🛡️ Block re-activation if account already active with a password
                 if not created:
+                    if account.is_active and account.password_hash:
+                        return error_response(
+                            "Account already activated. Please log in instead.",
+                            code=400
+                        )
+                    # If exists but not fully activated, set password
                     account.password_hash = make_password(password)
                     account.is_active = True
                 

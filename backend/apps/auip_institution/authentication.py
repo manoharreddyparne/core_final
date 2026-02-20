@@ -38,10 +38,53 @@ class TenantAuthentication(JWTAuthentication):
 
         # ✅ Session Validation MUST run in public schema (LoginSession is public)
         from apps.identity.models import LoginSession
+        from django.db.models import Q
+        from django.utils import timezone
+        
         with schema_context('public'):
-            session_valid = LoginSession.objects.filter(jti=jti, is_active=True).exists()
+            session = LoginSession.objects.filter(
+                Q(jti=jti) | Q(previous_jti=jti),
+                is_active=True
+            ).first()
 
-        if not session_valid:
+        if not session:
+            # Check if it was because it's inactive or totally missing
+            with schema_context('public'):
+                exists = LoginSession.objects.filter(Q(jti=jti) | Q(previous_jti=jti)).exists()
+            
+            logger.warning(
+                f"[TenantAuth] Session validation FAILED for JTI={jti}. "
+                f"Exists in DB? {exists} | user_id={user_id} | schema={schema_name}"
+            )
+            raise exceptions.AuthenticationFailed('Session revoked or expired', code='token_not_valid')
+
+        # 🔄 Allow graceful rotation: check if previous JTI is still within grace period
+        if session.jti != jti and session.previous_jti == jti:
+            grace_seconds = 60
+            if not session.rotated_at or (timezone.now() - session.rotated_at).total_seconds() > grace_seconds:
+                logger.warning(f"[TenantAuth] Previous JTI used AFTER grace period: {jti}")
+                raise exceptions.AuthenticationFailed('Access token has been rotated and grace period expired.', code='token_not_valid')
+            logger.debug(f"[TenantAuth] Allowing previous JTI within grace period: {jti}")
+
+        # ✅ Identity Verification: Match token and session
+        # session.user matches the 'user_id' claim (Global ID)
+        # session.tenant_user_id matches the 'tenant_user_id' claim (Localized ID)
+        tenant_token_id = validated_token.get('tenant_user_id')
+        identity_match = False
+        
+        if session.user_id and str(session.user_id) == str(user_id):
+            identity_match = True
+        
+        if not identity_match and session.tenant_user_id and tenant_token_id:
+            if str(session.tenant_user_id) == str(tenant_token_id):
+                identity_match = True
+        
+        if not identity_match:
+            logger.warning(
+                f"[TenantAuth] Identity mismatch! Session(u={session.user_id}, t={session.tenant_user_id}) "
+                f"vs Token(u={user_id}, t={tenant_token_id}) | JTI={jti}"
+            )
+            # We raise the same error for security obfuscation but log the detail
             raise exceptions.AuthenticationFailed('Session revoked or expired', code='token_not_valid')
 
         # 1. Switch Schema Globally for this Request

@@ -11,6 +11,9 @@ export interface Institution {
 export interface IdentityCheckResponse {
     detail: string;
     success: boolean;
+    data?: {
+        already_activated?: boolean;
+    };
 }
 
 export interface ActivationPayload {
@@ -36,6 +39,7 @@ export interface FacultyMFAPayload {
     institution_id: number;
     email: string;
     otp: string;
+    remember_device?: boolean;
 }
 
 export interface PublicConfig {
@@ -68,16 +72,30 @@ export const v2AuthApi = {
     /**
      * Registration Step 1: Check identity and trigger activation link.
      */
-    checkIdentity: async (data: { institution_id: number; identifier: string; email: string }): Promise<IdentityCheckResponse> => {
+    checkIdentity: async (data: { institution_id: number; identifier: string; email: string; role: string; turnstile_token: string }): Promise<IdentityCheckResponse> => {
         const res = await apiClient.post<IdentityCheckResponse>("auth/v2/check-identity/", data);
         return res.data;
     },
 
     /**
-     * Registration Step 2: Set password via signed activation token.
+     * Registration Step 1.5: Validate activation token before showing form.
      */
-    activateAccount: async (data: ActivationPayload): Promise<{ detail: string; success: boolean }> => {
-        const res = await apiClient.post<{ detail: string; success: boolean }>("auth/v2/activate/", data);
+    validateActivationToken: async (token: string): Promise<ApiResponse<{
+        email: string;
+        identifier: string;
+        role: string;
+        already_activated: boolean;
+    }>> => {
+        const res = await apiClient.get(`auth/v2/activate/?token=${encodeURIComponent(token)}`);
+        return res.data;
+    },
+
+    /**
+     * Registration Step 2: Set password via signed activation token.
+     * Returns AuthResponse (auto-login) on success.
+     */
+    activateAccount: async (data: ActivationPayload): Promise<ApiResponse<AuthResponse>> => {
+        const res = await apiClient.post<ApiResponse<AuthResponse>>("auth/v2/activate/", data);
         return res.data;
     },
 
@@ -90,10 +108,10 @@ export const v2AuthApi = {
     },
 
     /**
-     * Faculty Login Initiation: Password check -> Triggers OTP.
+     * Faculty Login Initiation: Password check -> Triggers OTP (or immediate login if trusted).
      */
-    facultyLogin: async (data: FacultyLoginPayload): Promise<ApiResponse<{ requires_otp: boolean; email_hint: string }>> => {
-        const res = await apiClient.post<ApiResponse<{ requires_otp: boolean; email_hint: string }>>("auth/v2/faculty/login/", data);
+    facultyLogin: async (data: FacultyLoginPayload): Promise<ApiResponse<{ requires_otp?: boolean; email_hint?: string } & AuthResponse>> => {
+        const res = await apiClient.post<ApiResponse<{ requires_otp?: boolean; email_hint?: string } & AuthResponse>>("auth/v2/faculty/login/", data);
         return res.data;
     },
 
@@ -180,6 +198,14 @@ export const v2AuthApi = {
      */
     validateInstAdminToken: async (token: string): Promise<ApiResponse<{ email: string; already_activated: boolean }>> => {
         const res = await apiClient.get<ApiResponse<{ email: string; already_activated: boolean }>>(`auth/v2/inst-admin/activate/?token=${token}`);
+        return res.data;
+    },
+
+    /**
+     * Public: Student expressing interest in their institution.
+     */
+    submitInterest: async (data: any): Promise<ApiResponse<any>> => {
+        const res = await apiClient.post<ApiResponse<any>>("public/interest/", data);
         return res.data;
     }
 };

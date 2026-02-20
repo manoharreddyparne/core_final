@@ -41,8 +41,11 @@ export default function InstAdminLogin() {
         setTurnstileToken,
         onTurnstileExpire,
         turnstileSiteKey,
+        turnstileKey,
         emailHint,
-        setOtpRequired
+        setOtpRequired,
+        rememberDevice,
+        setRememberDevice
     } = useLoginV2VM();
 
     const { institutions, isLoading: loadingInstitutions } = useInstitutions();
@@ -64,10 +67,7 @@ export default function InstAdminLogin() {
         // If the form is submitted, these conditions must be met.
 
         if (otpRequired) {
-            // Unified MFA handling
-            if (authType === "educator") {
-                handleVerifyMFA();
-            }
+            handleVerifyMFA();
             return;
         }
 
@@ -181,6 +181,7 @@ export default function InstAdminLogin() {
 
                                     <div className="pt-2">
                                         <TurnstileWidget
+                                            key={turnstileKey}
                                             siteKey={turnstileSiteKey}
                                             onSuccess={setTurnstileToken}
                                             onExpire={onTurnstileExpire}
@@ -207,7 +208,7 @@ export default function InstAdminLogin() {
                                 </button>
                             </form>
                         ) : (
-                            <form onSubmit={authType === "educator" ? onVerifyMFA : undefined} className="space-y-8 animate-in zoom-in-95 duration-500">
+                            <form onSubmit={(e) => { e.preventDefault(); handleVerifyMFA(); }} className="space-y-8 animate-in zoom-in-95 duration-500">
                                 <div className="text-center space-y-4">
                                     <div className="inline-flex items-center gap-2 px-6 py-2 bg-primary/10 border border-primary/20 rounded-full text-primary text-[10px] font-black uppercase tracking-widest">
                                         <KeyRound className="w-3 h-3" />
@@ -231,9 +232,25 @@ export default function InstAdminLogin() {
                                     />
                                 </div>
 
+                                <div className="flex items-center justify-center gap-3 px-2">
+                                    <label className="relative flex items-center cursor-pointer group">
+                                        <input
+                                            type="checkbox"
+                                            className="sr-only peer"
+                                            checked={rememberDevice}
+                                            onChange={(e) => setRememberDevice(e.target.checked)}
+                                        />
+                                        <div className="w-5 h-5 bg-white/10 border border-white/10 rounded-lg peer-checked:bg-primary peer-checked:border-primary transition-all flex items-center justify-center">
+                                            <div className="w-1.5 h-3 border-r-2 border-b-2 border-white rotate-45 mb-0.5 opacity-0 peer-checked:opacity-100 transition-opacity" />
+                                        </div>
+                                        <span className="ml-3 text-[10px] font-black text-slate-500 dark:text-gray-500 uppercase tracking-widest group-hover:text-slate-700 dark:group-hover:text-gray-300 transition-colors">
+                                            Trust this device for 30 days
+                                        </span>
+                                    </label>
+                                </div>
+
                                 <button
                                     type="submit"
-                                    onClick={authType === "inst_admin" ? (e) => { e.preventDefault(); /* VM handles verifyAdminOTP internally if exposed */ } : undefined}
                                     disabled={isLoading || otp.length < 6}
                                     className="w-full py-5 premium-gradient text-white rounded-[2rem] font-black uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:grayscale"
                                 >
