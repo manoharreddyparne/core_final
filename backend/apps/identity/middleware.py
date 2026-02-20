@@ -24,7 +24,13 @@ class AccessTokenSessionMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        request.user = SimpleLazyObject(lambda: self._get_user_safe(request))
+        # We need to load the user (and auth) once per request
+        # SimpleLazyObject only caches the callable result
+        def get_auth_context():
+            user = self._get_user_safe(request)
+            return user
+
+        request.user = SimpleLazyObject(get_auth_context)
         return self.get_response(request)
 
     def _get_user_safe(self, request):
@@ -37,8 +43,12 @@ class AccessTokenSessionMiddleware:
             return AnonymousUser()
 
         try:
-            user = self.get_user(request)
-            return user or AnonymousUser()
+            result = self.get_user(request)
+            if result:
+                user, token = result
+                request.auth = token
+                return user
+            return AnonymousUser()
         except AuthenticationFailed as e:
             logger.warning(f"Blocked request due to authentication failure: {e}")
             return AnonymousUser()
@@ -100,7 +110,7 @@ class AccessTokenSessionMiddleware:
                                 is_active=True
                             ).update(last_active=timezone.now())
 
-            return user
+            return user, validated_token
         except Exception as e:
             logger.debug(f"Auth middleware bypass: {e}")
             return None

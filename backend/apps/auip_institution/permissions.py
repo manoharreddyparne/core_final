@@ -13,3 +13,27 @@ class IsTenantAdmin(permissions.BasePermission):
             request.user.is_authenticated and
             role in ('INSTITUTION_ADMIN', 'ADMIN')
         )
+
+class IsTenantStudent(permissions.BasePermission):
+    """
+    Allocates access to Activated Students.
+    """
+    def has_permission(self, request, view):
+        role = getattr(request.user, 'role', None)
+        return bool(
+            request.user and
+            request.user.is_authenticated and
+            role == 'STUDENT'
+        )
+
+class IsTenantFaculty(permissions.BasePermission):
+    """
+    Allocates access to Activated Faculty.
+    """
+    def has_permission(self, request, view):
+        role = getattr(request.user, 'role', None)
+        return bool(
+            request.user and
+            request.user.is_authenticated and
+            role == 'FACULTY'
+        )

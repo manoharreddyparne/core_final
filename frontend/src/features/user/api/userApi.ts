@@ -123,7 +123,7 @@ export const createStudent = async (
   student: StudentInput
 ): Promise<CreateStudentResponse> => {
   const { data } = await api.post<CreateStudentResponse>(
-    "/admin/create-student/",
+    "admin/create-student/",
     student
   );
   return data;
@@ -133,7 +133,7 @@ export const createStudents = async (
   students: StudentInput[]
 ): Promise<CreateStudentResponse> => {
   const { data } = await api.post<CreateStudentResponse>(
-    "/admin/create-student/",
+    "admin/create-student/",
     students
   );
   return data;
@@ -148,7 +148,7 @@ export const createTeacher = async (teacher: {
   department?: string;
 }): Promise<CreateTeacherResponse> => {
   const { data } = await api.post<CreateTeacherResponse>(
-    "/admin/create-teacher/",
+    "admin/create-teacher/",
     { teachers: [teacher] }
   );
   return data;
@@ -162,7 +162,7 @@ export const searchStudents = async (params: {
   roll_number?: string;
   batch?: string;
 }): Promise<Student[]> => {
-  const { data } = await api.get("/admin/search-student/", { params });
+  const { data } = await api.get("admin/search-student/", { params });
   return data?.data ?? [];
 };
 
@@ -174,7 +174,7 @@ export const searchTeachers = async (params: {
   email?: string;
   department?: string;
 }): Promise<Teacher[]> => {
-  const { data } = await api.get("/admin/search-teacher/", { params });
+  const { data } = await api.get("admin/search-teacher/", { params });
   return data?.data ?? [];
 };
 
@@ -183,7 +183,7 @@ export const searchTeachers = async (params: {
 ----------------------------------------------- */
 
 export const getStudent = async (id: number): Promise<any> => {
-  const { data } = await api.get(`/admin/students/${id}/`);
+  const { data } = await api.get(`admin/student/${id}/`);
   return data?.data ?? null;
 };
 
@@ -196,7 +196,7 @@ export const updateStudent = async (
     if (v !== undefined && v !== null) form.append(k, v as any);
   });
 
-  const { data } = await api.patch(`/admin/students/${id}/update/`, form, {
+  const { data } = await api.patch(`admin/student/${id}/update/`, form, {
     headers: { "Content-Type": "multipart/form-data" },
   });
 
@@ -208,7 +208,7 @@ export const updateStudent = async (
 ----------------------------------------------- */
 
 export const getTeacher = async (id: number): Promise<any> => {
-  const { data } = await api.get(`/admin/teachers/${id}/`);
+  const { data } = await api.get(`admin/teacher/${id}/`);
   return data?.data ?? null;
 };
 
@@ -221,7 +221,7 @@ export const updateTeacher = async (
     if (v !== undefined && v !== null) form.append(k, v as any);
   });
 
-  const { data } = await api.patch(`/admin/teachers/${id}/update/`, form, {
+  const { data } = await api.patch(`admin/teacher/${id}/update/`, form, {
     headers: { "Content-Type": "multipart/form-data" },
   });
 

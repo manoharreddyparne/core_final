@@ -33,7 +33,7 @@ export type SessionUpdateEvent = {
 export const fetchSessions = async (): Promise<Session[]> => {
   try {
     const res = await apiClient.get<ApiResponse<Session[]>>(
-      "/sessions/",
+      "sessions/",
       { headers: authHeaders() }
     );
 
@@ -58,7 +58,7 @@ export const logoutSession = async (
 ): Promise<{ success: boolean; message?: string }> => {
   try {
     const res = await apiClient.post<ApiResponse>(
-      `/sessions/${sessionId}/logout/`,
+      `sessions/${sessionId}/logout/`,
       {},
       { headers: authHeaders() }
     );
@@ -88,7 +88,7 @@ export const logoutAllSessions = async (): Promise<{
 }> => {
   try {
     const res = await apiClient.post<ApiResponse>(
-      "/sessions/logout-all/",
+      "sessions/logout-all/",
       {},
       { headers: authHeaders() }
     );

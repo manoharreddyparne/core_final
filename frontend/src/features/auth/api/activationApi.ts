@@ -14,7 +14,7 @@ export interface StudentActivationData {
  * Validate activation token and fetch student details
  */
 export const validateActivationToken = async (token: string): Promise<ApiResponse<StudentActivationData>> => {
-    const res = await apiClient.get<ApiResponse<StudentActivationData>>(`/auth/activate/?token=${token}`);
+    const res = await apiClient.get<ApiResponse<StudentActivationData>>(`auth/v2/activate/?token=${token}`);
     return res.data;
 };
 
@@ -26,6 +26,6 @@ export const activateStudentAccount = async (data: {
     password: string;
     username?: string;
 }): Promise<ApiResponse<any>> => {
-    const res = await apiClient.post<ApiResponse<any>>("/auth/activate/", data);
+    const res = await apiClient.post<ApiResponse<any>>("auth/v2/activate/", data);
     return res.data;
 };

@@ -16,7 +16,7 @@ export const loginUser = async (
 ): Promise<AuthResponse> => {
   try {
     const res = await apiClient.post<ApiResponse<AuthResponse>>(
-      "/auth/v2/student/login/",
+      "auth/v2/student/login/",
       { identifier: login, password, turnstile_token: turnstileToken }
     );
 
@@ -107,7 +107,7 @@ export const verifyStudentOTP = async (
 =================================== */
 export const logoutUser = async (): Promise<void> => {
   try {
-    await apiClient.post("/logout/");
+    await apiClient.post("logout/");
   } catch (_) {
     // Soft fail: FE will still wipe tokens regardless
   } finally {

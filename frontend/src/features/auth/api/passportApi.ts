@@ -41,7 +41,7 @@ const getCookie = (name: string): string | null => {
 export const hydratePassport = async (): Promise<AuthResponse> => {
   try {
     const res = await apiClient.get<ApiResponse<AuthResponse>>(
-      "/auth/passport/"
+      "auth/passport/"
     );
 
     const payload = (res?.data?.data ?? {}) as AuthResponse;

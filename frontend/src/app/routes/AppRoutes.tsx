@@ -23,6 +23,11 @@ import { LandingPage } from "../../features/dashboard/pages/LandingPage";
 import { AppLayout } from "../../features/auth/layouts/AppLayout";
 import { StudentRegistry } from "../../features/institution/pages/StudentRegistry";
 import { FacultyRegistry } from "../../features/institution/pages/FacultyRegistry";
+import IntelligenceDashboard from "../../features/intelligence/pages/IntelligenceDashboard";
+import SmartResumeStudio from "../../features/resumes/pages/SmartResumeStudio";
+import PlacementHub from "../../features/placement/pages/PlacementHub";
+import ProfessionalHub from "../../features/social/pages/ProfessionalHub";
+import SupportDesk from "../../features/social/pages/SupportDesk";
 
 import ProtectedRoute from "../../features/auth/components/ProtectedRoute";
 import PublicRoute from "../../features/auth/components/PublicRoute";
@@ -205,6 +210,46 @@ export const AppRoutes = () => {
           element={
             <ProtectedRoute allowedRoles={["student"]}>
               <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/student-intelligence"
+          element={
+            <ProtectedRoute allowedRoles={["student"]}>
+              <IntelligenceDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/resume-studio/:id?"
+          element={
+            <ProtectedRoute allowedRoles={["student"]}>
+              <SmartResumeStudio />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/placement-hub"
+          element={
+            <ProtectedRoute allowedRoles={["student"]}>
+              <PlacementHub />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/professional-hub"
+          element={
+            <ProtectedRoute allowedRoles={["student"]}>
+              <ProfessionalHub />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/support-hub"
+          element={
+            <ProtectedRoute allowedRoles={["student"]}>
+              <SupportDesk />
             </ProtectedRoute>
           }
         />

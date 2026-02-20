@@ -16,7 +16,7 @@ export const loginAdminOrTeacher = async (
 ): Promise<AuthResponse> => {
   try {
     const res = await apiClient.post<ApiResponse<AuthResponse>>(
-      "/admin/login/",
+      "admin/login/",
       { username, password, turnstile_token: turnstileToken }
     );
 
@@ -57,7 +57,7 @@ export const verifyAdminOTP = async (
   if (password) payload.password = password;
 
   const res = await apiClient.post<ApiResponse<AuthResponse>>(
-    "/admin/verify-otp/",
+    "admin/verify-otp/",
     payload
   );
 
@@ -83,7 +83,7 @@ export const googleExchangeCode = async (
 ): Promise<AuthResponse> => {
   try {
     const res = await apiClient.post<ApiResponse<AuthResponse>>(
-      "/auth/google/login/",
+      "social/google/",
       { code }
     );
 

@@ -52,6 +52,13 @@ TENANT_APPS = (
     "apps.quizzes",
     "apps.attempts",
     "apps.anti_cheat",
+    "apps.placement",
+    "apps.notifications",
+    "apps.governance",
+    "apps.intelligence",
+    "apps.social",
+    "apps.resumes",
+    "apps.core_brain",
 )
 
 INSTALLED_APPS = list(SHARED_APPS) + [app for app in TENANT_APPS if app not in SHARED_APPS]
@@ -107,6 +114,10 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "apps.identity.middleware.AccessTokenSessionMiddleware",
     "apps.identity.middleware.SilentRotationMiddleware",
+    
+    # AUIP Intelligence & Governance Hub
+    "apps.core_brain.middleware.BehaviorTrackingMiddleware",
+    "apps.core_brain.policy_middleware.GovernancePolicyMiddleware",
 ]
 
 # -----------------------------
@@ -427,3 +438,8 @@ TURNSTILE_ENABLED = config("TURNSTILE_ENABLED", default=False, cast=bool)
 # SUPER ADMIN SECURITY
 # -----------------------------
 SUPER_ADMIN_EMAIL = config("SUPER_ADMIN_EMAIL", default="parnemanoharreddy19@gmail.com")
+
+# -----------------------------
+# AI & INTELLIGENCE
+# -----------------------------
+GEMINI_API_KEY = config("GEMINI_API_KEY", default=None)

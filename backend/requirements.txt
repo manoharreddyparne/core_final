@@ -50,3 +50,4 @@ channels-redis==4.1.0
 daphne==4.0.0
 geoip2==5.2.0
 httpagentparser==1.9.5
+google-generativeai==0.8.3

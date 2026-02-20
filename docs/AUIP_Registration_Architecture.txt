@@ -1,0 +1,292 @@
+SMTP— for automated email sending to the students;
+Inputs:-
+CRUD
+API
+Admin module
+User module
+Placement UI
+Eligibility checking
+Notifications
+TPO
+List of the eligibility of the student for the specific company sent
+Smtp
+Role based access
+
+AUIP Registration & Login Architecture
+(Institution-Controlled, State-Driven, Resource-Efficient Model)
+— with Institution Student Reference (STU_REF)
+— with AI-Assisted Governance (Advisory Only)
+
+1. Old Way (Baseline – What We Are Improving)
+
+Traditional Registration Model
+In most existing systems:
+● Students directly register on the portal
+● An account is created immediately after form submission
+● System resources are allocated at registration time
+● Admins have limited visibility into who is actually using the system
+
+Limitations of the Old Way
+● No strict institutional control over who can register
+● Accounts are created even if students never log in or use services
+● No clear separation between:
+○ Students who are merely eligible
+○ Students who are actually active
+● Leads to wasted storage, compute, and system resources
+
+Core Problem:
+Registration = Account Creation = Resource Usage
+This approach does not scale and is inefficient for institutions.
+
+2. New Model Overview (Final)
+
+Seeding ≠ Invitation ≠ Verification ≠ Activation ≠ Login
+
+AUIP fundamentally changes how onboarding works.
+
+Core Principles
+● Identity is institution-provisioned, not user-created
+● Students do not "create accounts"; they confirm identities
+● Resources are allocated only after activation
+● Registration and usage are treated as separate concepts
+
+Institutional Student Reference
+Each student is internally identified using a system-generated reference:
+STU_REF (e.g., STU_2025_0142)
+
+● STU_REF is the true identity
+● Email is used only for verification and communication
+● Email is not the identity
+
+3. Step 1: Institutional Pre-Seeding (University Side)
+
+Who Performs Seeding?
+● SPOC / ASPOC / Admin
+● Access is controlled via role-based access control (RBAC)
+
+How Seeding Is Done (Efficient & Scalable)
+
+Primary Method: Bulk Upload
+● Admin uploads an Excel file
+● Excel contains:
+○ A single column of official student email IDs
+● Upload completes in seconds (fast and scalable)
+
+Optional Method: Manual Entry
+● Used only for very small cases (edge scenarios)
+● Not the primary workflow
+
+Validation During Seeding
+The system automatically validates:
+● Email format correctness
+● Duplicate entries within the file
+● Emails that already exist in the system
+
+If issues are found:
+● A popup displays failed entries:
+"The following emails already exist or are invalid: xxx, xxx"
+● Valid emails are accepted
+● Invalid or duplicate ones are skipped
+
+Result of Seeding
+For each valid entry, the system creates an internal identity record:
+
+STU_REF: STU_2025_0142
+Email: abc@college.edu
+Identity State: SEEDED
+Registration Status: NOT_REGISTERED
+
+Important:
+● No user account is created
+● No services or resources are allocated
+
+Seeding only establishes institution-recognized identity presence.
+
+4. Step 2: Automatic Invitation
+
+After successful seeding:
+● The system automatically sends an email to each seeded student:
+
+"You have been enrolled in the AUIP portal by your institution.
+Please complete identity verification using the link below."
+
+Why This Matters
+● Onboarding is institution-initiated
+● Students cannot randomly register
+● Only institution-approved identities can proceed
+
+5. Step 3: Identity Confirmation (Student Side)
+
+Entry Points
+● Student clicks the invitation link
+OR
+● Student opens the portal and enters the same email ID
+
+System Check
+The system verifies:
+● Does the entered email map to an existing STU_REF?
+
+If NO
+● Message shown:
+"No account found. Please contact your institution SPOC / HOD."
+
+If YES
+● System proceeds to verification for the associated STU_REF
+
+Important Conceptual Shift
+● The student is not registering
+● The student is confirming an institution-provisioned identity
+
+6. Step 4: Verification & Security (Strict Rules)
+
+Verification Methods
+● OTP or
+● Secure activation link sent to email
+
+UI Behavior
+● Verification status is displayed
+● "Verify" button is available
+● User cannot proceed until verification succeeds
+
+Security Rules
+● Activation link / OTP:
+○ Can be used only once
+○ Expires after a fixed time (e.g., 1 hour)
+● If a new link is requested:
+○ All previous links are automatically invalidated
+● Used or expired links cannot be reused
+
+This prevents:
+● Replay attacks
+● Duplicate activation
+● Accidental or malicious misuse
+
+7. Step 5: Activation as a System Event
+
+Successful verification triggers a one-time activation event for the STU_REF.
+
+Activation Causes
+● Identity state transition
+● User account creation
+● Role binding
+● Dashboard provisioning
+● Service allocation
+
+Before Activation
+● No account exists
+● No resources are consumed
+
+After Activation
+Identity State: ACTIVE
+Registration Status: REGISTERED
+
+This ensures zero waste from dormant or uninterested users.
+
+8. Identity, Registration, and Activity States
+
+8.1 Identity State Machine
+SEEDED → INVITED → VERIFIED → ACTIVE
+
+8.2 Registration Status
+● NOT_REGISTERED → activation not completed
+● REGISTERED → activation completed
+
+8.3 Activity Status (Post-Registration)
+● ACTIVE_USER → recently logged in / using services
+● INACTIVE_USER → no activity for a defined period (e.g., 7–14 days)
+
+Key Distinction
+● Pending registration ≠ inactive usage
+● Inactive users already have accounts but are not engaging
+
+9. Admin / SPOC Visibility & Follow-Up
+
+Admin dashboard clearly separates:
+
+A. Pending Registrations
+● Seeded students who never completed activation
+
+B. Registered & Active Users
+● Activated and actively using the system
+
+C. Registered but Inactive Users
+● Activated but not engaging recently
+
+Follow-Up Capabilities
+● Admins can resend reminders to pending registrations:
+"You have not completed identity verification. Please activate your AUIP
+account."
+
+This removes guesswork and manual tracking.
+
+10. Login Flow (Post-Activation)
+
+For registered users:
+
+1. User enters email
+2. System resolves email → STU_REF
+3. System checks if STU_REF is ACTIVE
+
+If NO
+● Message:
+"No active account found. Contact your institution."
+
+If YES
+● OTP sent to email
+● OTP verified
+● User logged in
+
+Key Points
+● No re-registration
+● No passwords
+● OTP-based login only
+
+11. AI-Assisted Governance Layer (Advisory Only)
+
+AI is used only to assist, never to override institutional authority.
+
+11.1 Intelligent Seeding Anomaly Detection
+● Flags:
+○ High percentage of non-institutional domains
+○ Unusual spikes in invalid emails
+● Alerts SPOC for review
+● Does not auto-block entries
+
+11.2 Registration Intent Scoring
+● Estimates likelihood of activation using:
+○ Time to open invitation email
+○ Reminder ignore count
+○ OTP retry patterns
+● Helps prioritize follow-ups
+● No user is blocked
+
+11.3 Policy Optimization Support
+● Analyzes past activation outcomes
+● Suggests optimal reminder timing
+● Policies evolve based on evidence, not assumptions
+
+12. Final Clarification
+
+● Identity: STU_REF
+● Email: verification and communication channel only
+● Email change does not break identity
+● Future authentication channels can be added safely
+
+13. Comparison Summary
+
+Aspect Old Way New Way
+Registration control User-driven Institution-driven
+Resource allocation Immediate Post-activation
+Identity model Email-centric STU_REF-centric
+Pending tracking Not possible Explicit
+Security Basic Strong & time-bound
+Intelligence None AI-assisted (advisory)
+Future readiness Medium Very high
+
+14. Final Positioning
+
+● Registration is no longer a form
+● Activation is mandatory
+● Identity is institution-owned and state-driven
+● AI assists governance without overriding authority
+● Resources are allocated only to serious users

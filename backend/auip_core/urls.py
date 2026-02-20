@@ -43,4 +43,22 @@ urlpatterns = [
 
     # Institution Isolated API (auth, data)
     path('api/institution/', include('apps.auip_institution.urls')),
+
+    # Placement Management (Isolated)
+    path('api/placement/', include('apps.placement.urls')),
+
+    # Notifications & Communication (Isolated)
+    path('api/notifications/', include('apps.notifications.urls')),
+
+    # Governance (Isolated)
+    path('api/governance/', include('apps.governance.urls')),
+
+    # Intelligence & AI (Isolated)
+    path('api/intelligence/', include('apps.intelligence.urls')),
+
+    # Social & Personalization (Isolated)
+    path('api/social/', include('apps.social.urls')),
+
+    # Resume Builder Hub (Isolated)
+    path('api/resumes/', include('apps.resumes.urls')),
 ]

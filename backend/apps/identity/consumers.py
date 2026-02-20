@@ -6,7 +6,6 @@ from typing import Optional
 from channels.generic.websocket import AsyncWebsocketConsumer
 from asgiref.sync import sync_to_async, async_to_sync
 from channels.layers import get_channel_layer
-from apps.identity.models.auth_models import LoginSession
 
 logger = logging.getLogger(__name__)
 
@@ -115,6 +114,7 @@ class SessionConsumer(AsyncWebsocketConsumer):
         """Update LoginSession with live location and broadcast."""
         try:
             from apps.identity.models.core_models import User
+            from apps.identity.models.auth_models import LoginSession
             from django.db.models import Q
             
             # Multi-tenant aware session lookup
@@ -144,6 +144,7 @@ class SessionConsumer(AsyncWebsocketConsumer):
         """Force logout of a specific session."""
         try:
             from apps.identity.models.core_models import User
+            from apps.identity.models.auth_models import LoginSession
             # Multi-tenant aware session lookup
             if hasattr(self.user, 'role') and self.user.role in ('STUDENT', 'FACULTY', 'INSTITUTION_ADMIN'):
                  schema = self.scope.get("token_payload", {}).get("schema", "")
@@ -170,6 +171,7 @@ class SessionConsumer(AsyncWebsocketConsumer):
         """Logout all sessions except origin_jti."""
         try:
             from apps.identity.models.core_models import User
+            from apps.identity.models.auth_models import LoginSession
             # Multi-tenant aware session lookup
             if hasattr(self.user, 'role') and self.user.role in ('STUDENT', 'FACULTY', 'INSTITUTION_ADMIN'):
                  schema = self.scope.get("token_payload", {}).get("schema", "")

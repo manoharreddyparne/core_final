@@ -16,7 +16,12 @@ import {
     KeyRound,
     Building2,
     Users,
-    Search
+    Search,
+    Brain,
+    FileText,
+    Briefcase,
+    Globe,
+    HelpCircle
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 
@@ -89,6 +94,11 @@ export const AppLayout = () => {
     const navItems = [
         // STUDENT HUB
         { to: "/student-dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["student"] },
+        { to: "/student-intelligence", label: "Intelligence Hub", icon: Brain, roles: ["student"] },
+        { to: "/resume-studio", label: "Resume Studio", icon: FileText, roles: ["student"] },
+        { to: "/placement-hub", label: "Careers", icon: Briefcase, roles: ["student"] },
+        { to: "/professional-hub", label: "Social Hub", icon: Globe, roles: ["student"] },
+        { to: "/support-hub", label: "Support", icon: HelpCircle, roles: ["student"] },
 
         // GLOBAL HUB (SUPER ADMIN)
         {

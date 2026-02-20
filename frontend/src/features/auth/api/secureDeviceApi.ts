@@ -22,7 +22,7 @@ export type SecureDeviceResponse = {
 };
 
 /** Backend route — keep synced with Django */
-const ROTATE_PATH = "/secure-device/";
+const ROTATE_PATH = "secure-device/";
 
 /**
  * 🔁 rotateTokensSecure

@@ -2,6 +2,7 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework import exceptions
 from django.db import connection
 from django_tenants.utils import schema_context
+from apps.auip_tenant.models import Client
 from apps.identity.models.institution import Institution
 import logging
 
@@ -122,8 +123,11 @@ class TenantAuthentication(JWTAuthentication):
         try:
             with schema_context('public'):
                 institution = Institution.objects.get(schema_name=schema_name)
+                # Link the Client (Tenant) object to request.tenant for django-tenants compatibility
+                client = Client.objects.get(schema_name=schema_name)
+                request.tenant = client
             user.institution = institution
-        except Institution.DoesNotExist:
+        except (Institution.DoesNotExist, Client.DoesNotExist):
             raise exceptions.AuthenticationFailed('Institution configuration error', code='conf_error')
 
         return (user, validated_token)

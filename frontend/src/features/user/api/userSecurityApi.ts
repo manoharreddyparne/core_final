@@ -43,7 +43,7 @@ export interface SecuritySettings {
 ----------------------------------------------- */
 
 export const getSecurityOverview = async (): Promise<SecurityOverview> => {
-  const { data } = await api.get("/profile/security/");
+  const { data } = await api.get("profile/security/");
   return data?.data;
 };
 
@@ -52,7 +52,7 @@ export const getSecurityOverview = async (): Promise<SecurityOverview> => {
 ----------------------------------------------- */
 
 export const getSessionSettings = async (): Promise<SecuritySettings> => {
-  const { data } = await api.get("/profile/settings/");
+  const { data } = await api.get("profile/settings/");
   return {
     two_factor_enabled: data?.data?.two_factor_enabled ?? false,
     recent_sessions: data?.data?.recent_sessions ?? [],
@@ -60,7 +60,7 @@ export const getSessionSettings = async (): Promise<SecuritySettings> => {
 };
 
 export const logoutSession = async (sessionId: number) => {
-  const { data } = await api.post("/profile/settings/", {
+  const { data } = await api.post("profile/settings/", {
     action: "logout",
     session_id: sessionId,
   });
@@ -68,7 +68,7 @@ export const logoutSession = async (sessionId: number) => {
 };
 
 export const logoutAllSessions = async () => {
-  const { data } = await api.post("/profile/settings/", {
+  const { data } = await api.post("profile/settings/", {
     action: "logout_all",
   });
   return data;

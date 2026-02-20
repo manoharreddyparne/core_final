@@ -7,12 +7,12 @@ from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import UntypedToken
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 import jwt
-from apps.identity.models.auth_models import LoginSession
 
-User = get_user_model()
 
 @database_sync_to_async
 def get_user_tenant_aware(user_id, role, schema):
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
     from apps.identity.models.core_models import User
     from django_tenants.utils import schema_context
     from apps.auip_institution.models import (
