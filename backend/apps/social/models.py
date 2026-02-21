@@ -2,21 +2,6 @@ from django.db import models
 from apps.auip_institution.models import StudentAcademicRegistry, FacultyAcademicRegistry
 import uuid
 
-class Connection(models.Model):
-    """
-    Social Graph for following students and teachers.
-    """
-    follower_id = models.IntegerField(db_index=True) # ID of AuthorizedAccount in current tenant
-    follower_role = models.CharField(max_length=20)   # STUDENT, FACULTY
-    
-    following_id = models.IntegerField(db_index=True)
-    following_role = models.CharField(max_length=20)
-    
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        unique_together = ('follower_id', 'follower_role', 'following_id', 'following_role')
-
 class SocialPost(models.Model):
     """
     Student/Faculty posts for the institutional professional hub.
@@ -28,8 +13,8 @@ class SocialPost(models.Model):
     
     content = models.TextField()
     
-    # Rich Media
-    media_url = models.URLField(blank=True, null=True)
+    # Rich Media (Saved locally in /media/posts/)
+    media_file = models.FileField(upload_to='posts/%Y/%m/', blank=True, null=True)
     media_type = models.CharField(max_length=20, choices=[('IMAGE', 'Image'), ('VIDEO', 'Video'), ('NONE', 'None')], default='NONE')
     
     # Engagement (Denormalized)
@@ -99,7 +84,7 @@ class ChatMessage(models.Model):
     sender_role = models.CharField(max_length=20)
     
     content = models.TextField()
-    attachment_url = models.URLField(blank=True, null=True)
+    attachment_file = models.FileField(upload_to='chats/', blank=True, null=True)
     
     received = models.BooleanField(default=False)
     read = models.BooleanField(default=False)

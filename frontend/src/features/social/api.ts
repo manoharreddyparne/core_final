@@ -35,8 +35,22 @@ export const socialApi = {
         return response.data.data;
     },
 
-    createPost: async (content: string, media_url?: string, media_type: string = 'NONE') => {
-        const response = await socialClient.post("social/feed/", { content, media_url, media_type });
+    createPost: async (content: string, mediaData?: File | string, media_type: string = 'NONE') => {
+        const formData = new FormData();
+        formData.append('content', content);
+        formData.append('media_type', media_type);
+
+        if (mediaData) {
+            if (mediaData instanceof File) {
+                formData.append('media_file', mediaData);
+            } else {
+                formData.append('media_url', mediaData); // Fallback or external
+            }
+        }
+
+        const response = await socialClient.post("social/feed/", formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
         return response.data;
     },
 

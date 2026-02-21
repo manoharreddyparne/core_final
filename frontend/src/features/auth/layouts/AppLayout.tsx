@@ -97,7 +97,8 @@ export const AppLayout = () => {
         { to: "/student-intelligence", label: "Intelligence Hub", icon: Brain, roles: ["student"] },
         { to: "/resume-studio", label: "Resume Studio", icon: FileText, roles: ["student"] },
         { to: "/placement-hub", label: "Careers", icon: Briefcase, roles: ["student"] },
-        { to: "/professional-hub", label: "Social Hub", icon: Globe, roles: ["student"] },
+        { to: "/professional-hub", label: "Social Hub", icon: Globe, roles: ["student", "faculty", "institution_admin"] },
+        { to: "/newsletters", label: "Nexus Bulletins", icon: FileText, roles: ["student"] },
         { to: "/support-hub", label: "Support", icon: HelpCircle, roles: ["student"] },
 
         // GLOBAL HUB (SUPER ADMIN)

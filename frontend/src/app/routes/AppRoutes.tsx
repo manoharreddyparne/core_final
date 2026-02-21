@@ -28,6 +28,7 @@ import SmartResumeStudio from "../../features/resumes/pages/SmartResumeStudio";
 import PlacementHub from "../../features/placement/pages/PlacementHub";
 import ProfessionalHub from "../../features/social/pages/ProfessionalHub";
 import SupportDesk from "../../features/social/pages/SupportDesk";
+import { NewsletterPage } from "../../features/governance/pages/NewsletterPage";
 
 import ProtectedRoute from "../../features/auth/components/ProtectedRoute";
 import PublicRoute from "../../features/auth/components/PublicRoute";
@@ -250,6 +251,14 @@ export const AppRoutes = () => {
           element={
             <ProtectedRoute allowedRoles={["student"]}>
               <SupportDesk />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/newsletters"
+          element={
+            <ProtectedRoute allowedRoles={["student"]}>
+              <NewsletterPage />
             </ProtectedRoute>
           }
         />

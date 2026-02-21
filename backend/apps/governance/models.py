@@ -109,8 +109,8 @@ class Blog(models.Model):
     slug = models.SlugField(max_length=255, unique=True)
     content = models.TextField()
     
-    # Media Support
-    media_url = models.URLField(blank=True, null=True, help_text="Image or Video URL")
+    # Media Support (Saved Locally in /media/blogs/)
+    media_file = models.FileField(upload_to='blogs/%Y/%m/', blank=True, null=True)
     media_type = models.CharField(max_length=20, choices=[('IMAGE', 'Image'), ('VIDEO', 'Video'), ('NONE', 'None')], default='NONE')
     
     author_id = models.IntegerField(help_text="ID of the Faculty/Admin/Student posting")
@@ -119,7 +119,7 @@ class Blog(models.Model):
     tags = models.JSONField(default=list, blank=True)
     is_published = models.BooleanField(default=False)
     
-    # Engagement Counters (denormalized for performance)
+    # Engagement Counters
     likes_count = models.IntegerField(default=0)
     comments_count = models.IntegerField(default=0)
     
@@ -149,21 +149,37 @@ class BlogComment(models.Model):
 
 class MediaAttachment(models.Model):
     """
-    Supports media for blogs or posts.
+    Supports media for blogs or posts. Saved in /media/uploads/
     """
-    file_url = models.URLField()
-    file_type = models.CharField(max_length=50) # image/png, video/mp4
-    uploaded_by_id = models.IntegerField()
+    file = models.FileField(upload_to='uploads/%Y/%m/', null=True, blank=True)
+    file_type = models.CharField(max_length=50, null=True, blank=True) # image/png, video/mp4
+    uploaded_by_id = models.IntegerField(null=True, blank=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
 class Newsletter(models.Model):
+    """
+    Institutional Newsletters for official updates.
+    """
     month = models.CharField(max_length=20)
     year = models.IntegerField()
     title = models.CharField(max_length=255)
+    slug = models.SlugField(max_length=255, unique=True, null=True)
+    cover_image = models.ImageField(upload_to='newsletters/', blank=True, null=True)
     content_html = models.TextField()
+    
+    category = models.CharField(max_length=50, default='INSTITUTIONAL')
     status = models.CharField(max_length=20, choices=[('DRAFT', 'Draft'), ('SENT', 'Sent')], default='DRAFT')
+    
     sent_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(f"{self.title}-{self.month}-{self.year}")
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.title} - {self.month} {self.year}"
 
 class DocumentTemplate(models.Model):
     name = models.CharField(max_length=255)

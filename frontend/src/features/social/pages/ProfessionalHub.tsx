@@ -10,7 +10,7 @@ const ProfessionalHub: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [newPostContent, setNewPostContent] = useState("");
-    const [mediaUrl, setMediaUrl] = useState("");
+    const [mediaFile, setMediaFile] = useState<File | null>(null);
     const [discoverList, setDiscoverList] = useState<any[]>([]);
 
     const fetchAll = () => {
@@ -32,9 +32,10 @@ const ProfessionalHub: React.FC = () => {
     const handleCreatePost = async () => {
         if (!newPostContent) return;
         try {
-            await socialApi.createPost(newPostContent, mediaUrl, mediaUrl ? 'IMAGE' : 'NONE');
+            const mType = mediaFile ? (mediaFile.type.startsWith('image') ? 'IMAGE' : 'VIDEO') : 'NONE';
+            await socialApi.createPost(newPostContent, mediaFile || "", mType);
             setNewPostContent("");
-            setMediaUrl("");
+            setMediaFile(null);
             setShowCreateModal(false);
             fetchAll();
         } catch (err) {
@@ -74,26 +75,36 @@ const ProfessionalHub: React.FC = () => {
                         value={newPostContent}
                         onChange={(e) => setNewPostContent(e.target.value)}
                     />
-                    <div className="flex gap-4">
-                        <input
-                            type="text"
-                            className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-6 py-3 text-sm text-white"
-                            placeholder="Media URL (Image/Video)"
-                            value={mediaUrl}
-                            onChange={(e) => setMediaUrl(e.target.value)}
-                        />
-                        <button
-                            onClick={handleCreatePost}
-                            className="px-8 py-3 premium-gradient text-white font-bold rounded-2xl"
-                        >
-                            Broadcast
-                        </button>
-                        <button
-                            onClick={() => setShowCreateModal(false)}
-                            className="px-6 py-3 bg-white/5 text-white font-bold rounded-2xl"
-                        >
-                            Cancel
-                        </button>
+                    <div className="flex flex-col md:flex-row gap-4">
+                        <div className="flex-1 relative">
+                            <input
+                                type="file"
+                                id="post-media"
+                                className="hidden"
+                                onChange={(e) => setMediaFile(e.target.files ? e.target.files[0] : null)}
+                            />
+                            <label
+                                htmlFor="post-media"
+                                className="flex items-center gap-3 px-6 py-3 bg-white/5 border border-white/10 rounded-2xl text-sm text-white/60 hover:text-white hover:bg-white/10 cursor-pointer transition-all w-full"
+                            >
+                                <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                {mediaFile ? mediaFile.name : "Attach Image/Video"}
+                            </label>
+                        </div>
+                        <div className="flex gap-4">
+                            <button
+                                onClick={handleCreatePost}
+                                className="px-8 py-3 premium-gradient text-white font-bold rounded-2xl shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all"
+                            >
+                                Broadcast
+                            </button>
+                            <button
+                                onClick={() => setShowCreateModal(false)}
+                                className="px-6 py-3 bg-white/5 text-white/40 hover:text-white font-bold rounded-2xl transition-all"
+                            >
+                                Cancel
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

@@ -47,7 +47,7 @@ class AIIntelligenceViewSet(viewsets.ViewSet):
                 current_time = timezone.now().strftime("%Y-%m-%d %H:%M:%S")
                 
                 context_data = {
-                    "student_name": f"{student.first_name} {student.last_name}",
+                    "student_name": student.full_name,
                     "branch": student.branch,
                     "year": student.admission_year,
                     "current_time": current_time,
