@@ -22,17 +22,17 @@ placementClient.interceptors.request.use((config) => {
 
 export const placementApi = {
     getEligibleDrives: async (): Promise<PlacementDrive[]> => {
-        const response = await placementClient.get("placement/drive/my_eligible_drives/");
+        const response = await placementClient.get("placement/drives/my_eligible_drives/");
         return response.data.data;
     },
 
     getApplications: async (): Promise<PlacementApplication[]> => {
-        const response = await placementClient.get("placement/application/");
+        const response = await placementClient.get("placement/applications/");
         return response.data;
     },
 
     applyForDrive: async (driveId: number, resumeUrl: string): Promise<any> => {
-        const response = await placementClient.post("placement/application/", { drive: driveId, resume_url: resumeUrl });
+        const response = await placementClient.post("placement/applications/", { drive: driveId, resume_url: resumeUrl });
         return response.data;
     }
 };

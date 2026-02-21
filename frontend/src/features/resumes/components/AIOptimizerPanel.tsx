@@ -13,6 +13,10 @@ export const AIOptimizerPanel: React.FC<AIOptimizerPanelProps> = ({ resumeId, on
     const [summary, setSummary] = useState('');
 
     const handleOptimize = async () => {
+        if (resumeId === 0) {
+            alert("Please save your resume draft first before using AI Optimization.");
+            return;
+        }
         if (!jd.trim()) return;
         setLoading(true);
         try {

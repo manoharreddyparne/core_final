@@ -22,39 +22,37 @@ resumeClient.interceptors.request.use((config) => {
 
 export const resumeApi = {
     getResumes: async (): Promise<StudentResume[]> => {
-        const response = await resumeClient.get("resumes/resume/");
+        const response = await resumeClient.get("resumes/builder/");
         return response.data;
     },
 
     getTemplates: async (): Promise<ResumeTemplate[]> => {
-        // Note: This endpoint should be added to the backend if not present
-        // For now assuming it exists or using mock
         const response = await resumeClient.get("resumes/template/");
         return response.data;
     },
 
     getResume: async (id: number): Promise<StudentResume> => {
-        const response = await resumeClient.get(`resumes/resume/${id}/`);
+        const response = await resumeClient.get(`resumes/builder/${id}/`);
         return response.data;
     },
 
     createResume: async (data: any): Promise<StudentResume> => {
-        const response = await resumeClient.post("resumes/resume/", data);
+        const response = await resumeClient.post("resumes/builder/", data);
         return response.data;
     },
 
     updateResume: async (id: number, content: any): Promise<StudentResume> => {
-        const response = await resumeClient.patch(`resumes/resume/${id}/`, { content });
+        const response = await resumeClient.patch(`resumes/builder/${id}/`, { content });
         return response.data;
     },
 
     aiOptimize: async (id: number, target_jd: string): Promise<AIOptimizationResponse> => {
-        const response = await resumeClient.post(`resumes/resume/${id}/ai_optimize/`, { target_jd });
+        const response = await resumeClient.post(`resumes/builder/${id}/ai_optimize/`, { target_jd });
         return response.data.data;
     },
 
     checkATS: async (resumeId: number, driveId: number): Promise<ATSCheckResponse> => {
-        const response = await resumeClient.get(`resumes/resume/${resumeId}/check_ats_fit/?drive_id=${driveId}`);
+        const response = await resumeClient.get(`resumes/builder/${resumeId}/check_ats_fit/?drive_id=${driveId}`);
         return response.data.data;
     }
 };

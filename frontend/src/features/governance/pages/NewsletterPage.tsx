@@ -1,13 +1,23 @@
 import React, { useEffect, useState } from 'react';
-import { apiClient } from '../../auth/api/base';
+import axios from 'axios';
+import { getAccessToken } from '../../auth/utils/tokenStorage';
+
+const BASE_URL = import.meta.env.VITE_BACKEND_URL
+    ? `${import.meta.env.VITE_BACKEND_URL}/api/`
+    : `http://localhost:8000/api/`;
 
 export const NewsletterPage: React.FC = () => {
     const [newsletters, setNewsletters] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        apiClient.get("governance/newsletters/").then(res => {
-            setNewsletters(res.data.results || res.data);
+        const client = axios.create({ baseURL: BASE_URL, withCredentials: true });
+        const token = getAccessToken();
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+        client.get("governance/newsletters/", { headers }).then(res => {
+            const data = res.data?.data || res.data;
+            setNewsletters(Array.isArray(data) ? data : (data.results || []));
         }).finally(() => setLoading(false));
     }, []);
 

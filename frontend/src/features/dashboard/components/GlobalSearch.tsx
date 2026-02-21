@@ -23,6 +23,18 @@ export const GlobalSearch = ({ isOpen, onClose }: { isOpen: boolean, onClose: ()
         }
     };
 
+    const PAGES = [
+        { title: "Student Dashboard", path: "/student-dashboard", type: "admin" },
+        { title: "Intelligence Hub", path: "/student-intelligence", type: "config" },
+        { title: "Resume Studio", path: "/resume-studio", type: "config" },
+        { title: "Career Placement", path: "/placement-hub", type: "admin" },
+        { title: "Professional Hub", path: "/professional-hub", type: "admin" },
+        { title: "Nexus Bulletins", path: "/newsletters", type: "admin" },
+        { title: "Support & Healing", path: "/support-hub", type: "security" },
+        { title: "My Profile", path: "/profile", type: "admin" },
+        { title: "Security Hub", path: "/security", type: "security" },
+    ];
+
     const handleSearch = async (val: string) => {
         if (val.length < 2) {
             setResults(null);
@@ -30,9 +42,23 @@ export const GlobalSearch = ({ isOpen, onClose }: { isOpen: boolean, onClose: ()
         }
         setLoading(true);
         try {
+            // Local Page Navigation check
+            const localNav = PAGES.filter(p =>
+                p.title.toLowerCase().includes(val.toLowerCase())
+            );
+
             const res = await apiClient.get(`superadmin/global-search/?q=${val}`);
-            const data = res.data?.data;
-            setResults(data || { institutions: [], users: [], navigation: [] });
+            const data = res.data?.data || { institutions: [], users: [], navigation: [] };
+
+            // Merge local and remote navigation
+            const combinedNav = [...localNav, ...(data.navigation || [])];
+            // Remove duplicates by path
+            const uniqueNav = combinedNav.filter((v, i, a) => a.findIndex(t => t.path === v.path) === i);
+
+            setResults({
+                ...data,
+                navigation: uniqueNav
+            });
         } catch (err) {
             console.error("Search failed", err);
         } finally {
@@ -192,8 +218,8 @@ export const GlobalSearch = ({ isOpen, onClose }: { isOpen: boolean, onClose: ()
                         )}
 
                         {query.length >= 2 && !loading &&
-                            (results?.institutions.length === 0 &&
-                                results?.users.length === 0 &&
+                            (results?.institutions?.length === 0 &&
+                                results?.users?.length === 0 &&
                                 (results as any)?.navigation?.length === 0) && (
                                 <div className="py-12 text-center space-y-2">
                                     <Search className="w-10 h-10 text-gray-200 mx-auto" />

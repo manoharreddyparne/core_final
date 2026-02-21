@@ -2,6 +2,7 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from .models import SocialPost, SocialLike, SocialComment, Connection, ChatSession, SupportTicket
+from .serializers import SocialPostSerializer, SocialCommentSerializer, SupportTicketSerializer
 from apps.auip_institution.authentication import TenantAuthentication
 from apps.identity.utils.response_utils import success_response, error_response
 import uuid
@@ -13,6 +14,7 @@ class SocialFeedViewSet(viewsets.ModelViewSet):
     authentication_classes = [TenantAuthentication]
     permission_classes = [permissions.IsAuthenticated]
     queryset = SocialPost.objects.all().order_by('-created_at')
+    serializer_class = SocialPostSerializer
 
     def perform_create(self, serializer):
         author_name = f"{self.request.user.first_name} {self.request.user.last_name}"
@@ -51,7 +53,7 @@ class SocialFeedViewSet(viewsets.ModelViewSet):
             post=post,
             user_id=request.user.id,
             user_role=request.user.role,
-            user_name=f"{request.user.first_name} {request.user.last_name}",
+            user_name=request.user.full_name if hasattr(request.user, 'full_name') else f"{request.user.first_name} {request.user.last_name}",
             content=content
         )
         post.comments_count += 1
@@ -88,6 +90,7 @@ class SupportViewSet(viewsets.ModelViewSet):
     """
     authentication_classes = [TenantAuthentication]
     queryset = SupportTicket.objects.all()
+    serializer_class = SupportTicketSerializer
 
     def perform_create(self, serializer):
         # Auto-diagnose on create

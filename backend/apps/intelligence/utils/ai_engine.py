@@ -22,7 +22,7 @@ def call_gemini_ai(prompt, system_instruction=None, context_data=None):
             full_system_msg += f"\n\nStudent Context:\n{context_data}"
         
         model = genai.GenerativeModel(
-            model_name="gemini-1.5-flash",
+            model_name="gemini-pro", # Using gemini-pro for widest v1beta compatibility
             system_instruction=full_system_msg
         )
         

@@ -98,7 +98,7 @@ class BlogViewSet(viewsets.ModelViewSet):
             blog=blog,
             user_id=request.user.id,
             user_role=request.user.role,
-            user_name=f"{request.user.first_name} {request.user.last_name}",
+            user_name=request.user.full_name if hasattr(request.user, 'full_name') else f"{request.user.first_name} {request.user.last_name}",
             content=content
         )
         blog.comments_count += 1
