@@ -29,12 +29,15 @@ class IntelligenceProfileViewSet(viewsets.ReadOnlyModelViewSet):
         if not student:
             return error_response("Student academic record not found.")
             
-        profile = BrainOrchestrator.rebuild_student_matrix(student.id)
+        profile, _ = StudentIntelligenceProfile.objects.get_or_create(student=student)
+        
+        from .utils.brain_engine import GovernanceBrain
+        results = GovernanceBrain.retrain_for_student(profile)
         
         return success_response("Student matrix synced and behavior trained.", data={
-            "behavior_score": profile.behavior_score,
-            "interest_matrix": profile.interest_matrix,
-            "controls": profile.active_controls
+            "behavior_score": results["behavior_score"],
+            "risk_factor": results["risk_factor"],
+            "controls": results["controls"]
         })
 
 class GovernancePolicyViewSet(viewsets.ModelViewSet):
@@ -49,7 +52,7 @@ class GovernancePolicyViewSet(viewsets.ModelViewSet):
         from apps.auip_institution.permissions import IsTenantAdmin
         return [IsTenantAdmin()]
 
-from .models import Blog, Newsletter, DocumentTemplate
+from .models import Blog, Newsletter, DocumentTemplate, BlogLike, BlogComment
 from .serializers import BlogSerializer, NewsletterSerializer, DocumentTemplateSerializer
 from apps.auip_institution.permissions import IsTenantAdmin
 
@@ -59,9 +62,49 @@ class BlogViewSet(viewsets.ModelViewSet):
     serializer_class = BlogSerializer
 
     def get_permissions(self):
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return [IsTenantAdmin()]
+        # Students can create blogs (Social Posts)
+        if self.action in ['create']:
+            return [permissions.IsAuthenticated()]
+        if self.action in ['update', 'partial_update', 'destroy']:
+            return [IsTenantAdmin()] # Only admin can delete/hide for now, or owner (TODO)
         return [permissions.IsAuthenticated()]
+
+    @action(detail=True, methods=['post'])
+    def like(self, request, pk=None):
+        blog = self.get_object()
+        like, created = BlogLike.objects.get_or_create(
+            blog=blog,
+            user_id=request.user.id,
+            user_role=request.user.role
+        )
+        if not created:
+            like.delete()
+            blog.likes_count = max(0, blog.likes_count - 1)
+            blog.save()
+            return success_response("Blog unliked", data={"likes": blog.likes_count})
+        
+        blog.likes_count += 1
+        blog.save()
+        return success_response("Blog liked", data={"likes": blog.likes_count})
+
+    @action(detail=True, methods=['post'])
+    def comment(self, request, pk=None):
+        blog = self.get_object()
+        content = request.data.get('content')
+        if not content:
+            return error_response("Comment content required.")
+            
+        comment = BlogComment.objects.create(
+            blog=blog,
+            user_id=request.user.id,
+            user_role=request.user.role,
+            user_name=f"{request.user.first_name} {request.user.last_name}",
+            content=content
+        )
+        blog.comments_count += 1
+        blog.save()
+        
+        return success_response("Comment added", data={"comment_id": comment.id})
 
     @action(detail=False, methods=['get'])
     def for_you(self, request):

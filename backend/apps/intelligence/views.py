@@ -37,24 +37,47 @@ class AIIntelligenceViewSet(viewsets.ViewSet):
                     return error_response("Student academic record required.")
                     
                 query_text = request.data.get('query')
-                context = request.data.get('context', 'CAREER')
+                context_type = request.data.get('context', 'CAREER')
                 
                 if not query_text:
                     return error_response("Query text is required.")
 
-                # TODO: Integrate with LLM API (OpenAI/Gemini/Ollama)
-                mock_response = f"AI Analysis for: {query_text}\n\nBased on your academic profile ({student.branch}), I recommend focusing on Data Structures and specialized certs in {context}."
+                # Prepare context for AI
+                from django.utils import timezone
+                current_time = timezone.now().strftime("%Y-%m-%d %H:%M:%S")
+                
+                context_data = {
+                    "student_name": f"{student.first_name} {student.last_name}",
+                    "branch": student.branch,
+                    "year": student.admission_year,
+                    "current_time": current_time,
+                    "context_type": context_type
+                }
+                
+                from .utils.ai_engine import call_gemini_ai
+                system_instr = (
+                    "You are AUIP Assistant, a professional AI mentor. "
+                    "You provide career advice, resume tips, and technical guidance. "
+                    "Be concise, professional, and helpful. "
+                    f"Current server time is {current_time}. If asked about time, use this value."
+                )
+                
+                ai_response = call_gemini_ai(
+                    prompt=query_text,
+                    system_instruction=system_instr,
+                    context_data=str(context_data)
+                )
                 
                 session = AIQuerySession.objects.create(
                     student=student,
                     query_text=query_text,
-                    ai_response=mock_response,
-                    context_type=context
+                    ai_response=ai_response,
+                    context_type=context_type
                 )
                 
                 return success_response("AI analysis complete", data={
                     "session_id": session.id,
-                    "response": mock_response
+                    "response": ai_response
                 })
         except Exception as e:
             logger.error(f"[AI-INTELLIGENCE-ERROR] {e}", exc_info=True)
@@ -116,9 +139,16 @@ class StudentDashboardViewSet(viewsets.ViewSet):
             "controls": profile.active_controls
         }
 
+        # 4. Social/Blog Feed
+        from apps.governance.models import Blog
+        from apps.governance.serializers import BlogSerializer
+        recent_blogs = Blog.objects.filter(is_published=True).order_by('-created_at')[:4]
+        blog_data = BlogSerializer(recent_blogs, many=True).data
+
         return success_response("Student AI Dashboard retrieved", data={
             "governance": governance,
             "placement_summary": application_stats,
             "recent_ai_guidance": [ai.prompt for ai in recent_ai],
+            "recent_blogs": blog_data,
             "system_status": "All systems operational. Governance Brain is monitoring behavior for matrix updates."
         })

@@ -17,6 +17,7 @@ export interface IntelligenceDashboard {
     governance: GovernanceMetrics;
     placement_summary: PlacementSummary;
     recent_ai_guidance: string[];
+    recent_blogs?: any[]; // For professional hub integration
     system_status: string;
 }
 

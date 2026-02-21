@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Blog, Newsletter, DocumentTemplate, StudentIntelligenceProfile, GovernancePolicy
+from .models import Blog, Newsletter, DocumentTemplate, StudentIntelligenceProfile, GovernancePolicy, BlogComment, BlogLike
 
 class StudentIntelligenceProfileSerializer(serializers.ModelSerializer):
     class Meta:
@@ -11,7 +11,14 @@ class GovernancePolicySerializer(serializers.ModelSerializer):
         model = GovernancePolicy
         fields = '__all__'
 
+class BlogCommentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BlogComment
+        fields = '__all__'
+
 class BlogSerializer(serializers.ModelSerializer):
+    comments = BlogCommentSerializer(many=True, read_only=True)
+    
     class Meta:
         model = Blog
         fields = '__all__'

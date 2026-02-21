@@ -4,10 +4,12 @@ import { intelligenceApi } from '../api';
 import { IntelligenceDashboard as DashboardData } from '../types';
 import { ReadinessMeter } from '../components/ReadinessMeter';
 import { AIChat } from '../components/AIChat';
+import { GovernanceBrainModal } from '../components/GovernanceBrainModal';
 
 const IntelligenceDashboard: React.FC = () => {
     const [data, setData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
+    const [brainModalOpen, setBrainModalOpen] = useState(false);
 
     useEffect(() => {
         const fetchDashboard = async () => {
@@ -53,7 +55,16 @@ const IntelligenceDashboard: React.FC = () => {
                         <div className="absolute top-0 right-0 p-4 opacity-5">
                             <svg className="w-32 h-32" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L1 21h22L12 2zm0 3.45l8.15 14.1H3.85L12 5.45z" /></svg>
                         </div>
-                        <h2 className="text-xl font-bold text-white mb-6 tracking-tight">Governance Scores</h2>
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-xl font-bold text-white tracking-tight">Governance Scores</h2>
+                            <button
+                                onClick={() => setBrainModalOpen(true)}
+                                className="text-[10px] font-black text-indigo-400 uppercase tracking-widest hover:text-white transition-colors"
+                            >
+                                View Brain History
+                            </button>
+                        </div>
+
                         <div className="grid grid-cols-2 gap-4">
                             <ReadinessMeter score={data.governance.readiness} label="Readiness" />
                             <ReadinessMeter score={data.governance.behavior} label="Behavior" color="green-400" />
@@ -99,8 +110,28 @@ const IntelligenceDashboard: React.FC = () => {
 
                     {/* AI Chat */}
                     <AIChat />
+
+                    {/* Professional Hub Insights */}
+                    <div className="space-y-6">
+                        <h2 className="text-xl font-bold text-white flex items-center gap-3">
+                            <div className="w-2 h-8 bg-pink-500 rounded-full"></div>
+                            Hub Insights
+                        </h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {data.recent_blogs && data.recent_blogs.map((blog: any) => (
+                                <div key={blog.id} className="glass p-6 rounded-[2rem] hover:border-pink-500/30 transition-all group">
+                                    <h4 className="font-bold text-white group-hover:text-pink-400 transition-colors line-clamp-2">{blog.title}</h4>
+                                    <div className="mt-4 flex justify-between items-center">
+                                        <span className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">{blog.author_role}</span>
+                                        <button className="text-[10px] text-pink-500 font-black uppercase tracking-widest bg-pink-500/10 px-3 py-1 rounded-full">Read</button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
                 </div>
             </div>
+            <GovernanceBrainModal isOpen={brainModalOpen} onClose={() => setBrainModalOpen(false)} />
         </div>
     );
 };

@@ -6,29 +6,53 @@ import { StudentResume } from '../types';
 import { AIOptimizerPanel } from '../components/AIOptimizerPanel';
 import { ATSScoreCard } from '../components/ATSScoreCard';
 
+import { SmartResumeCanvas } from '../components/SmartResumeCanvas';
+
 const SmartResumeStudio: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const [resume, setResume] = useState<StudentResume | null>(null);
     const [loading, setLoading] = useState(true);
-    const [activeSection, setActiveSection] = useState('summary');
+    const [activeSection, setActiveSection] = useState('all');
 
     useEffect(() => {
-        if (id) {
+        if (id && id !== 'new') {
             resumeApi.getResume(parseInt(id)).then(setResume).finally(() => setLoading(false));
         } else {
-            // Mock or create new logic
+            // Default mock for 'new'
+            setResume({
+                id: 0,
+                resume_name: "Draft Resume",
+                personal_info: {
+                    name: "Manohar P.",
+                    email: "manohar@auip-nexus.com",
+                    phone: "+91 94342 XXXXX",
+                    location: "Port Blair, S. Andaman",
+                    summary: "Aspiring Cloud Architect and Software Engineer with deep interest in AI/ML."
+                },
+                skills: ["React", "Python", "Docker", "AWS", "TypeScript"],
+                experience: [
+                    {
+                        company: "AUIP Tech Labs",
+                        role: "Student Intern",
+                        duration: "Jan 2026 - Present",
+                        bullets: ["Developing multi-tenant AI architecture", "Scaling PostgreSQL for 10k users"]
+                    }
+                ],
+                education: [],
+                projects: [],
+                awards: [],
+                ats_score_cache: 78
+            });
             setLoading(false);
         }
     }, [id]);
 
-    if (loading) return <div className="text-white animate-pulse">Initializing Studio...</div>;
-
-    const mockContent = resume?.content || {
-        summary: "Ambitious Engineering student with projects in AI...",
-        experience: [],
-        education: [{ school: "AUIP University", year: "2026" }],
-        skills: ["React", "Python", "Cloud"]
-    };
+    if (loading) return (
+        <div className="flex flex-col items-center justify-center h-[70vh] space-y-6">
+            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin shadow-2xl shadow-primary/20"></div>
+            <p className="text-muted-foreground font-black tracking-widest animate-pulse uppercase text-xs">Calibrating Resume Canvas...</p>
+        </div>
+    );
 
     return (
         <div className="space-y-8 animate-in fade-in duration-1000">
@@ -38,7 +62,7 @@ const SmartResumeStudio: React.FC = () => {
                         Smart <span className="text-primary NOT-italic">Resume</span> Studio
                     </h1>
                     <p className="text-muted-foreground mt-2 font-medium">
-                        RAG-Integrated Canvas Interface
+                        Professional Canvas Interface | {resume?.resume_name}
                         {resume?.is_ai_optimized && <span className="ml-3 px-2 py-0.5 bg-green-400/20 text-green-400 rounded text-[10px] uppercase font-black">AI Optimized</span>}
                     </p>
                 </div>
@@ -52,7 +76,7 @@ const SmartResumeStudio: React.FC = () => {
                 {/* Left: Toolbar/Sections */}
                 <div className="lg:col-span-1 space-y-4">
                     <div className="glass p-4 rounded-[2.5rem] space-y-2">
-                        {['summary', 'experience', 'education', 'projects', 'skills'].map(sec => (
+                        {['all', 'summary', 'experience', 'education', 'projects', 'skills'].map(sec => (
                             <button
                                 key={sec}
                                 onClick={() => setActiveSection(sec)}
@@ -67,41 +91,8 @@ const SmartResumeStudio: React.FC = () => {
                 </div>
 
                 {/* center: Canvas */}
-                <div className="lg:col-span-2">
-                    <div className="glass bg-white p-12 rounded-[3.5rem] min-h-[800px] shadow-2xl relative overflow-hidden group">
-                        <div className="absolute inset-0 bg-grid-slate-100 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.6))] pointer-events-none opacity-20"></div>
-
-                        <div className="relative z-10 space-y-8">
-                            {/* Visual Resume Content Area */}
-                            <div className="border-b-2 border-slate-100 pb-6 flex items-center justify-between">
-                                <h2 className="text-3xl font-black text-slate-800 uppercase tracking-tight">Manohar P.</h2>
-                                <p className="text-slate-500 font-medium">Port Blair, Andaman & Nicobar</p>
-                            </div>
-
-                            <section className="space-y-4">
-                                <h3 className="text-xs font-black text-primary uppercase tracking-[0.2em]">{activeSection}</h3>
-                                <div className="text-slate-700 leading-relaxed font-serif text-lg min-h-[200px] outline-none" contentEditable>
-                                    {activeSection === 'summary' && mockContent.summary}
-                                    {activeSection === 'skills' && mockContent.skills.join(", ")}
-                                    {activeSection === 'education' && mockContent.education[0].school}
-                                    {activeSection === 'experience' && "Click to add professional experience..."}
-                                    {activeSection === 'projects' && "No projects synced from your RAG profile yet."}
-                                </div>
-                            </section>
-
-                            <div className="mt-20 pt-20 border-t border-slate-50 text-slate-300 text-[10px] font-mono flex justify-between">
-                                <span>AUIP_RAG_ENCODER_V1.1</span>
-                                <span>METADATA_SYNCED_2026</span>
-                            </div>
-                        </div>
-
-                        {/* Hover Overlay */}
-                        <div className="absolute inset-x-0 bottom-0 p-8 translate-y-full group-hover:translate-y-0 bg-gradient-to-t from-white via-white/95 to-transparent transition-all">
-                            <button className="w-full py-4 bg-primary/10 border border-primary/20 text-primary font-black rounded-3xl hover:bg-primary/20 transition-all">
-                                CLICK TO ENTER SMART-FOCUS MODE
-                            </button>
-                        </div>
-                    </div>
+                <div className="lg:col-span-2 flex justify-center">
+                    <SmartResumeCanvas data={resume} activeSection={activeSection} />
                 </div>
 
                 {/* Right: AI & Meta */}

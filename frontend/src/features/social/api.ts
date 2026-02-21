@@ -25,14 +25,44 @@ export const socialApi = {
         return response.data;
     },
 
+    getDiscovery: async (search: string = '') => {
+        const response = await socialClient.get(`social/feed/discover/?search=${search}`);
+        return response.data;
+    },
+
     getBlogsForYou: async () => {
         const response = await socialClient.get("governance/blogs/for_you/");
         return response.data.data;
     },
 
-    createPost: async (content: string) => {
-        const response = await socialClient.post("social/feed/", { content });
+    createPost: async (content: string, media_url?: string, media_type: string = 'NONE') => {
+        const response = await socialClient.post("social/feed/", { content, media_url, media_type });
         return response.data;
+    },
+
+    likePost: async (id: number) => {
+        const response = await socialClient.post(`social/feed/${id}/like/`);
+        return response.data.data;
+    },
+
+    commentOnPost: async (id: number, content: string) => {
+        const response = await socialClient.post(`social/feed/${id}/comment/`, { content });
+        return response.data.data;
+    },
+
+    followUser: async (id: number, role: string = 'STUDENT') => {
+        const response = await socialClient.post("social/feed/follow/", { target_id: id, target_role: role });
+        return response.data;
+    },
+
+    likeBlog: async (id: number) => {
+        const response = await socialClient.post(`governance/blogs/${id}/like/`);
+        return response.data.data;
+    },
+
+    commentOnBlog: async (id: number, content: string) => {
+        const response = await socialClient.post(`governance/blogs/${id}/comment/`, { content });
+        return response.data.data;
     },
 
     supportDiagnosis: async (subject: string, description: string) => {

@@ -57,6 +57,24 @@ class StudentBehaviorLog(models.Model):
             models.Index(fields=['timestamp']),
         ]
 
+class GovernanceBrainState(models.Model):
+    """
+    Persists the state of the Governance Brain (Model weights, training metadata).
+    Supports the 'Retraining automatically' requirement.
+    """
+    model_version = models.CharField(max_length=50, unique=True)
+    weights_metadata = models.JSONField(help_text="Serialized weights or hyperparameters for the behavioral engine")
+    
+    accuracy_score = models.FloatField(default=0.0)
+    samples_trained = models.IntegerField(default=0)
+    
+    is_active = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Brain Version: {self.model_version}"
+
 class StudentIntelligenceProfile(models.Model):
     """
     The 'Content Matrix' for the student.
@@ -65,8 +83,9 @@ class StudentIntelligenceProfile(models.Model):
     student = models.OneToOneField(StudentAcademicRegistry, on_delete=models.CASCADE, related_name='intel_profile')
     
     # Scores
-    behavior_score = models.IntegerField(default=0, help_text="Derived from active usage")
-    readiness_score = models.IntegerField(default=0, help_text="Placement readiness (0-100)")
+    behavior_score = models.IntegerField(default=70, help_text="Derived from active usage")
+    readiness_score = models.IntegerField(default=50, help_text="Placement readiness (0-100)")
+    risk_factor = models.FloatField(default=0.0, help_text="0.0 to 1.0 probability of policy violation")
     
     # Content Matrix (Interests & Skills Mappings)
     interest_matrix = models.JSONField(default=dict, help_text="Weighted interests based on behavior logs")
@@ -74,6 +93,7 @@ class StudentIntelligenceProfile(models.Model):
     
     # Feature Controls (derived by Governance Brain using Policies)
     active_controls = models.JSONField(default=dict, help_text="Enabled/Disabled features based on policies")
+    manual_overrides = models.JSONField(default=dict, help_text="Policy overrides by faculty")
     
     last_computed = models.DateTimeField(auto_now=True)
 
@@ -83,18 +103,58 @@ class StudentIntelligenceProfile(models.Model):
 class Blog(models.Model):
     """
     Institutional Blog Posts for knowledge sharing, updates, and student engagement.
+    Re-engineered for 'LinkedIn-like' features (Media, Text, Video).
     """
     title = models.CharField(max_length=255)
     slug = models.SlugField(max_length=255, unique=True)
     content = models.TextField()
-    author_id = models.IntegerField(help_text="ID of the Faculty/Admin posting the blog")
-    author_role = models.CharField(max_length=50, choices=[('FACULTY', 'Faculty'), ('ADMIN', 'Admin')])
+    
+    # Media Support
+    media_url = models.URLField(blank=True, null=True, help_text="Image or Video URL")
+    media_type = models.CharField(max_length=20, choices=[('IMAGE', 'Image'), ('VIDEO', 'Video'), ('NONE', 'None')], default='NONE')
+    
+    author_id = models.IntegerField(help_text="ID of the Faculty/Admin/Student posting")
+    author_role = models.CharField(max_length=50, choices=[('FACULTY', 'Faculty'), ('ADMIN', 'Admin'), ('STUDENT', 'Student')])
+    
     tags = models.JSONField(default=list, blank=True)
     is_published = models.BooleanField(default=False)
-    thumbnail_url = models.URLField(blank=True, null=True)
+    
+    # Engagement Counters (denormalized for performance)
+    likes_count = models.IntegerField(default=0)
+    comments_count = models.IntegerField(default=0)
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     published_at = models.DateTimeField(null=True, blank=True)
+
+class BlogLike(models.Model):
+    blog = models.ForeignKey(Blog, on_delete=models.CASCADE, related_name='likes')
+    user_id = models.IntegerField()
+    user_role = models.CharField(max_length=20)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('blog', 'user_id', 'user_role')
+
+class BlogComment(models.Model):
+    blog = models.ForeignKey(Blog, on_delete=models.CASCADE, related_name='comments')
+    user_id = models.IntegerField()
+    user_role = models.CharField(max_length=20)
+    user_name = models.CharField(max_length=255)
+    
+    content = models.TextField()
+    parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='replies')
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class MediaAttachment(models.Model):
+    """
+    Supports media for blogs or posts.
+    """
+    file_url = models.URLField()
+    file_type = models.CharField(max_length=50) # image/png, video/mp4
+    uploaded_by_id = models.IntegerField()
+    uploaded_at = models.DateTimeField(auto_now_add=True)
 
 class Newsletter(models.Model):
     month = models.CharField(max_length=20)

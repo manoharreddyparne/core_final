@@ -82,7 +82,7 @@ class BehaviorTrackingMiddleware:
                 if '/search' in request.path and request.method == 'GET':
                      event_type = 'SEARCH'
 
-                StudentBehaviorLog.objects.create(
+                log_entry = StudentBehaviorLog.objects.create(
                     student=student,
                     event_type=event_type,
                     target_id=target_id,
@@ -91,6 +91,14 @@ class BehaviorTrackingMiddleware:
                     ip_address=request.META.get('REMOTE_ADDR'),
                     user_agent=request.META.get('HTTP_USER_AGENT', '')[:255]
                 )
+
+                # 🧠 Continuous Retraining Logic
+                # Trigger retraining on significant state-changing events
+                if event_type in ['CLICK', 'SEARCH'] or '/auth/' in request.path:
+                    from apps.governance.utils.brain_engine import GovernanceBrain
+                    from apps.governance.models import StudentIntelligenceProfile
+                    profile, _ = StudentIntelligenceProfile.objects.get_or_create(student=student)
+                    GovernanceBrain.retrain_for_student(profile)
             
         except Exception as e:
-            logger.error(f"[BRAIN-ERROR] [Schema:{schema}] Failed to log behavior: {e}")
+            logger.error(f"[BRAIN-ERROR] [Schema:{schema}] Failed to log behavior or retrain: {e}")

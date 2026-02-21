@@ -2,20 +2,45 @@
 import React, { useEffect, useState } from 'react';
 import { socialApi } from '../api';
 
+import { FeedPost } from '../components/FeedPost';
+
 const ProfessionalHub: React.FC = () => {
     const [blogs, setBlogs] = useState<any[]>([]);
     const [posts, setPosts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [newPostContent, setNewPostContent] = useState("");
+    const [mediaUrl, setMediaUrl] = useState("");
+    const [discoverList, setDiscoverList] = useState<any[]>([]);
 
-    useEffect(() => {
+    const fetchAll = () => {
         Promise.all([
             socialApi.getBlogsForYou(),
-            socialApi.getFeed()
-        ]).then(([b, p]) => {
+            socialApi.getFeed(),
+            socialApi.getDiscovery()
+        ]).then(([b, p, d]) => {
             setBlogs(b);
-            setPosts(p);
+            setPosts(p?.results || p); // Handle DRF Pagination if present
+            setDiscoverList(d.data);
         }).finally(() => setLoading(false));
+    };
+
+    useEffect(() => {
+        fetchAll();
     }, []);
+
+    const handleCreatePost = async () => {
+        if (!newPostContent) return;
+        try {
+            await socialApi.createPost(newPostContent, mediaUrl, mediaUrl ? 'IMAGE' : 'NONE');
+            setNewPostContent("");
+            setMediaUrl("");
+            setShowCreateModal(false);
+            fetchAll();
+        } catch (err) {
+            console.error(err);
+        }
+    };
 
     if (loading) return <div className="text-white animate-pulse">Synchronizing professional networks...</div>;
 
@@ -31,10 +56,47 @@ const ProfessionalHub: React.FC = () => {
                         Your personalized network powered by the AUIP Intelligence Matrix.
                     </p>
                 </div>
-                <button className="px-8 py-3 bg-white text-blue-900 font-bold rounded-2xl shadow-xl hover:bg-white/90 transition-all">
+                <button
+                    onClick={() => setShowCreateModal(true)}
+                    className="px-8 py-3 bg-white text-blue-900 font-bold rounded-2xl shadow-xl hover:bg-white/90 transition-all"
+                >
                     Create New Post
                 </button>
             </div>
+
+            {/* Create Post Modal (Mock/Inline for now) */}
+            {showCreateModal && (
+                <div className="glass p-8 rounded-[3rem] space-y-4 animate-in zoom-in-95">
+                    <h3 className="text-xl font-bold text-white">What's on your mind?</h3>
+                    <textarea
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl p-6 text-white min-h-[120px] focus:outline-none focus:border-primary"
+                        placeholder="Share an update, project or thought..."
+                        value={newPostContent}
+                        onChange={(e) => setNewPostContent(e.target.value)}
+                    />
+                    <div className="flex gap-4">
+                        <input
+                            type="text"
+                            className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-6 py-3 text-sm text-white"
+                            placeholder="Media URL (Image/Video)"
+                            value={mediaUrl}
+                            onChange={(e) => setMediaUrl(e.target.value)}
+                        />
+                        <button
+                            onClick={handleCreatePost}
+                            className="px-8 py-3 premium-gradient text-white font-bold rounded-2xl"
+                        >
+                            Broadcast
+                        </button>
+                        <button
+                            onClick={() => setShowCreateModal(false)}
+                            className="px-6 py-3 bg-white/5 text-white font-bold rounded-2xl"
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                 {/* Left: Feed */}
@@ -46,31 +108,52 @@ const ProfessionalHub: React.FC = () => {
 
                     <div className="space-y-6">
                         {posts.map(post => (
-                            <div key={post.id} className="glass p-8 rounded-[3rem] space-y-4">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-primary font-bold">
-                                        {post.author_role?.charAt(0)}
-                                    </div>
-                                    <div>
-                                        <p className="text-white font-bold text-sm">Anonymous {post.author_role}</p>
-                                        <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">Global Access</p>
-                                    </div>
-                                </div>
-                                <p className="text-blue-100 font-medium leading-relaxed">
-                                    {post.content}
-                                </p>
-                                <div className="pt-4 border-t border-white/5 flex gap-6 text-[10px] font-black uppercase tracking-widest text-white/20">
-                                    <button className="hover:text-primary transition-colors">Respect</button>
-                                    <button className="hover:text-primary transition-colors">Quote</button>
-                                    <button className="hover:text-primary transition-colors">Sync</button>
-                                </div>
-                            </div>
+                            <FeedPost key={post.id} post={post} />
                         ))}
                     </div>
                 </div>
 
-                {/* Right: Blogs for You */}
-                <div className="lg:col-span-1 space-y-6">
+                {/* Right: Blogs & Discovery */}
+                <div className="lg:col-span-1 space-y-8">
+                    {/* Discovery Segment */}
+                    <div className="glass p-8 rounded-[3rem] space-y-6">
+                        <h2 className="text-xl font-bold text-white flex items-center gap-3">
+                            <div className="w-2 h-8 bg-indigo-500 rounded-full"></div>
+                            Discovery
+                        </h2>
+                        <div className="relative">
+                            <input
+                                type="text"
+                                placeholder="Find peers..."
+                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 transition-all font-medium"
+                                onChange={(e) => {
+                                    socialApi.getDiscovery(e.target.value).then(res => setDiscoverList(res.data));
+                                }}
+                            />
+                        </div>
+                        <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                            {discoverList.map((user: any) => (
+                                <div key={user.id} className="flex items-center justify-between group">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-400 font-black text-xs">
+                                            {user.avatar}
+                                        </div>
+                                        <div>
+                                            <p className="text-white text-xs font-bold">{user.name}</p>
+                                            <p className="text-[9px] text-muted-foreground font-black uppercase tracking-tighter">{user.role}</p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => socialApi.followUser(user.id)}
+                                        className="text-[9px] font-black uppercase text-indigo-400 hover:text-white transition-colors"
+                                    >
+                                        Connect
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
                     <h2 className="text-xl font-bold text-white flex items-center gap-3">
                         <div className="w-2 h-8 bg-pink-500 rounded-full"></div>
                         For You
