@@ -42,30 +42,12 @@ class AIIntelligenceViewSet(viewsets.ViewSet):
                 if not query_text:
                     return error_response("Query text is required.")
 
-                # Prepare context for AI
-                from django.utils import timezone
-                current_time = timezone.now().strftime("%Y-%m-%d %H:%M:%S")
+                from apps.core_brain.services import BrainOrchestrator
                 
-                context_data = {
-                    "student_name": student.full_name,
-                    "branch": student.branch,
-                    "year": student.admission_year,
-                    "current_time": current_time,
-                    "context_type": context_type
-                }
-                
-                from .utils.ai_engine import call_gemini_ai
-                system_instr = (
-                    "You are AUIP Assistant, a professional AI mentor. "
-                    "You provide career advice, resume tips, and technical guidance. "
-                    "Be concise, professional, and helpful. "
-                    f"Current server time is {current_time}. If asked about time, use this value."
-                )
-                
-                ai_response = call_gemini_ai(
-                    prompt=query_text,
-                    system_instruction=system_instr,
-                    context_data=str(context_data)
+                ai_response = BrainOrchestrator.get_llm_guidance(
+                    student_id=student.id,
+                    query=query_text,
+                    context_type=context_type
                 )
                 
                 session = AIQuerySession.objects.create(

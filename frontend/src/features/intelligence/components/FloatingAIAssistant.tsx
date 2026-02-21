@@ -113,7 +113,8 @@ export const FloatingAIAssistant: React.FC = () => {
             {/* Floating Toggle Button */}
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="w-16 h-16 rounded-full premium-gradient shadow-2xl shadow-primary/40 flex items-center justify-center text-white hover:scale-110 transition-transform duration-300 relative group"
+                className="w-16 h-16 rounded-full premium-gradient shadow-2xl shadow-primary/40 flex items-center justify-center text-white hover:scale-110 transition-transform duration-300 relative group animate-bounce"
+                style={{ animationDuration: '3s' }}
             >
                 {isOpen ? <X className="w-6 h-6" /> : <Bot className="w-7 h-7" />}
                 {!isOpen && (

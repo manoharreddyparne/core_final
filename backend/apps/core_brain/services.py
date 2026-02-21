@@ -136,20 +136,44 @@ class BrainOrchestrator:
             return ai_text
         except Exception as e:
             logger.error(f"[BRAIN-API-ERROR] LLM call failed: {e}")
-            if "404" in str(e) or "not found" in str(e):
-                logger.warning("Attempting fallback to gemini-pro for RAG guidance.")
-                try:
-                    fallback_client = genai.GenerativeModel('gemini-pro')
-                    response = fallback_client.generate_content(f"{system_prompt}\n\nUSER QUERY: {query}")
-                    ai_text = response.text
-                    LLMInteraction.objects.create(
-                        student=student, prompt=query, response=ai_text, using_rag=True
-                    )
-                    return ai_text
-                except Exception as fallback_e:
-                     return f"My advanced models are temporarily offline. Based on your behavioral matrix, keep up the good work on your assignments! ({str(fallback_e)[:50]})"
             
-            return "I'm currently processing a lot of system upgrades. However, focusing on your current department projects is highly advised."
+            # --- START HEURISTIC RAG FALLBACK (FREE TIER MOCK ENGINE) ---
+            lower_query = query.lower()
+            heuristic_response = ""
+            
+            if "time" in lower_query:
+                from django.utils import timezone
+                current_time = timezone.now().strftime("%I:%M %p, %d %b %Y")
+                heuristic_response = f"The current server time is **{current_time}**. Don't forget you have pending assignments soon based on your active behavior matrix."
+            elif "secure" in lower_query or "device" in lower_query or "password" in lower_query:
+                heuristic_response = (
+                    "To secure your device or change your password, please navigate to the **[Settings > Security Portal](/settings/security)**. "
+                    "From there, you can view active web sessions, revoke untrusted devices from your passport, and update your Auth token."
+                )
+            elif "myself" in lower_query or "who am i" in lower_query or "profile" in lower_query:
+                heuristic_response = (
+                    f"You are **{student.full_name}**, a student in the **{student.department}** department. "
+                    f"Your AUIP readiness score is **{profile.readiness_score}/100**. "
+                    f"I've noticed your core interests revolve around: **{', '.join(profile.interest_matrix.keys()) if profile.interest_matrix else 'General Academics'}**."
+                )
+            elif "improve" in lower_query or "resume" in lower_query:
+                heuristic_response = (
+                    "To improve your resume matches (ATS), I recommend: \n"
+                    "1. Uploading your latest PDF to the **[Smart Resume Studio](/resume-builder)**.\n"
+                    "2. Ensuring your skills matrix includes modern keywords relative to your major.\n"
+                    "3. Completing more placement mock assessments. I will track your progress."
+                )
+            else:
+                heuristic_response = (
+                    "I am the Governance Brain. Since my premium external LLM nodes are currently facing limit constraints, "
+                    "I am answering you via my local neural cache. I can help you with your portal settings, resume tips, or profile stats. What do you need?"
+                )
+                
+            LLMInteraction.objects.create(
+                student=student, prompt=query, response=heuristic_response, using_rag=False
+            )
+            return heuristic_response
+            # --- END HEURISTIC RAG FALLBACK ---
 
 class ATSService:
     """
