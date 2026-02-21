@@ -111,16 +111,20 @@ export const FloatingAIAssistant: React.FC = () => {
             )}
 
             {/* Floating Toggle Button */}
-            <button
-                onClick={() => setIsOpen(!isOpen)}
-                className="w-16 h-16 rounded-full premium-gradient shadow-2xl shadow-primary/40 flex items-center justify-center text-white hover:scale-110 transition-transform duration-300 relative group animate-bounce"
-                style={{ animationDuration: '3s' }}
-            >
-                {isOpen ? <X className="w-6 h-6" /> : <Bot className="w-7 h-7" />}
-                {!isOpen && (
-                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-[#0b1120] animate-pulse"></span>
-                )}
-            </button>
+            <div className="relative group">
+                <div className="absolute -inset-2 rounded-full bg-primary/20 blur-xl group-hover:bg-primary/40 transition-all duration-500 animate-pulse"></div>
+                <button
+                    onClick={() => setIsOpen(!isOpen)}
+                    className="w-16 h-16 rounded-full premium-gradient shadow-[0_0_30px_rgba(var(--primary),0.5)] flex items-center justify-center text-white hover:scale-110 transition-all duration-300 relative z-10 animate-bounce"
+                    style={{ animationDuration: '2s', animationTimingFunction: 'cubic-bezier(0.28, 0.84, 0.42, 1)' }}
+                >
+                    {isOpen ? <X className="w-6 h-6" /> : <Bot className="w-7 h-7" />}
+
+                    {!isOpen && (
+                        <span className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-[#0b1120] animate-pulse shadow-lg shadow-green-500/50"></span>
+                    )}
+                </button>
+            </div>
         </div>
     );
 };
