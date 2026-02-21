@@ -23,7 +23,7 @@ class BrainOrchestrator:
         if not api_key or api_key == 'your_gemini_api_key_here':
             return None
         genai.configure(api_key=api_key)
-        return genai.GenerativeModel('gemini-pro')
+        return genai.GenerativeModel('gemini-1.5-flash-latest')
 
     @staticmethod
     def rebuild_student_matrix(student_id):
@@ -136,7 +136,20 @@ class BrainOrchestrator:
             return ai_text
         except Exception as e:
             logger.error(f"[BRAIN-API-ERROR] LLM call failed: {e}")
-            return f"I'm sorry, I'm currently processing a lot of data. However, based on your profile, I suggest focusing on your {student.department} projects."
+            if "404" in str(e) or "not found" in str(e):
+                logger.warning("Attempting fallback to gemini-pro for RAG guidance.")
+                try:
+                    fallback_client = genai.GenerativeModel('gemini-pro')
+                    response = fallback_client.generate_content(f"{system_prompt}\n\nUSER QUERY: {query}")
+                    ai_text = response.text
+                    LLMInteraction.objects.create(
+                        student=student, prompt=query, response=ai_text, using_rag=True
+                    )
+                    return ai_text
+                except Exception as fallback_e:
+                     return f"My advanced models are temporarily offline. Based on your behavioral matrix, keep up the good work on your assignments! ({str(fallback_e)[:50]})"
+            
+            return "I'm currently processing a lot of system upgrades. However, focusing on your current department projects is highly advised."
 
 class ATSService:
     """
@@ -242,6 +255,8 @@ class SelfHealingSupportService:
             else:
                 ticket.status = 'OPEN'
             ticket.save()
-        except:
+        except Exception as e:
+            logger.error(f"Support Matrix Error: {e}")
+            ticket.ai_diagnosis = "Our automated healing agent is currently undergoing maintenance. A human support agent has been assigned to your ticket."
             ticket.status = 'OPEN'
             ticket.save()

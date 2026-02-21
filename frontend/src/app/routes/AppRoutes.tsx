@@ -28,6 +28,7 @@ import SmartResumeStudio from "../../features/resumes/pages/SmartResumeStudio";
 import PlacementHub from "../../features/placement/pages/PlacementHub";
 import ProfessionalHub from "../../features/social/pages/ProfessionalHub";
 import SupportDesk from "../../features/social/pages/SupportDesk";
+import { ChatHub } from "../../features/social/pages/ChatHub";
 import { NewsletterPage } from "../../features/governance/pages/NewsletterPage";
 
 import ProtectedRoute from "../../features/auth/components/ProtectedRoute";
@@ -243,6 +244,14 @@ export const AppRoutes = () => {
           element={
             <ProtectedRoute allowedRoles={["student"]}>
               <ProfessionalHub />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/chat-hub"
+          element={
+            <ProtectedRoute allowedRoles={["student"]}>
+              <ChatHub />
             </ProtectedRoute>
           }
         />

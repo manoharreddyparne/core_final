@@ -21,7 +21,9 @@ import {
     FileText,
     Briefcase,
     Globe,
-    HelpCircle
+    HelpCircle,
+    MessageCircle,
+    Bell
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 
@@ -32,6 +34,7 @@ import { getAccessToken, setAccessToken, hasAccessToken, isHydrating } from "../
 import { SecureDeviceModal } from "../components/SecureDeviceModal";
 import { ForcedLogoutModal } from "../components/ForcedLogoutModal";
 import { GlobalSearch } from "../../dashboard/components/GlobalSearch";
+import { FloatingAIAssistant } from "../../intelligence/components/FloatingAIAssistant";
 
 export const AppLayout = () => {
     const { user, logout, bootstrapping, bootstrapped } = useAuth();
@@ -53,6 +56,7 @@ export const AppLayout = () => {
     const [logoutCountdown, setLogoutCountdown] = useState(5);
     const [logoutReason, setLogoutReason] = useState<string | undefined>(undefined);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const [confirmLogoutModal, setConfirmLogoutModal] = useState(false);
     const lastValidationRef = useRef<number>(0);
 
     // 🛡️ LOADING GATE: Don't render ANYTHING until we know the auth status
@@ -98,6 +102,7 @@ export const AppLayout = () => {
         { to: "/resume-studio", label: "Resume Studio", icon: FileText, roles: ["student"] },
         { to: "/placement-hub", label: "Careers", icon: Briefcase, roles: ["student"] },
         { to: "/professional-hub", label: "Social Hub", icon: Globe, roles: ["student", "faculty", "institution_admin"] },
+        { to: "/chat-hub", label: "Messages & Connect", icon: MessageCircle, roles: ["student"] },
         { to: "/newsletters", label: "Nexus Bulletins", icon: FileText, roles: ["student"] },
         { to: "/support-hub", label: "Support", icon: HelpCircle, roles: ["student"] },
 
@@ -515,7 +520,7 @@ export const AppLayout = () => {
                     </Button>
 
                     <button
-                        onClick={logout}
+                        onClick={() => setConfirmLogoutModal(true)}
                         className={`w-full flex items-center gap-2 px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-all font-medium ${isSidebarCollapsed ? "justify-center" : ""}`}
                         title="Sign Out"
                     >
@@ -538,13 +543,20 @@ export const AppLayout = () => {
                 <div className="max-w-7xl mx-auto animate-in fade-in duration-300">
                     <div className="mb-6 flex items-center justify-between">
                         <div className="md:invisible font-bold text-gray-500 uppercase tracking-widest text-[10px]">Portal Access</div>
-                        <button
-                            onClick={() => setIsSearchOpen(true)}
-                            className="glass px-4 py-2 rounded-2xl border-white/5 flex items-center gap-3 text-xs font-bold text-gray-400 hover:text-white hover:bg-white/10 transition-all group"
-                        >
-                            <Search className="w-4 h-4 group-hover:text-primary transition-colors" />
-                            <span>Type <span className="text-white hover:text-primary">Cmd+K</span> to search everything...</span>
-                        </button>
+                        <div className="flex items-center gap-4">
+                            <button className="relative w-10 h-10 rounded-2xl glass border-white/5 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-colors">
+                                <Bell className="w-5 h-5" />
+                                <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                            </button>
+                            <button
+                                onClick={() => setIsSearchOpen(true)}
+                                className="glass px-4 py-2 rounded-2xl border-white/5 flex items-center gap-3 text-xs font-bold text-gray-400 hover:text-white hover:bg-white/10 transition-all group"
+                            >
+                                <Search className="w-4 h-4 group-hover:text-primary transition-colors" />
+                                <span className="hidden sm:inline">Type <span className="text-white hover:text-primary">Cmd+K</span> to search everything...</span>
+                                <span className="sm:hidden">Search...</span>
+                            </button>
+                        </div>
                     </div>
                     <Outlet />
                 </div>
@@ -571,6 +583,41 @@ export const AppLayout = () => {
                     isOpen={isSearchOpen}
                     onClose={() => setIsSearchOpen(false)}
                 />
+            )}
+
+            {/* AI Assistant Chatbot */}
+            {user && <FloatingAIAssistant />}
+
+            {/* Logout Confirmation Modal */}
+            {confirmLogoutModal && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="glass bg-[#0b1120] p-8 rounded-[3rem] max-w-sm w-full shadow-2xl space-y-6">
+                        <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
+                            <LogOut className="w-8 h-8 text-red-500" />
+                        </div>
+                        <h2 className="text-2xl font-black text-center text-white">Sign Out?</h2>
+                        <p className="text-gray-400 text-center text-sm font-medium">
+                            Are you sure you want to log out and terminate your current encrypted session securely?
+                        </p>
+                        <div className="flex gap-4 pt-4">
+                            <button
+                                onClick={() => setConfirmLogoutModal(false)}
+                                className="flex-1 px-4 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl font-bold transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setConfirmLogoutModal(false);
+                                    logout();
+                                }}
+                                className="flex-1 px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold transition-colors shadow-lg shadow-red-500/20"
+                            >
+                                Sign Out
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

@@ -12,6 +12,7 @@ class SocialPostSerializer(serializers.ModelSerializer):
     class Meta:
         model = SocialPost
         fields = '__all__'
+        read_only_fields = ('author_id', 'author_role', 'author_name', 'likes_count', 'comments_count', 'repost_count')
 
 class ConnectionSerializer(serializers.ModelSerializer):
     class Meta:

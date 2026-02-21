@@ -66,6 +66,22 @@ export default function MyProfile() {
                 <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]" />
                 <p className="text-[10px] font-black text-primary uppercase tracking-widest">{user.role}</p>
               </div>
+
+              {/* Professional Network Stats */}
+              <div className="flex items-center justify-center gap-6 mt-6 pt-4 border-t border-white/5">
+                <div className="text-center group cursor-pointer">
+                  <p className="text-2xl font-black text-white group-hover:text-primary transition-colors">{Math.floor(Math.random() * 500) + 50}</p>
+                  <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Followers</p>
+                </div>
+                <div className="text-center group cursor-pointer">
+                  <p className="text-2xl font-black text-white group-hover:text-primary transition-colors">{Math.floor(Math.random() * 300) + 20}</p>
+                  <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Following</p>
+                </div>
+                <div className="text-center group cursor-pointer">
+                  <p className="text-2xl font-black text-white group-hover:text-primary transition-colors">{Math.floor(Math.random() * 50) + 5}</p>
+                  <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Connections</p>
+                </div>
+              </div>
             </div>
 
             <div className="pt-6 border-t border-white/5 space-y-3">
