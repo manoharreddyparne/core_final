@@ -53,6 +53,16 @@ export const useChatSocket = (sessionId: string | null, currentUserId?: number) 
         };
     }, [sessionId, currentUserId]);
 
+    useEffect(() => {
+        connect();
+        return () => {
+            if (socketRef.current) {
+                socketRef.current.close();
+                socketRef.current = null;
+            }
+        };
+    }, [connect]);
+
     const sendMessage = (message: string, attType = 'TEXT') => {
         if (socketRef.current?.readyState === WebSocket.OPEN) {
             socketRef.current.send(jsonStr({
