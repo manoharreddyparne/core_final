@@ -318,29 +318,29 @@ export const ChatHub = () => {
 
             {/* Right Side */}
             {activeSession ? (
-                <div className="flex-1 glass rounded-[2.5rem] border-white/5 flex flex-col overflow-hidden h-full relative">
+                <div className="flex-1 glass rounded-[2.5rem] border-white/5 flex flex-col overflow-hidden h-full relative min-w-0 min-h-0">
                     {/* Header */}
-                    <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/[0.02] backdrop-blur-xl">
+                    <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/[0.02] backdrop-blur-xl shrink-0">
                         <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-[1.2rem] bg-indigo-500/20 flex items-center justify-center text-indigo-400 font-black shadow-lg">
+                            <div className="w-12 h-12 rounded-[1.2rem] bg-indigo-500/20 flex items-center justify-center text-indigo-400 font-black shadow-lg shrink-0">
                                 {activeSession.other_name[0]}
                             </div>
-                            <div className="flex flex-col">
-                                <h3 className="font-bold text-white text-lg flex items-center gap-2">
+                            <div className="flex flex-col min-w-0">
+                                <h3 className="font-bold text-white text-lg flex items-center gap-2 truncate">
                                     {activeSession.other_name}
-                                    <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${activeSession.is_online ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-white/5 text-gray-500 border border-white/5'}`}>
+                                    <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest shrink-0 ${activeSession.is_online ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-white/5 text-gray-500 border border-white/5'}`}>
                                         {activeSession.is_online ? 'Online' : `Last seen ${activeSession.last_seen ? new Date(activeSession.last_seen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Unknown'}`}
                                     </span>
                                 </h3>
                                 <div className="flex items-center gap-2 mt-0.5">
-                                    <div className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-indigo-500 animate-pulse shadow-[0_0_8px_rgba(99,102,241,0.5)]' : 'bg-red-500'}`} />
-                                    <p className={`text-[8px] uppercase font-black tracking-widest ${connected ? 'text-indigo-400' : 'text-red-500'}`}>
+                                    <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${connected ? 'bg-indigo-500 animate-pulse shadow-[0_0_8px_rgba(99,102,241,0.5)]' : 'bg-red-500'}`} />
+                                    <p className={`text-[8px] uppercase font-black tracking-widest truncate ${connected ? 'text-indigo-400' : 'text-red-500'}`}>
                                         {connected ? 'E2EE Channel Established' : 'Connecting Vault...'}
                                     </p>
                                 </div>
                             </div>
                         </div>
-                        <div className="flex gap-3">
+                        <div className="flex gap-3 shrink-0">
                             <button onClick={handleCall} className="w-11 h-11 rounded-2xl bg-white/5 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all"><Phone className="w-5 h-5" /></button>
                             <button onClick={handleVideo} className="w-11 h-11 rounded-2xl bg-white/5 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all"><Video className="w-5 h-5" /></button>
                             <div className="w-px h-8 bg-white/10 mx-1 self-center" />
@@ -349,7 +349,7 @@ export const ChatHub = () => {
                     </div>
 
                     {/* Messages */}
-                    <div className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar" ref={scrollRef}>
+                    <div className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar min-h-0 relative" ref={scrollRef}>
                         <div className="flex flex-col items-center gap-2 py-4">
                             <ShieldCheck className="w-4 h-4 text-green-500/30" />
                             <span className="text-[9px] font-black text-white/20 uppercase tracking-[0.3em]">End-to-End Encrypted Channel</span>
