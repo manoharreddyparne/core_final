@@ -197,7 +197,7 @@ const ProfessionalHub: React.FC = () => {
                         For You
                     </h2>
                     <div className="space-y-4">
-                        {blogs.map(blog => (
+                        {(blogs || []).map(blog => (
                             <div key={blog.id} className="glass group overflow-hidden rounded-[2.5rem] border-white/5 hover:border-pink-500/30 transition-all">
                                 <div className="h-32 bg-white/5 relative flex items-center justify-center">
                                     <div className="absolute inset-0 bg-gradient-to-br from-pink-500/10 to-transparent"></div>

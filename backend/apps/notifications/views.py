@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from apps.notifications.models import Notification, Announcement
 from apps.notifications.serializers import NotificationSerializer, AnnouncementSerializer
 from apps.auip_institution.authentication import TenantAuthentication
+from apps.identity.authentication import SafeJWTAuthentication
 from apps.identity.utils.response_utils import success_response, error_response
 from django_tenants.utils import schema_context
 import logging
