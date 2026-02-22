@@ -39,26 +39,31 @@ class BrainOrchestrator:
             logger.error(f"[BRAIN-CLIENT-INIT-ERROR]: {e}")
             return None
 
+    _executor = ThreadPoolExecutor(max_workers=10) # Managed global pool to prevent leaks
+
     @staticmethod
     def generate_text(prompt, system_prompt=None, history=None):
         """
         Unified method to call LLM regardless of provider.
         Runs in a background thread to avoid blocking the main Daphne/Django event loop.
+        Uses a persistent pool to prevent OS thread exhaustion.
         """
         if history is None:
             history = []
             
-        with ThreadPoolExecutor(max_workers=1) as executor:
-            future = executor.submit(BrainOrchestrator._execute_generate, prompt, system_prompt, history)
-            try:
-                # Total hard limit of 40 seconds for the entire pipeline to allow waterfall discovery
-                return future.result(timeout=40)
-            except TimeoutError:
-                logger.error("[BRAIN-TIMEOUT] AI took too long. Protecting server threads.")
-                return None
-            except Exception as e:
-                logger.error(f"[BRAIN-THREAD-ERROR] {e}")
-                return None
+        future = BrainOrchestrator._executor.submit(
+            BrainOrchestrator._execute_generate, prompt, system_prompt, history
+        )
+        try:
+            # Total hard limit of 30 seconds for the entire pipeline
+            return future.result(timeout=30)
+        except TimeoutError:
+            logger.error("[BRAIN-TIMEOUT] AI node took too long. Protecting institutional uptime.")
+            # Note: We don't cancel because standard ThreadPool futures aren't easily cancellable
+            return None
+        except Exception as e:
+            logger.error(f"[BRAIN-THREAD-ERROR] Execution failed: {e}")
+            return None
 
     @staticmethod
     def _execute_generate(prompt, system_prompt=None, history=None):

@@ -35,6 +35,8 @@ import { SecureDeviceModal } from "../components/SecureDeviceModal";
 import { ForcedLogoutModal } from "../components/ForcedLogoutModal";
 import { GlobalSearch } from "../../dashboard/components/GlobalSearch";
 import { FloatingAIAssistant } from "../../intelligence/components/FloatingAIAssistant";
+import { NotificationOverlay } from "../../notifications/NotificationOverlay";
+import { notificationApi } from "../../notifications/api";
 
 export const AppLayout = () => {
     const { user, logout, bootstrapping, bootstrapped } = useAuth();
@@ -45,6 +47,33 @@ export const AppLayout = () => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(true); // Default open for visibility
+    const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+    const [unreadNotifs, setUnreadNotifs] = useState(0);
+
+    // Fetch notifications count
+    useEffect(() => {
+        if (!user) return;
+        const fetchCount = () => {
+            // ✅ SAFETY FIX: Bulletproof check for notification list
+            notificationApi.getNotifications().then(res => {
+                // Backend may return wrapped: { message: "...", data: [...] }
+                // or raw array if using certain DRF serializers
+                const list = res?.data || (Array.isArray(res) ? res : []);
+                if (Array.isArray(list)) {
+                    const unread = list.filter((n: any) => n && !n.is_read).length;
+                    setUnreadNotifs(unread);
+                } else {
+                    setUnreadNotifs(0);
+                }
+            }).catch(err => {
+                console.warn("[AppLayout] Notification fetch failed", err);
+                setUnreadNotifs(0);
+            });
+        };
+        fetchCount();
+        const interval = setInterval(fetchCount, 60000); // Check every minute
+        return () => clearInterval(interval);
+    }, [user, isNotificationsOpen]);
 
     // Secure Device Modal State
     const [secureModalOpen, setSecureModalOpen] = useState(false);
@@ -77,6 +106,41 @@ export const AppLayout = () => {
         );
     }
 
+    // Browser Push Notifications Implementation
+    useEffect(() => {
+        if (!user) return;
+
+        // 1. Request Permission
+        if ("Notification" in window && Notification.permission === "default") {
+            Notification.requestPermission();
+        }
+
+        // 2. Listen for WebSocket Triggered Events
+        const handleNewNotif = (event: any) => {
+            const data = event.detail;
+
+            // Show Browser Alert
+            if ("Notification" in window && Notification.permission === "granted") {
+                new Notification(data.title || "AUIP System Alert", {
+                    body: data.message || "You have a new update.",
+                    icon: '/favicon.ico',
+                    tag: 'auip-notification'
+                });
+            }
+
+            // Sync unread count immediately
+            notificationApi.getNotifications().then(res => {
+                setUnreadNotifs(res.data.filter((n: any) => !n.is_read).length);
+            });
+
+            // Visual feedback
+            toast.success(data.title || "New notification received");
+        };
+
+        window.addEventListener('new_notification', handleNewNotif);
+        return () => window.removeEventListener('new_notification', handleNewNotif);
+    }, [user]);
+
     // Cmd/Ctrl + K shortcut for global search
     useEffect(() => {
         const handleSearchShortcut = (e: KeyboardEvent) => {
@@ -101,8 +165,6 @@ export const AppLayout = () => {
         { to: "/student-intelligence", label: "Intelligence Hub", icon: Brain, roles: ["student"] },
         { to: "/resume-studio", label: "Resume Studio", icon: FileText, roles: ["student"] },
         { to: "/placement-hub", label: "Careers", icon: Briefcase, roles: ["student"] },
-        { to: "/professional-hub", label: "Social Hub", icon: Globe, roles: ["student"] },
-        { to: "/chat-hub", label: "Messages & Connect", icon: MessageCircle, roles: ["student"] },
         { to: "/newsletters", label: "Nexus Bulletins", icon: FileText, roles: ["student"] },
         { to: "/support-hub", label: "Support", icon: HelpCircle, roles: ["student"] },
 
@@ -137,9 +199,14 @@ export const AppLayout = () => {
             roles: ["institution_admin", "super_admin", "admin"],
             hideInGlobal: true
         },
+        // SOCIAL & CONNECT (CROSS-ROLE)
+        { to: "/professional-hub", label: "Professional Hub", icon: Globe, roles: ["student", "faculty", "institution_admin", "admin"] },
+        { to: "/discovery", label: "Search Network", icon: Search, roles: ["student", "faculty", "institution_admin", "admin"] },
+        { to: "/chat-hub", label: "Messages & Connect", icon: MessageCircle, roles: ["student", "faculty", "institution_admin", "admin"] },
+
         {
             to: "/institution/faculty",
-            label: "Faculty Hub",
+            label: "Academic Faculty",
             icon: Users,
             roles: ["institution_admin", "super_admin"],
             hideInGlobal: true
@@ -556,10 +623,21 @@ export const AppLayout = () => {
                     <div className="mb-6 flex items-center justify-between">
                         <div className="md:invisible font-bold text-gray-500 uppercase tracking-widest text-[10px]">Portal Access</div>
                         <div className="flex items-center gap-4">
-                            <button className="relative w-10 h-10 rounded-2xl glass border-white/5 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-colors">
-                                <Bell className="w-5 h-5" />
-                                <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-                            </button>
+                            <div className="relative">
+                                <button
+                                    onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+                                    className={`relative w-10 h-10 rounded-2xl glass border-white/5 flex items-center justify-center transition-colors ${isNotificationsOpen ? 'text-primary bg-white/10' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
+                                >
+                                    <Bell className="w-5 h-5" />
+                                    {unreadNotifs > 0 && (
+                                        <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                                    )}
+                                </button>
+                                <NotificationOverlay
+                                    isOpen={isNotificationsOpen}
+                                    onClose={() => setIsNotificationsOpen(false)}
+                                />
+                            </div>
                             <button
                                 onClick={() => setIsSearchOpen(true)}
                                 className="glass px-4 py-2 rounded-2xl border-white/5 flex items-center gap-3 text-xs font-bold text-gray-400 hover:text-white hover:bg-white/10 transition-all group"

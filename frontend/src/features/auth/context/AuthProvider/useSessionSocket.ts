@@ -172,6 +172,15 @@ export const useSessionSocket = (user: User | null, isReady: boolean = true) => 
           break;
         }
 
+        case "new_notification": {
+          console.log("[WS] 🔔 New Notification Received!", data);
+          const customEvent = new CustomEvent('new_notification', {
+            detail: data
+          });
+          window.dispatchEvent(customEvent);
+          break;
+        }
+
         case "ping":
           break;
       }

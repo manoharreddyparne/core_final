@@ -1,17 +1,56 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { User, Mail, Calendar, GraduationCap, Building2, Edit, Hash, ShieldCheck } from "lucide-react";
+import { User, Mail, Calendar, GraduationCap, Building2, Edit, Hash, ShieldCheck, X, Users, UserMinus, MessageSquare } from "lucide-react";
 import { useProfile } from "../hooks/userProfile";
+import { socialApi } from "@/features/social/api";
+import { toast } from "react-hot-toast";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function MyProfile() {
   const { profile, load, loading } = useProfile();
   const navigate = useNavigate();
+  const [networkStats, setNetworkStats] = useState<any>(null);
+  const [showModal, setShowModal] = useState<'followers' | 'following' | 'connections' | null>(null);
+  const [connections, setConnections] = useState<any>({ followers: [], following: [], connections: [] });
+  const [modalLoading, setModalLoading] = useState(false);
+
+  const loadNetwork = useCallback(async () => {
+    try {
+      const stats = await socialApi.getNetworkStats();
+      setNetworkStats(stats);
+    } catch (e) { console.error("Stats failed", e); }
+  }, []);
 
   useEffect(() => {
     load();
-  }, [load]);
+    loadNetwork();
+  }, [load, loadNetwork]);
+
+  const openConnections = async (type: 'followers' | 'following' | 'connections') => {
+    setShowModal(type);
+    setModalLoading(true);
+    try {
+      const data = await socialApi.getDetailedConnections();
+      setConnections(data);
+    } catch (e) {
+      toast.error("Failed to load connections");
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const handleDisconnect = async (connId: number) => {
+    try {
+      await socialApi.disconnectUser(connId);
+      toast.success("Connection removed");
+      // Refresh
+      const data = await socialApi.getDetailedConnections();
+      setConnections(data);
+      loadNetwork();
+    } catch (e) {
+      toast.error("Failed to disconnect");
+    }
+  };
 
   if (loading || !profile)
     return (
@@ -67,19 +106,41 @@ export default function MyProfile() {
                 <p className="text-[10px] font-black text-primary uppercase tracking-widest">{user.role}</p>
               </div>
 
-              {/* Professional Network Stats */}
-              <div className="flex items-center justify-center gap-6 mt-6 pt-4 border-t border-white/5">
-                <div className="text-center group cursor-pointer">
-                  <p className="text-2xl font-black text-white group-hover:text-primary transition-colors">{Math.floor(Math.random() * 500) + 50}</p>
-                  <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Followers</p>
+              {/* Premium Professional Network Stats */}
+              <div className="flex items-center justify-center gap-8 mt-8 pt-6 border-t border-white/5">
+                <div
+                  onClick={() => openConnections('followers')}
+                  className="text-center group cursor-pointer hover:scale-110 transition-all duration-500"
+                >
+                  <p className="text-3xl font-black text-white group-hover:text-primary transition-colors animate-in slide-in-from-top-4 duration-700">
+                    {networkStats?.followers_count || 0}
+                  </p>
+                  <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mt-1 opacity-60 group-hover:opacity-100 transition-opacity">Followers</p>
                 </div>
-                <div className="text-center group cursor-pointer">
-                  <p className="text-2xl font-black text-white group-hover:text-primary transition-colors">{Math.floor(Math.random() * 300) + 20}</p>
-                  <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Following</p>
+
+                <div className="w-px h-10 bg-white/5 mx-2" />
+
+                <div
+                  onClick={() => openConnections('following')}
+                  className="text-center group cursor-pointer hover:scale-110 transition-all duration-500"
+                >
+                  <p className="text-3xl font-black text-white group-hover:text-primary transition-colors animate-in slide-in-from-top-4 duration-1000">
+                    {networkStats?.following_count || 0}
+                  </p>
+                  <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mt-1 opacity-60 group-hover:opacity-100 transition-opacity">Following</p>
                 </div>
-                <div className="text-center group cursor-pointer">
-                  <p className="text-2xl font-black text-white group-hover:text-primary transition-colors">{Math.floor(Math.random() * 50) + 5}</p>
-                  <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Connections</p>
+
+                <div className="w-px h-10 bg-white/5 mx-2" />
+
+                <div
+                  onClick={() => openConnections('connections')}
+                  className="text-center group relative cursor-pointer hover:scale-110 transition-all duration-500"
+                >
+                  <div className="absolute -inset-4 bg-primary/5 rounded-full blur-xl group-hover:bg-primary/10 transition-all animate-pulse" />
+                  <p className="text-3xl font-black text-white relative group-hover:text-primary transition-colors animate-in slide-in-from-top-4 duration-700">
+                    {networkStats?.friends_count || 0}
+                  </p>
+                  <p className="text-[10px] text-primary font-black uppercase tracking-widest mt-1 relative opacity-80 group-hover:opacity-100 transition-opacity">Connections</p>
                 </div>
               </div>
             </div>
@@ -180,9 +241,102 @@ export default function MyProfile() {
           )}
         </div>
       </div>
+
+      <ConnectionsModal
+        isOpen={!!showModal}
+        onClose={() => setShowModal(null)}
+        type={showModal || 'followers'}
+        list={showModal ? connections[showModal] : []}
+        loading={modalLoading}
+        onDisconnect={handleDisconnect}
+      />
     </div>
   );
 }
+
+const ConnectionsModal = ({ isOpen, onClose, type, list, loading, onDisconnect }: any) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 min-h-screen">
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300" onClick={onClose} />
+      <div className="relative w-full max-w-3xl glass p-8 rounded-[3rem] border-white/10 shadow-3xl animate-in zoom-in-95 duration-300">
+        <div className="flex items-center justify-between mb-8 pb-4 border-b border-white/10">
+          <div>
+            <h3 className="text-2xl font-black text-white uppercase italic tracking-tighter">
+              Manage <span className="text-primary">{type}</span>
+            </h3>
+            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">Surgical Professional Network Overlook</p>
+          </div>
+          <button onClick={onClose} className="w-10 h-10 glass bg-white/5 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors">
+            <X className="w-4 h-4 text-white" />
+          </button>
+        </div>
+
+        <div className="max-h-[60vh] overflow-y-auto pr-4 space-y-4 custom-scrollbar">
+          {loading ? (
+            <div className="flex flex-col items-center py-12 gap-4">
+              <div className="w-8 h-8 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
+              <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Accessing Node Registry...</p>
+            </div>
+          ) : list.length > 0 ? (
+            list.map((node: any) => (
+              <div key={`${node.role}-${node.id}`} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 glass-dark rounded-2xl border border-white/5 group hover:border-primary/20 transition-all gap-4">
+                <div className="flex items-center gap-4 flex-1 min-w-0">
+                  <div className="relative shrink-0">
+                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black">
+                      {node.avatar}
+                    </div>
+                    {node.is_online && (
+                      <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-[#0a0a0a] shadow-lg animate-pulse" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h4 className="text-sm font-bold text-white group-hover:text-primary transition-colors truncate" title={node.name}>{node.name}</h4>
+                    <div className="flex flex-wrap items-center gap-2 mt-1">
+                      <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest border border-white/10 px-2 py-0.5 rounded-full">{node.role}</p>
+                      {node.is_online ? (
+                        <span className="text-[8px] font-black text-green-400 uppercase tracking-widest flex items-center gap-1">
+                          <span className="w-1 h-1 bg-green-400 rounded-full" /> Live
+                        </span>
+                      ) : node.last_seen && (
+                        <span className="text-[8px] font-bold text-gray-600 uppercase tracking-tight">Seen {new Date(node.last_seen).toLocaleDateString()}</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {node.status === 'FRIENDS' && (
+                    <button
+                      onClick={() => window.location.href = `/chat-hub?peer=${node.id}&role=${node.role}`}
+                      className="flex items-center gap-2 px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary text-[10px] font-black uppercase rounded-xl border border-primary/20 transition-all shadow-lg"
+                      title="Instant Collaboration"
+                    >
+                      <MessageSquare className="w-4 h-4" /> Message
+                    </button>
+                  )}
+                  <button
+                    onClick={() => onDisconnect(node.connection_id)}
+                    className="flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 text-[10px] font-black uppercase rounded-xl border border-red-500/20 transition-all shadow-lg hover:shadow-red-500/20"
+                  >
+                    <UserMinus className="w-3.5 h-3.5" />
+                    Terminate
+                  </button>
+                </div>
+              </div>
+            ))
+
+          ) : (
+            <div className="py-20 text-center opacity-30">
+              <Users className="w-12 h-12 mx-auto mb-4" />
+              <p className="text-[10px] font-black uppercase tracking-widest">No nodes found in this sector</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const AcademicStatCard = ({ icon, label, value }: { icon: React.ReactNode, label: string, value: any }) => (
   <div className="glass p-8 rounded-[2.5rem] border-white/5 hover:border-white/10 transition-all flex flex-col justify-between h-full bg-white/[0.01]">

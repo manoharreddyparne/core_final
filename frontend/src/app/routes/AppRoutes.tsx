@@ -29,6 +29,7 @@ import PlacementHub from "../../features/placement/pages/PlacementHub";
 import ProfessionalHub from "../../features/social/pages/ProfessionalHub";
 import SupportDesk from "../../features/social/pages/SupportDesk";
 import { ChatHub } from "../../features/social/pages/ChatHub";
+import { DiscoveryHub } from "../../features/social/pages/DiscoveryHub";
 import { NewsletterPage } from "../../features/governance/pages/NewsletterPage";
 
 import ProtectedRoute from "../../features/auth/components/ProtectedRoute";
@@ -249,15 +250,23 @@ export const AppRoutes = () => {
         <Route
           path="/professional-hub"
           element={
-            <ProtectedRoute allowedRoles={["student"]}>
+            <ProtectedRoute allowedRoles={["student", "faculty", "institution_admin", "admin", "super_admin"]}>
               <ProfessionalHub />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/discovery"
+          element={
+            <ProtectedRoute allowedRoles={["student", "faculty", "institution_admin", "admin", "super_admin"]}>
+              <DiscoveryHub />
             </ProtectedRoute>
           }
         />
         <Route
           path="/chat-hub"
           element={
-            <ProtectedRoute allowedRoles={["student"]}>
+            <ProtectedRoute allowedRoles={["student", "faculty", "institution_admin", "admin", "super_admin"]}>
               <ChatHub />
             </ProtectedRoute>
           }
@@ -265,7 +274,7 @@ export const AppRoutes = () => {
         <Route
           path="/support-hub"
           element={
-            <ProtectedRoute allowedRoles={["student"]}>
+            <ProtectedRoute allowedRoles={["student", "faculty", "institution_admin", "admin", "super_admin"]}>
               <SupportDesk />
             </ProtectedRoute>
           }

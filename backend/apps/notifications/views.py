@@ -14,19 +14,36 @@ class NotificationViewSet(viewsets.ModelViewSet):
     """
     ViewSet for individual user notifications.
     """
-    authentication_classes = [TenantAuthentication]
+    authentication_classes = [TenantAuthentication, SafeJWTAuthentication]
     serializer_class = NotificationSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         user = self.request.user
+        if getattr(user, 'role', '') == 'SUPER_ADMIN':
+            return Notification.objects.none()
+            
         # Resolve Public User ID from current Tenant Identity (linked by email)
         from apps.identity.models import User
+        user_obj = None
+        
+        # SafeJWTAuthentication sets user without email in some cases? No, user is from token.
+        email = getattr(user, 'email', None)
+        if not email:
+            return Notification.objects.none()
+
         with schema_context('public'):
-            user_obj = User.objects.filter(email=user.email).first()
-            if user_obj:
-                return Notification.objects.filter(recipient_id=user_obj.id).order_by('-created_at')
+            user_obj = User.objects.filter(email=email).first()
+            
+        if user_obj:
+            return Notification.objects.filter(recipient_id=user_obj.id).order_by('-created_at')
+            
         return Notification.objects.none()
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return success_response("Notifications retrieved", data=serializer.data)
 
     @action(detail=True, methods=['post'])
     def mark_as_read(self, request, pk=None):

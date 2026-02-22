@@ -64,13 +64,18 @@ class Connection(models.Model):
 class ChatSession(models.Model):
     """
     Metadata for 1-on-1 or group chats.
+    Now supports group markers and participant metadata for invites.
     """
     session_id = models.UUIDField(unique=True, db_index=True, default=uuid.uuid4)
     institution_id = models.IntegerField(null=True, blank=True)
-    participants = models.JSONField(help_text="List of {id, role} participants")
+    participants = models.JSONField(help_text="List of {id, role, name} participants")
+    participants_metadata = models.JSONField(default=dict, help_text="Invite statuses, roles, etc.")
     
     is_group = models.BooleanField(default=False)
     name = models.CharField(max_length=255, blank=True, help_text="For group chats")
+    invite_link_token = models.CharField(max_length=100, unique=True, null=True, blank=True)
+    
+    deleted_for = models.JSONField(default=list, help_text="List of participant IDs who deleted this chat")
     
     created_at = models.DateTimeField(auto_now_add=True)
     last_message_at = models.DateTimeField(auto_now=True)
@@ -78,16 +83,25 @@ class ChatSession(models.Model):
 class ChatMessage(models.Model):
     """
     Persistent history for chats.
+    Includes advanced status tracking and encrypted content refs.
     """
     session = models.ForeignKey(ChatSession, on_delete=models.CASCADE, related_name='messages')
     sender_id = models.IntegerField()
     sender_role = models.CharField(max_length=20)
     
+    # Encrypted Content
     content = models.TextField()
-    attachment_file = models.FileField(upload_to='chats/', blank=True, null=True)
     
-    received = models.BooleanField(default=False)
-    read = models.BooleanField(default=False)
+    # Media & Interactive
+    attachment_file = models.FileField(upload_to='chats/media/', blank=True, null=True)
+    attachment_type = models.CharField(max_length=20, default='TEXT') # TEXT, IMAGE, VIDEO, VOICE, STICKER
+    metadata = models.JSONField(default=dict, blank=True) # Emoji, reactions, etc.
+    
+    # Tracking (Real-time indicators)
+    is_delivered = models.BooleanField(default=False)
+    is_read = models.BooleanField(default=False)
+    delivered_at = models.DateTimeField(null=True, blank=True)
+    read_at = models.DateTimeField(null=True, blank=True)
     
     timestamp = models.DateTimeField(auto_now_add=True)
 

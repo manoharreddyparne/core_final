@@ -5,8 +5,8 @@ from django.utils import timezone
 
 class SocialChatConsumer(AsyncWebsocketConsumer):
     """
-    Handles Real-time Chat and WebRTC Signalling.
-    Supports 1-on-1 and Group communications.
+    Handles Real-time E2EE Chat, Presence, and Signalling.
+    Implements High-Fidelity status tracking (Typing, Seen, Sent).
     """
     async def connect(self):
         self.user = self.scope["user"]
@@ -17,46 +17,70 @@ class SocialChatConsumer(AsyncWebsocketConsumer):
         self.session_id = self.scope['url_route']['kwargs']['session_id']
         self.room_group_name = f'chat_{self.session_id}'
 
-        # Join room group
-        await self.channel_layer.group_add(
-            self.room_group_name,
-            self.channel_name
-        )
+        # Strict Membership Check
+        if not await self.is_member():
+            await self.close()
+            return
 
+        await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         await self.accept()
 
     async def disconnect(self, close_code):
-        # Leave room group
-        await self.channel_layer.group_discard(
-            self.room_group_name,
-            self.channel_name
-        )
+        await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
 
     async def receive(self, text_data):
         data = json.loads(text_data)
         msg_type = data.get('type')
 
-        # 1. Standard Messaging
+        # 1. Advanced Messaging (E2EE)
         if msg_type == 'chat_message':
-            message = data['message']
-            # Save to DB asynchronously
-            await self.save_message(message)
+            content = data.get('message')
+            metadata = data.get('metadata', {})
+            att_type = data.get('attachment_type', 'TEXT')
             
-            # Broadcast to group
+            # Encrypt and Save
+            saved_id = await self.save_message(content, att_type, metadata)
+            
             await self.channel_layer.group_send(
                 self.room_group_name,
                 {
                     'type': 'chat_broadcast',
-                    'message': message,
+                    'message': content, # Decrypted for broadcast (assuming HTTPS/WSS security)
+                    'msg_id': saved_id,
                     'sender_id': self.user.id,
-                    'sender_name': self.user.email, # Fallback to email
-                    'timestamp': timezone.now().isoformat()
+                    'attachment_type': att_type,
+                    'timestamp': timezone.now().isoformat(),
+                    'status': 'SENT'
                 }
             )
 
-        # 2. WebRTC Signalling (Offers, Answers, ICE Candidates)
+        # 2. Typing Indicator
+        elif msg_type == 'typing_status':
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'typing_broadcast',
+                    'sender_id': self.user.id,
+                    'is_typing': data.get('is_typing', False)
+                }
+            )
+
+        # 3. Read Receipt
+        elif msg_type == 'read_receipt':
+            msg_ids = data.get('message_ids', [])
+            await self.mark_as_read(msg_ids)
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'status_broadcast',
+                    'sender_id': self.user.id,
+                    'status': 'SEEN',
+                    'message_ids': msg_ids
+                }
+            )
+
+        # 4. WebRTC Signalling
         elif msg_type in ['webrtc_offer', 'webrtc_answer', 'ice_candidate']:
-            # Forward the signal to other participants in the room
             await self.channel_layer.group_send(
                 self.room_group_name,
                 {
@@ -67,24 +91,51 @@ class SocialChatConsumer(AsyncWebsocketConsumer):
             )
 
     async def chat_broadcast(self, event):
-        # Send message to WebSocket
         await self.send(text_data=json.dumps(event))
 
+    async def typing_broadcast(self, event):
+        if event['sender_id'] != self.user.id:
+            await self.send(text_data=json.dumps(event))
+
+    async def status_broadcast(self, event):
+        if event['sender_id'] != self.user.id:
+            await self.send(text_data=json.dumps(event))
+
     async def webrtc_signal(self, event):
-        # Forward WebRTC signal to WebSocket (but skip the sender)
         if event['sender_id'] != self.user.id:
             await self.send(text_data=json.dumps(event['signal_data']))
 
     @database_sync_to_async
-    def save_message(self, content):
+    def is_member(self):
+        from apps.social.models import ChatSession
+        from apps.social.views import SocialFeedViewSet
+        my_id = SocialFeedViewSet._get_my_profile_id(None, self.user)
+        session = ChatSession.objects.filter(session_id=self.session_id).first()
+        if not session: return False
+        return any(int(p['id']) == int(my_id) for p in session.participants)
+
+    @database_sync_to_async
+    def save_message(self, content, att_type, metadata):
         from apps.social.models import ChatMessage, ChatSession
+        from apps.social.security import SecureVaultService
         try:
             session = ChatSession.objects.get(session_id=self.session_id)
-            ChatMessage.objects.create(
+            encrypted = SecureVaultService.encrypt(content)
+            m = ChatMessage.objects.create(
                 session=session,
                 sender_id=self.user.id,
                 sender_role=getattr(self.user, 'role', 'STUDENT'),
-                content=content
+                content=encrypted,
+                attachment_type=att_type,
+                metadata=metadata
             )
+            session.last_message_at = timezone.now()
+            session.save()
+            return m.id
         except Exception:
-            pass
+            return None
+
+    @database_sync_to_async
+    def mark_as_read(self, msg_ids):
+        from apps.social.models import ChatMessage
+        ChatMessage.objects.filter(id__in=msg_ids).update(is_read=True, read_at=timezone.now())

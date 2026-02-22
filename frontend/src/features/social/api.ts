@@ -27,7 +27,7 @@ export const socialApi = {
 
     getDiscovery: async (search: string = '') => {
         const response = await socialClient.get(`social/feed/discover/?search=${search}`);
-        return response.data;
+        return response.data.data;
     },
 
     getBlogsForYou: async () => {
@@ -82,5 +82,62 @@ export const socialApi = {
     supportDiagnosis: async (subject: string, description: string) => {
         const response = await socialClient.post("social/support/", { subject, description });
         return response.data.data;
+    },
+
+    // --- CONNECTIONS ---
+    connectToUser: async (id: number, role: string = 'STUDENT') => {
+        const response = await socialClient.post("social/feed/connect/", { target_id: id, target_role: role });
+        return response.data;
+    },
+
+    respondToRequest: async (requestId: number, action: 'ACCEPT' | 'DECLINE') => {
+        const response = await socialClient.post(`social/feed/${requestId}/respond_request/`, { action });
+        return response.data;
+    },
+
+    getRequests: async () => {
+        const response = await socialClient.get("social/feed/requests/");
+        return response.data.data;
+    },
+
+    getNetworkStats: async () => {
+        const response = await socialClient.get("social/feed/my_network/");
+        return response.data.data;
+    },
+
+    getDetailedConnections: async () => {
+        const response = await socialClient.get("social/feed/connections/");
+        return response.data.data;
+    },
+
+    disconnectUser: async (connectionId: number) => {
+        const response = await socialClient.post(`social/feed/${connectionId}/disconnect/`);
+        return response.data;
+    },
+
+    // --- CHAT ---
+    getChatSessions: async () => {
+        const response = await socialClient.get("social/chat/list_sessions/");
+        return response.data.data;
+    },
+
+    getChatMessages: async (sessionId: string) => {
+        const response = await socialClient.get(`social/chat/messages/?session_id=${sessionId}`);
+        return response.data.data;
+    },
+
+    startChat: async (userId: number, role: string = 'STUDENT') => {
+        const response = await socialClient.post("social/chat/start_chat/", { user_id: userId, role });
+        return response.data.data;
+    },
+
+    startGroupChat: async (peers: any[], name: string) => {
+        const response = await socialClient.post("social/chat/start_group_chat/", { peers, name });
+        return response.data.data;
+    },
+
+    deleteChatSession: async (sessionId: string) => {
+        const response = await socialClient.post("social/chat/delete_session/", { session_id: sessionId });
+        return response.data;
     }
 };

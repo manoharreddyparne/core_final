@@ -12,16 +12,19 @@ const ProfessionalHub: React.FC = () => {
     const [newPostContent, setNewPostContent] = useState("");
     const [mediaFile, setMediaFile] = useState<File | null>(null);
     const [discoverList, setDiscoverList] = useState<any[]>([]);
+    const [pendingRequests, setPendingRequests] = useState<any[]>([]);
 
     const fetchAll = () => {
         Promise.all([
             socialApi.getBlogsForYou(),
             socialApi.getFeed(),
-            socialApi.getDiscovery()
-        ]).then(([b, p, d]) => {
+            socialApi.getDiscovery(),
+            socialApi.getRequests()
+        ]).then(([b, p, d, r]) => {
             setBlogs(b);
             setPosts(p?.results || p); // Handle DRF Pagination if present
-            setDiscoverList(d.data);
+            setDiscoverList(d);
+            setPendingRequests(r);
         }).finally(() => setLoading(false));
     };
 
@@ -38,6 +41,35 @@ const ProfessionalHub: React.FC = () => {
             setMediaFile(null);
             setShowCreateModal(false);
             fetchAll();
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const handleConnect = async (userId: number, role: string = 'STUDENT') => {
+        try {
+            await socialApi.connectToUser(userId, role);
+            socialApi.getDiscovery().then(res => setDiscoverList(res));
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const handleRespondRequest = async (requestId: number, action: 'ACCEPT' | 'DECLINE') => {
+        try {
+            await socialApi.respondToRequest(requestId, action);
+            fetchAll();
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const handleMessage = async (userId: number, role: string) => {
+        try {
+            const session = await socialApi.startChat(userId, role);
+            if (session?.session_id) {
+                window.location.href = `/chat-hub?session=${session.session_id}`;
+            }
         } catch (err) {
             console.error(err);
         }
@@ -126,44 +158,39 @@ const ProfessionalHub: React.FC = () => {
 
                 {/* Right: Blogs & Discovery */}
                 <div className="lg:col-span-1 space-y-8">
-                    {/* Discovery Segment */}
-                    <div className="glass p-8 rounded-[3rem] space-y-6">
-                        <h2 className="text-xl font-bold text-white flex items-center gap-3">
-                            <div className="w-2 h-8 bg-indigo-500 rounded-full"></div>
-                            Discovery
-                        </h2>
-                        <div className="relative">
-                            <input
-                                type="text"
-                                placeholder="Find peers..."
-                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 transition-all font-medium"
-                                onChange={(e) => {
-                                    socialApi.getDiscovery(e.target.value).then(res => setDiscoverList(res.data));
-                                }}
-                            />
-                        </div>
-                        <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                            {discoverList.map((user: any) => (
-                                <div key={user.id} className="flex items-center justify-between group">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-400 font-black text-xs">
-                                            {user.avatar}
-                                        </div>
+                    {/* Pending Requests */}
+                    {pendingRequests.length > 0 && (
+                        <div className="glass p-8 rounded-[3rem] border-indigo-500/20 bg-indigo-500/5 animate-pulse-slow">
+                            <h2 className="text-xl font-bold text-white flex items-center gap-3 mb-6">
+                                <div className="w-2 h-8 bg-indigo-400 rounded-full"></div>
+                                Pending Influx
+                            </h2>
+                            <div className="space-y-4">
+                                {pendingRequests.map(req => (
+                                    <div key={req.request_id} className="flex items-center justify-between">
                                         <div>
-                                            <p className="text-white text-xs font-bold">{user.name}</p>
-                                            <p className="text-[9px] text-muted-foreground font-black uppercase tracking-tighter">{user.role}</p>
+                                            <p className="text-white text-xs font-bold">{req.sender_name}</p>
+                                            <p className="text-[9px] text-muted-foreground uppercase">{req.sender_role}</p>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => handleRespondRequest(req.request_id, 'ACCEPT')}
+                                                className="p-2 bg-green-500/20 text-green-400 rounded-lg hover:bg-green-500 hover:text-white transition-all"
+                                            >
+                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
+                                            </button>
+                                            <button
+                                                onClick={() => handleRespondRequest(req.request_id, 'DECLINE')}
+                                                className="p-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500 hover:text-white transition-all"
+                                            >
+                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                            </button>
                                         </div>
                                     </div>
-                                    <button
-                                        onClick={() => socialApi.followUser(user.id)}
-                                        className="text-[9px] font-black uppercase text-indigo-400 hover:text-white transition-colors"
-                                    >
-                                        Connect
-                                    </button>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                     <h2 className="text-xl font-bold text-white flex items-center gap-3">
                         <div className="w-2 h-8 bg-pink-500 rounded-full"></div>

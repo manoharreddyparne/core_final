@@ -9,6 +9,7 @@ from .serializers import (
     AIChatConversationSerializer, AIChatMessageSerializer
 )
 from apps.auip_institution.authentication import TenantAuthentication
+from apps.identity.authentication import SafeJWTAuthentication
 from apps.auip_institution.permissions import IsTenantStudent, IsTenantAdmin
 from apps.identity.utils.response_utils import success_response, error_response
 
@@ -16,7 +17,19 @@ class AIIntelligenceViewSet(viewsets.ViewSet):
     """
     Custom ViewSet for AI-powered intelligence services.
     """
-    authentication_classes = [TenantAuthentication]
+    authentication_classes = [TenantAuthentication, SafeJWTAuthentication]
+
+    def _get_profile_id(self, user):
+        """Unified ID resolution: Registry ID for students/faculty, Auth ID for admins."""
+        from apps.identity.models import User as GlobalUser
+        if isinstance(user, GlobalUser):
+             return user.id
+        if hasattr(user, 'role'):
+            if user.role == "STUDENT":
+                return user.academic_ref.id if user.academic_ref else user.id
+            if user.role == "FACULTY":
+                return user.academic_ref.id if user.academic_ref else user.id
+        return user.id
 
     @action(detail=False, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def ask_ai(self, request):
@@ -52,7 +65,7 @@ class AIIntelligenceViewSet(viewsets.ViewSet):
                 conversation = None
                 
                 # Role-based identification
-                u_id = request.user.id
+                u_id = self._get_profile_id(request.user)
                 u_role = getattr(request.user, 'role', 'UNKNOWN')
                 student = getattr(request.user, 'academic_ref', None)
 
@@ -121,7 +134,7 @@ class AIIntelligenceViewSet(viewsets.ViewSet):
         schema = getattr(request.tenant, 'schema_name', 'public')
         
         with schema_context(schema):
-            u_id = request.user.id
+            u_id = self._get_profile_id(request.user)
             u_role = getattr(request.user, 'role', 'UNKNOWN')
             
             qs = AIChatConversation.objects.filter(user_id=u_id, user_role=u_role).order_by('-updated_at')
@@ -139,7 +152,7 @@ class AIIntelligenceViewSet(viewsets.ViewSet):
             return error_response("conversation_id required")
 
         with schema_context(schema):
-            u_id = request.user.id
+            u_id = self._get_profile_id(request.user)
             u_role = getattr(request.user, 'role', 'UNKNOWN')
             try:
                 conversation = AIChatConversation.objects.get(id=conversation_id, user_id=u_id, user_role=u_role)
@@ -156,7 +169,7 @@ class AIIntelligenceViewSet(viewsets.ViewSet):
         conversation_id = request.data.get('conversation_id')
         
         with schema_context(schema):
-            u_id = request.user.id
+            u_id = self._get_profile_id(request.user)
             u_role = getattr(request.user, 'role', 'UNKNOWN')
             AIChatConversation.objects.filter(id=conversation_id, user_id=u_id, user_role=u_role).delete()
             return success_response("Conversation deleted")
