@@ -15,10 +15,9 @@ import { setAccessToken, getAccessToken, clearAccessToken } from "../../utils/to
 import { hydratePassport } from "../../api/passportApi";
 import type { User } from "../../api/types";
 
-export const useSessionHydration = () => {
+export const useSessionHydration = (setUser: (user: User | null) => void) => {
   const [hydrating, setHydrating] = useState(true);
   const [hydrated, setHydrated] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
 
   // Prevent duplicate parallel calls (React strict-mode safe)
   const hasRun = useRef(false);
@@ -60,7 +59,11 @@ export const useSessionHydration = () => {
       // ✅ Backend returned a valid session
       if (res?.success && res.access && res.user) {
         setAccessToken(res.access);
-        setUser(res.user);
+        if (typeof setUser === 'function') {
+          setUser(res.user);
+        } else {
+          console.error("❌ [useSessionHydration] Success but setUser is not a function!");
+        }
         return true;
       }
 
@@ -74,12 +77,21 @@ export const useSessionHydration = () => {
       }
 
       clearAccessToken();
-      setUser(null);
+      if (typeof setUser === 'function') {
+        setUser(null);
+      } else {
+        console.warn("⚠️ [useSessionHydration] setUser is not a function during cleanup (failed passport)");
+      }
       return false;
-    } catch {
+    } catch (err) {
       // ❌ Network error or unexpected failure
+      console.error("❌ [useSessionHydration] Error during hydration:", err);
       clearAccessToken();
-      setUser(null);
+      if (typeof setUser === 'function') {
+        setUser(null);
+      } else {
+        console.warn("⚠️ [useSessionHydration] setUser is not a function during catch block");
+      }
       return false;
     } finally {
       // ✅ ALWAYS complete — UI can now render login or dashboard
@@ -87,7 +99,7 @@ export const useSessionHydration = () => {
       setHydrated(true);
       setHydrating(false);
     }
-  }, []);
+  }, [setUser]);
 
   // 🔁 Auto-hydrate on mount (once only)
   useEffect(() => {
@@ -97,10 +109,8 @@ export const useSessionHydration = () => {
   }, [hydrateSession]);
 
   return {
-    user,
     hydrating,
     hydrated,
     hydrateSession,
-    setUser,
   };
 };

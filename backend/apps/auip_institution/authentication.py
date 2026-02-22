@@ -102,11 +102,15 @@ class TenantAuthentication(JWTAuthentication):
             StudentAuthorizedAccount
         )
 
-        acc_model = StudentAuthorizedAccount  # Default
-        if role == "INSTITUTION_ADMIN":
+        if role in ("INSTITUTION_ADMIN", "INST_ADMIN"):
             acc_model = AdminAuthorizedAccount
         elif role == "FACULTY":
             acc_model = FacultyAuthorizedAccount
+        elif role == "STUDENT":
+            acc_model = StudentAuthorizedAccount
+        else:
+            # Fallback or strict error
+            acc_model = StudentAuthorizedAccount
 
         try:
             # ✅ IMPROVEMENT: Prioritize tenant_user_id if available, fallback to user_id

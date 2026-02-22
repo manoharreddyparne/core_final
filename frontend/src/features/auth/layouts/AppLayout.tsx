@@ -101,7 +101,7 @@ export const AppLayout = () => {
         { to: "/student-intelligence", label: "Intelligence Hub", icon: Brain, roles: ["student"] },
         { to: "/resume-studio", label: "Resume Studio", icon: FileText, roles: ["student"] },
         { to: "/placement-hub", label: "Careers", icon: Briefcase, roles: ["student"] },
-        { to: "/professional-hub", label: "Social Hub", icon: Globe, roles: ["student", "faculty", "institution_admin"] },
+        { to: "/professional-hub", label: "Social Hub", icon: Globe, roles: ["student"] },
         { to: "/chat-hub", label: "Messages & Connect", icon: MessageCircle, roles: ["student"] },
         { to: "/newsletters", label: "Nexus Bulletins", icon: FileText, roles: ["student"] },
         { to: "/support-hub", label: "Support", icon: HelpCircle, roles: ["student"] },
@@ -155,8 +155,13 @@ export const AppLayout = () => {
     ];
 
     const filteredNav = navItems.filter(item => {
-        // 1. Role Check
-        const roleMatch = item.roles.includes("all") || (user?.role && item.roles.includes(user.role.toLowerCase()));
+        const userRole = user?.role?.toLowerCase();
+        const roleMatch = item.roles.includes("all") || (userRole && item.roles.some(allowed => {
+            if (allowed === "inst_admin" || allowed === "institution_admin") {
+                return userRole === "inst_admin" || userRole === "institution_admin";
+            }
+            return userRole === allowed;
+        }));
         if (!roleMatch) return false;
 
         // 2. Context Check
@@ -204,6 +209,13 @@ export const AppLayout = () => {
             setSecureModalOpen(false); // Close on error to show toast
         }
     };
+
+    // Listen for trigger events from other pages (e.g. SecurityOverview)
+    useEffect(() => {
+        const handleTrigger = () => handleSecureDevice();
+        window.addEventListener('trigger-secure-modal', handleTrigger);
+        return () => window.removeEventListener('trigger-secure-modal', handleTrigger);
+    }, [handleSecureDevice]);
 
     // Listen for force logout events from WebSocket
     useEffect(() => {

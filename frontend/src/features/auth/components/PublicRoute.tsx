@@ -29,16 +29,23 @@ const PublicRoute = ({ children }: Props) => {
   if (user && !isResetPage) {
     const role = user.role?.toLowerCase?.() ?? "";
 
-    let redirectTo = "/student-dashboard";
+    let redirectTo = sessionStorage.getItem("auip_last_valid_path") || "/student-dashboard";
 
-    if (role === "super_admin") {
+    if (role === "super_admin" && !sessionStorage.getItem("auip_last_valid_path")) {
       redirectTo = "/superadmin/dashboard";
     }
-    else if (role === "inst_admin" || role === "institution_admin") {
+    else if ((role === "inst_admin" || role === "institution_admin") && !sessionStorage.getItem("auip_last_valid_path")) {
       redirectTo = "/institution/dashboard";
     }
-    else if (role === "faculty") {
+    else if (role === "faculty" && !sessionStorage.getItem("auip_last_valid_path")) {
       redirectTo = "/faculty-dashboard";
+    }
+
+    // Basic safety check: if currently at login, and savedPath is login, fallback to dashboard
+    if (redirectTo === "/login" || redirectTo === pathname) {
+      if (role === 'student') redirectTo = "/student-dashboard";
+      else if (role === 'super_admin') redirectTo = "/superadmin/dashboard";
+      else redirectTo = "/institution/dashboard";
     }
 
     return <Navigate to={redirectTo} replace />;

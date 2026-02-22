@@ -1,5 +1,8 @@
 from rest_framework import serializers
-from .models import AIQuerySession, StudentResumeInsight, PlacementTrendInsight
+from .models import (
+    AIQuerySession, StudentResumeInsight, PlacementTrendInsight,
+    AIChatConversation, AIChatMessage
+)
 
 class AIQuerySessionSerializer(serializers.ModelSerializer):
     class Meta:
@@ -16,3 +19,15 @@ class PlacementTrendInsightSerializer(serializers.ModelSerializer):
     class Meta:
         model = PlacementTrendInsight
         fields = '__all__'
+
+class AIChatMessageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AIChatMessage
+        fields = ['id', 'role', 'content', 'created_at']
+
+class AIChatConversationSerializer(serializers.ModelSerializer):
+    message_count = serializers.IntegerField(source='messages.count', read_only=True)
+    
+    class Meta:
+        model = AIChatConversation
+        fields = ['id', 'title', 'context_type', 'message_count', 'created_at', 'updated_at']

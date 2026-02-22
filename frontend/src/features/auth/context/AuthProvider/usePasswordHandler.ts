@@ -25,8 +25,6 @@ import { setAccessToken } from "../../utils/tokenStorage";
 export const usePasswordHandler = (
   setUser: (user: User | null) => void
 ) => {
-  const { hydrateSession } = useSessionHydration();
-
   /* ----------------------------
      🔁 CHANGE PASSWORD
   ---------------------------- */
@@ -36,13 +34,12 @@ export const usePasswordHandler = (
 
       if (res?.access) {
         setAccessToken(res.access);
-        await hydrateSession();
         if (res?.user) setUser(res.user);
       }
 
       return res;
     },
-    [hydrateSession, setUser]
+    [setUser]
   );
 
   /* ----------------------------

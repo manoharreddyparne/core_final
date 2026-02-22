@@ -442,4 +442,10 @@ SUPER_ADMIN_EMAIL = config("SUPER_ADMIN_EMAIL", default="parnemanoharreddy19@gma
 # -----------------------------
 # AI & INTELLIGENCE
 # -----------------------------
-GEMINI_API_KEY = config("GEMINI_API_KEY", default=None)
+# --- AI ENGINE CONFIGURATION ---
+LLM_PROVIDER = config("LLM_PROVIDER", default="gemini") # choices: gemini, groq, openai_compatible
+LLM_API_BASE = config("LLM_API_BASE", default="http://localhost:11434/v1") # Default for Ollama
+LLM_MODEL = config("LLM_MODEL", default="llama3")
+LLM_API_KEY = config("LLM_API_KEY", default="ollama") # Often 'ollama' or 'lm-studio'
+GEMINI_API_KEY = config("GEMINI_API_KEY", default="your_gemini_api_key_here")
+GROQ_API_KEY = config("GROQ_API_KEY", default=None)

@@ -26,6 +26,7 @@ services:
     command: redis-server --appendonly yes
     ports:
       - "6379:6379"
+    restart: always
     networks:
       - auip-network
     healthcheck:
@@ -54,14 +55,30 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - DB_HOST=aws-1-ap-southeast-1.pooler.supabase.com
       - TURNSTILE_ENABLED=True
+      - LLM_API_BASE=${LLM_API_BASE}
+      - LLM_MODEL=${LLM_MODEL}
     depends_on:
       redis:
         condition: service_healthy
+    restart: always
     networks:
       - auip-network
     dns:
       - 8.8.8.8
       - 8.8.4.4
+
+  # Ollama Local AI (Commented out to prevent laptop hanging)
+  # Uncomment only if you have 16GB+ RAM and a GPU
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   container_name: auip-ollama
+  #   volumes:
+  #     - ollama_data:/root/.ollama
+  #   ports:
+  #     - "11434:11434"
+  #   restart: always
+  #   networks:
+  #     - auip-network
 
   # Frontend (React)
   frontend:
@@ -78,6 +95,7 @@ services:
       - VITE_API_URL=http://localhost:8000
     depends_on:
       - backend
+    restart: always
     networks:
       - auip-network
 
@@ -85,6 +103,7 @@ volumes:
   postgres_data:
   backend_static:
   backend_media:
+  ollama_data:
 
 
 networks:

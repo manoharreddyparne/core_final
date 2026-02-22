@@ -114,4 +114,49 @@ class PlacementTrendInsight(models.Model):
     insight_content = models.TextField()
     generated_at = models.DateTimeField(auto_now_add=True)
     
-    data_period = models.CharField(max_length=100)
+class AIChatConversation(models.Model):
+    """
+    Groups AI interactions into distinct conversations (threads).
+    Now supports both Students (via registry) and Admins/Faculty (via generic user ID).
+    """
+    # Identify the user
+    user_id = models.IntegerField(null=True, blank=True, help_text="ID of the authenticated user (Student/Admin/Faculty)")
+    user_role = models.CharField(max_length=50, null=True, blank=True, help_text="Role of the user at the time of session")
+    
+    # Optional legacy link for deep student integration
+    student = models.ForeignKey(StudentAcademicRegistry, on_delete=models.CASCADE, related_name='ai_conversations', null=True, blank=True)
+    
+    title = models.CharField(max_length=255, default="New Conversation")
+    
+    # Optional: track context or goal
+    context_type = models.CharField(max_length=50, default='GENERAL') 
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at']
+
+    def __str__(self):
+        return f"{self.title} ({self.user_role or 'Unknown'}:{self.user_id})"
+
+class AIChatMessage(models.Model):
+    """
+    Individual messages within a conversation.
+    """
+    conversation = models.ForeignKey(AIChatConversation, on_delete=models.CASCADE, related_name='messages')
+    
+    role = models.CharField(max_length=20, choices=[('user', 'User'), ('assistant', 'AI')])
+    content = models.TextField()
+    
+    # Metadata
+    tokens_used = models.IntegerField(default=0)
+    latency_ms = models.IntegerField(default=0)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"{self.role}: {self.content[:50]}..."

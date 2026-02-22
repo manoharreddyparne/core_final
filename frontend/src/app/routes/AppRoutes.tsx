@@ -61,7 +61,11 @@ export const AppRoutes = () => {
   const { user, bootstrapping } = useAuth();
 
   const role = user?.role?.toLowerCase();
-  const landing =
+
+  // Persistence logic: Check if we have a saved path to restore
+  const savedPath = sessionStorage.getItem("auip_last_valid_path");
+
+  const defaultLanding =
     role === "student"
       ? "/student-dashboard"
       : role === "super_admin"
@@ -71,6 +75,9 @@ export const AppRoutes = () => {
           : role === "faculty"
             ? "/faculty-dashboard"
             : "/institution/dashboard";
+
+  // Use saved path if it looks valid for the user's role
+  const landing = (savedPath && savedPath !== "/" && savedPath !== "/login") ? savedPath : defaultLanding;
 
   return (
     <Routes>

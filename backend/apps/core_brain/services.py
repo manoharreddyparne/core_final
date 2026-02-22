@@ -6,8 +6,11 @@ from apps.governance.models import StudentBehaviorLog, StudentIntelligenceProfil
 from apps.intelligence.models import LLMContext, ATSAnalysis, LLMInteraction
 from apps.auip_institution.models import StudentAcademicRegistry
 from apps.placement.models import PlacementDrive
+from apps.identity.models import User
 import logging
-
+import requests
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
+import groq
 logger = logging.getLogger(__name__)
 
 class BrainOrchestrator:
@@ -18,12 +21,127 @@ class BrainOrchestrator:
     """
 
     @staticmethod
-    def _get_gemini_client():
-        api_key = getattr(settings, 'GEMINI_API_KEY', None)
-        if not api_key or api_key == 'your_gemini_api_key_here':
+    def _get_llm_client():
+        try:
+            provider = getattr(settings, 'LLM_PROVIDER', 'gemini')
+            
+            if provider == 'openai_compatible':
+                # We use direct requests for this provider now to avoid httpx conflicts
+                return "REQUESTS_MODE"
+            
+            # Default to Gemini
+            api_key = getattr(settings, 'GEMINI_API_KEY', None)
+            if not api_key or api_key == 'your_gemini_api_key_here':
+                return None
+            genai.configure(api_key=api_key)
+            return genai.GenerativeModel('gemini-1.5-flash')
+        except Exception as e:
+            logger.error(f"[BRAIN-CLIENT-INIT-ERROR]: {e}")
             return None
-        genai.configure(api_key=api_key)
-        return genai.GenerativeModel('gemini-1.5-flash-latest')
+
+    @staticmethod
+    def generate_text(prompt, system_prompt=None, history=None):
+        """
+        Unified method to call LLM regardless of provider.
+        Runs in a background thread to avoid blocking the main Daphne/Django event loop.
+        """
+        if history is None:
+            history = []
+            
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(BrainOrchestrator._execute_generate, prompt, system_prompt, history)
+            try:
+                # Total hard limit of 40 seconds for the entire pipeline to allow waterfall discovery
+                return future.result(timeout=40)
+            except TimeoutError:
+                logger.error("[BRAIN-TIMEOUT] AI took too long. Protecting server threads.")
+                return None
+            except Exception as e:
+                logger.error(f"[BRAIN-THREAD-ERROR] {e}")
+                return None
+
+    @staticmethod
+    def _execute_generate(prompt, system_prompt=None, history=None):
+        if history is None:
+            history = []
+            
+        # BEST APPROACH: GROQ CLOUD (LPU - Language Processing Unit)
+        # This gives you "Unlimited Llama 3" running at 800+ Tokens/Sec 
+        # completely bypassing Cloudflare, Colab, and Gemini Limits.
+        try:
+            # Use the provided Groq key or fall back to Gemini logic if unavailable/invalid.
+            groq_key = getattr(settings, 'GROQ_API_KEY', None)
+            if not groq_key or "invalid" in str(groq_key).lower():
+                raise ValueError("No valid Groq key found. Attempting Fallback.")
+            client = groq.Groq(api_key=groq_key)
+            
+            messages = []
+            if system_prompt:
+                messages.append({"role": "system", "content": system_prompt})
+                
+            # Append proper history natively
+            for chat in history:
+                # Map roles correctly to OpenAI/Groq standards. 'ai' or 'model' -> 'assistant'
+                fixed_role = 'assistant' if chat['role'] in ['ai', 'agent', 'model'] else 'user'
+                messages.append({"role": fixed_role, "content": chat['content']})
+                
+            messages.append({"role": "user", "content": prompt})
+
+            # We use Llama-3 8B strictly. It's lightning fast and incredibly smart.
+            completion = client.chat.completions.create(
+                model="llama-3.1-8b-instant",
+                messages=messages,
+                temperature=0.7,
+                max_tokens=1024,
+                top_p=1,
+                stream=False
+            )
+            
+            if completion and completion.choices:
+                logger.info("[BRAIN-GROQ] BLAZING FAST Llama-3 Response Delivered.")
+                return completion.choices[0].message.content
+                
+        except Exception as groq_e:
+            logger.error(f"[BRAIN-GROQ-ERROR] {groq_e}. Instantly switching to Gemini Lite.")
+            
+            # --- GOOGLE GEMINI (ULTRA FAST FALLBACK) ---
+            try:
+                api_key = getattr(settings, 'GEMINI_API_KEY', None)
+                if not api_key: 
+                    return "AI systems are currently initializing. Please try again in a moment."
+                    
+                import google.generativeai as genai
+                genai.configure(api_key=api_key)
+                
+                # Gemini doesn't use the standard system prompt, we pass it inside the full text block
+                full_prompt = f"{system_prompt}\n\n" if system_prompt else ""
+                
+                # We can inject history manually for simple API call format
+                for chat in history:
+                    role_str = "User" if chat['role'] == "user" else "AI"
+                    full_prompt += f"{role_str}: {chat['content']}\n"
+                    
+                full_prompt += f"\nUser: {prompt}\nAI:"
+                
+                for model_name in ['gemini-1.5-flash', 'gemini-1.5-flash-8b']:
+                    try:
+                        temp_model = genai.GenerativeModel(model_name)
+                        res = temp_model.generate_content(full_prompt)
+                        if res and res.text:
+                            logger.info(f"[BRAIN-SPEED] Fast fallback via {model_name}")
+                            return res.text
+                    except Exception as inner_e:
+                        error_str = str(inner_e)
+                        logger.error(f"[BRAIN-GEMINI-LOOP] Model {model_name} failed: {error_str}")
+                        if "429" in error_str or "Quota" in error_str:
+                            return "SYSTEM_LIMIT_REACHED: Google Gemini free-tier quota exceeded (15 requests/min). To unlock unlimited instant responses, please generate a free Groq API key at console.groq.com and update the GROQ_API_KEY in the .env file."
+                        continue
+                        
+                return "The Intelligence Portal is currently under high load. Redirecting simple queries to standard search."
+            except Exception as e:
+                logger.error(f"[BRAIN-GEMINI-CRITICAL]: {e}")
+                return "Based on your behavior and readiness, I recommend reviewing the latest job drives in the Placement Hub and updating your Resume."
+
 
     @staticmethod
     def rebuild_student_matrix(student_id):
@@ -80,100 +198,184 @@ class BrainOrchestrator:
         return profile
 
     @staticmethod
-    def get_llm_guidance(student_id, query, context_type='CAREER'):
+    def get_llm_guidance(user, query, context_type='CAREER'):
         """
         Generates personalized guidance using RAG and Profile Matrix.
+        Now supports Role-Based Locking and Navigation Guidance.
         """
-        student = StudentAcademicRegistry.objects.get(id=student_id)
-        profile, _ = StudentIntelligenceProfile.objects.get_or_create(student=student)
+        role = user.role
         
-        # 🛡️ RAG Phase: Gather Student-Specific Context
-        # 1. Experience/Projects Context
-        rag_data = list(LLMContext.objects.filter(student=student).values_list('content_chunk', flat=True))
+        # 1. Fetch relevant models based on role
+        student = None
+        profile = None
+        if role == User.Roles.STUDENT:
+            # Check if user has academic_ref (as seen in views)
+            student = getattr(user, 'academic_ref', None)
+            if student:
+                profile, _ = StudentIntelligenceProfile.objects.get_or_create(student=student)
         
-        # 2. Behavior Context (Atomic operations summary)
-        recent_activity = list(StudentBehaviorLog.objects.filter(student=student).order_by('-timestamp')[:10].values_list('event_type', 'target_type'))
-        activity_summary = ", ".join([f"{evt} on {tgt}" for evt, tgt in recent_activity])
+        # 3. Role-Based Context & Metrics
+        role_context = f"CURRENT USER ROLE: {role}\n"
+        admin_metrics = ""
+        
+        # 🛡️ STRICT NAVIGATION PERMISSIONS
+        STUDENT_ROUTES = {
+            "dashboard": "/student-dashboard",
+            "intelligence": "/student-intelligence",
+            "resume": "/resume-studio",
+            "placement": "/placement-hub",
+            "social": "/professional-hub",
+            "chat": "/chat-hub",
+            "support": "/support-hub",
+            "profile": "/profile",
+            "settings": "/settings",
+            "security": "/security",
+        }
+        
+        ADMIN_ROUTES = {
+            "dashboard": "/institution/dashboard",
+            "students": "/institution/students",
+            "faculty": "/institution/faculty",
+            "core_students": "/admin/core-students",
+            "profile": "/profile",
+            "settings": "/settings",
+            "security": "/security",
+        }
+        
+        FACULTY_ROUTES = {
+            "dashboard": "/faculty-dashboard",
+            "profile": "/profile",
+            "settings": "/settings",
+            "security": "/security",
+        }
 
-        # 🚀 LLM Phase: Orchestrate Prompt
-        system_prompt = f"""
-        YOU ARE: The AUIP Governance Brain, an expert university mentor.
-        STUDENT PROFILE:
-        - Roll Number: {student.roll_number}
-        - Major: {student.department}
-        - CGPA: {getattr(student, 'cgpa', 'N/A')}
-        - Readiness Score: {profile.readiness_score}/100
-        - Behavior Score: {profile.behavior_score}/100
-        - Core Interests: {profile.interest_matrix}
-        
-        PERSONAL CONTEXT (RAG):
-        {chr(10).join(rag_data[:5])}
-        
-        RECENT ACTIVITY:
-        Student was recently active in: {activity_summary}
+        if role == User.Roles.STUDENT:
+            role_context += "You are talking to a Student. Do not show or guide to Administrative pages."
+            allowed_routes = STUDENT_ROUTES
+        elif role in [User.Roles.INSTITUTION_ADMIN, User.Roles.SUPER_ADMIN, 'INST_ADMIN', 'INSTITUTION_ADMIN']:
+            role_context += "You are talking to an Institution Admin. You have access to specialized management tools."
+            allowed_routes = ADMIN_ROUTES
+            # 📊 Inject Real-time Admin Metrics
+            try:
+                from apps.auip_institution.models import StudentAcademicRegistry, FacultyAcademicRegistry
+                from apps.placement.models import PlacementDrive
+                student_count = StudentAcademicRegistry.objects.count()
+                faculty_count = FacultyAcademicRegistry.objects.count()
+                active_drives = PlacementDrive.objects.filter(status='ACTIVE').count()
+                admin_metrics = f"""
+                INSTITUTION REAL-TIME METRICS:
+                - Registered Students: {student_count}
+                - Registered Faculty: {faculty_count}
+                - Active Placement Drives: {active_drives}
+                (You can use these numbers to answer the user directly)
+                """
+            except Exception as e:
+                logger.warning(f"Failed to fetch admin metrics for LLM: {e}")
+        elif role == User.Roles.FACULTY:
+            role_context += "You are talking to a Faculty member."
+            allowed_routes = FACULTY_ROUTES
+        else:
+            role_context += f"You are talking to {role}."
+            allowed_routes = STUDENT_ROUTES # Fallback safe
 
-        TASK:
-        Provide hyper-personalized career/project guidance. 
-        If they ask for JD matching, use their "Core Interests" as current skill proxies.
-        Maintain a professional, supportive, and data-driven tone.
-        """
+        # 🚀 4. Intent Pre-processing (Act Fiber Net Style)
+        # We can do this via code or tell the LLM to handle it. 
+        # For "Industry Level", we'll tell the LLM to return a JSON-ish action if it detects a request to navigate.
         
-        client = BrainOrchestrator._get_gemini_client()
-        if not client:
-            return f"[DEMO] Gemini API Key not found. Mock guidance for: {query}"
-
-        try:
-            response = client.generate_content(f"{system_prompt}\n\nUSER QUERY: {query}")
-            ai_text = response.text
+        conversation_history_text = "No previous conversation found."
+        raw_history = []
+        
+        if student and profile:
+            rag_data = list(LLMContext.objects.filter(student=student).values_list('content_chunk', flat=True))
+            recent_activity = list(StudentBehaviorLog.objects.filter(student=student).order_by('-timestamp')[:10].values_list('event_type', 'target_type'))
+            activity_summary = ", ".join([f"{evt} on {tgt}" for evt, tgt in recent_activity])
             
-            # Persist Interaction
-            LLMInteraction.objects.create(
-                student=student,
-                prompt=query,
-                response=ai_text,
-                using_rag=True
-            )
-            return ai_text
-        except Exception as e:
-            logger.error(f"[BRAIN-API-ERROR] LLM call failed: {e}")
-            
-            # --- START HEURISTIC RAG FALLBACK (FREE TIER MOCK ENGINE) ---
-            lower_query = query.lower()
-            heuristic_response = ""
-            
-            if "time" in lower_query:
-                from django.utils import timezone
-                current_time = timezone.now().strftime("%I:%M %p, %d %b %Y")
-                heuristic_response = f"The current server time is **{current_time}**. Don't forget you have pending assignments soon based on your active behavior matrix."
-            elif "secure" in lower_query or "device" in lower_query or "password" in lower_query:
-                heuristic_response = (
-                    "To secure your device or change your password, please navigate to the **[Settings > Security Portal](/settings/security)**. "
-                    "From there, you can view active web sessions, revoke untrusted devices from your passport, and update your Auth token."
-                )
-            elif "myself" in lower_query or "who am i" in lower_query or "profile" in lower_query:
-                heuristic_response = (
-                    f"You are **{student.full_name}**, a student in the **{student.department}** department. "
-                    f"Your AUIP readiness score is **{profile.readiness_score}/100**. "
-                    f"I've noticed your core interests revolve around: **{', '.join(profile.interest_matrix.keys()) if profile.interest_matrix else 'General Academics'}**."
-                )
-            elif "improve" in lower_query or "resume" in lower_query:
-                heuristic_response = (
-                    "To improve your resume matches (ATS), I recommend: \n"
-                    "1. Uploading your latest PDF to the **[Smart Resume Studio](/resume-builder)**.\n"
-                    "2. Ensuring your skills matrix includes modern keywords relative to your major.\n"
-                    "3. Completing more placement mock assessments. I will track your progress."
-                )
-            else:
-                heuristic_response = (
-                    "I am the Governance Brain. Since my premium external LLM nodes are currently facing limit constraints, "
-                    "I am answering you via my local neural cache. I can help you with your portal settings, resume tips, or profile stats. What do you need?"
-                )
+            # Fetch the last 5 conversation turns to maintain context 
+            recent_chats = list(LLMInteraction.objects.filter(student=student).order_by('-created_at')[:5])
+            if recent_chats:
+                history_lines = []
+                for chat in reversed(recent_chats): # Chronological order
+                    history_lines.append(f"User: {chat.prompt}")
+                    history_lines.append(f"AI: {chat.response}")
+                    raw_history.append({"role": "user", "content": chat.prompt})
+                    raw_history.append({"role": "model", "content": chat.response})
+                conversation_history_text = "\n".join(history_lines)
                 
-            LLMInteraction.objects.create(
-                student=student, prompt=query, response=heuristic_response, using_rag=False
-            )
-            return heuristic_response
-            # --- END HEURISTIC RAG FALLBACK ---
+            profile_data = f"""
+            - Readiness Score: {profile.readiness_score}/100
+            - Behavior Score: {profile.behavior_score}/100
+            - Core Interests: {profile.interest_matrix}
+            """
+
+        # Get name safely
+        try:
+            full_name = user.get_full_name() if hasattr(user, 'get_full_name') else f"{getattr(user, 'first_name', '')} {getattr(user, 'last_name', '')}".strip()
+        except:
+            full_name = getattr(user, 'email', 'Unknown User')
+
+        system_prompt = f"""
+        YOU ARE: AUIP Intelligence Brain - An industry-grade, highly professional AI assistant for the AUIP University platform.
+        {role_context}
+        
+        USER CONTEXT:
+        - Name: {full_name or user.email}
+        - Current Role: {role}
+        {profile_data if student and profile else "- Dashboard: Administrative Management"}
+        
+        {admin_metrics}
+        
+        🛡️ ALLOWED NAVIGATION ROUTES (STRICT LIST):
+        {json.dumps(allowed_routes, indent=2)}
+        
+        ⚠️ CRITICAL CONSTRAINT:
+        ONLY guide users to the routes listed above. 
+        If a user asks for 'Courses', 'Resume', or 'Careers' and they are an ADMIN, they DO NOT have access to those student-only features. 
+        Inform them politely but firmly that those features are for students and are not in their administrative scope.
+        
+        STRICT INSTRUCTIONS:
+        1. Act as a polite, concise, and helpful career & academic advisor OR platform management assistant depending on the user's role.
+        2. IF THE USER IS AN ADMIN: Do NOT suggest 'Intelligence Hub', 'Resume Studio', or 'Placement Hub'. These are for Students. Instead, guide them to 'Student Base', 'Faculty Hub', or 'Dashboard' for management.
+        3. DO NOT artificially state "I see your score is 0" or "Your interests are unstated" unless the user explicitly asks about them. Use this data subtly (e.g., if scores are 0, warmly encourage them to explore the portal to build their profile).
+        4. DO NOT repeatedly mention their "recent activity" unless it directly answers their question.
+        5. If guiding a user to a page, ALWAYS use this exact markdown format for links: `[Link Text](ROUTE)`. NEVER surround the link with `**` or `_` formatting (e.g., skip `**[Dashboard](/dashboard)**`, use just `[Dashboard](/dashboard)`).
+        6. Keep responses structured, easy to read, and under 3 paragraphs for general chat.
+        
+        CONVERSATION HISTORY (Context for current query):
+        {conversation_history_text}
+        
+        PERSONAL CONTEXT (Resume/Skills Data for Context):
+        {chr(10).join(rag_data[:5]) if student and profile and rag_data else "No specific documents uploaded yet."}
+        
+        RECENT PLATFORM ACTIVITY (Confidential context):
+        {activity_summary if student and profile else "No recent activity."}
+        """
+        
+        ai_text = BrainOrchestrator.generate_text(query, system_prompt=system_prompt, history=raw_history)
+        
+        if not ai_text:
+            # --- HEURISTIC FALLBACK ---
+            lower_query = query.lower()
+            if "secure" in lower_query or "device" in lower_query:
+                return "To secure your device or change your password, please navigate to the **[Security Portal](/security)**. You can manage sessions at **[Active Sessions](/security/sessions)**."
+            if "performance" in lower_query or "score" in lower_query:
+                if profile:
+                    return f"Your current readiness score is **{profile.readiness_score}/100**. Keep engaging with the platform to improve it!"
+                return "Performance metrics are currently only available for students."
+            
+            return "I am experiencing connectivity issues with my primary LLM node. Please use the sidebar to navigate or try again later."
+
+        # Persist Interaction
+        if student:
+            try:
+                LLMInteraction.objects.create(
+                    student=student,
+                    prompt=query,
+                    response=ai_text,
+                    using_rag=True if rag_data else False
+                )
+            except Exception as db_e:
+                logger.error(f"[BRAIN-DB-ERROR] Failed to log interaction: {db_e}")
+        return ai_text
 
 class ATSService:
     """
@@ -196,13 +398,6 @@ class ATSService:
         # Gather JD
         jd_text = drive.job_description or "Trainee Engineer Role"
         
-        client = BrainOrchestrator._get_gemini_client()
-        if not client:
-            return ATSAnalysis.objects.create(
-                student=student, drive=drive, fit_score=50, 
-                suggested_improvements="API Key missing for AI analysis."
-            )
-
         prompt = f"""
         Compare the following Student Profile with the Job Description (JD).
         STUDENT: {student_context}
@@ -216,11 +411,17 @@ class ATSService:
         - "advice": "Brief textual advice"
         """
 
+        ai_response = BrainOrchestrator.generate_text(prompt)
+        if not ai_response:
+            return ATSAnalysis.objects.create(
+                student=student, drive=drive, fit_score=50, 
+                suggested_improvements="AI Engine offline. Technical support notified."
+            )
+
         try:
-            response = client.generate_content(prompt)
             # Find JSON in response
             import re
-            json_match = re.search(r'\{.*\}', response.text, re.DOTALL)
+            json_match = re.search(r'\{.*\}', ai_response, re.DOTALL)
             if json_match:
                 res = json.loads(json_match.group())
                 analysis = ATSAnalysis.objects.create(
@@ -250,13 +451,6 @@ class SelfHealingSupportService:
         ticket.status = 'AI_SCANNING'
         ticket.save()
 
-        client = BrainOrchestrator._get_gemini_client()
-        if not client:
-            ticket.ai_diagnosis = "AI Engine offline. Technical support notified."
-            ticket.status = 'OPEN'
-            ticket.save()
-            return
-
         prompt = f"""
         Student Problem Description: {ticket.description}
         Subject: {ticket.subject}
@@ -270,10 +464,15 @@ class SelfHealingSupportService:
         """
 
         try:
-            response = client.generate_content(prompt)
-            # Parse response... (Simplified for now)
-            ticket.ai_diagnosis = response.text
-            if "fix" in response.text.lower():
+            ai_response = BrainOrchestrator.generate_text(prompt)
+            if not ai_response:
+                ticket.ai_diagnosis = "AI Engine offline. Technical support notified."
+                ticket.status = 'OPEN'
+                ticket.save()
+                return
+
+            ticket.ai_diagnosis = ai_response
+            if "fix" in ai_response.lower():
                 ticket.automated_fix_applied = True
                 ticket.status = 'RESOLVED'
             else:

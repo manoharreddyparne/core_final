@@ -11,7 +11,7 @@ class IsTenantAdmin(permissions.BasePermission):
         return bool(
             request.user and
             request.user.is_authenticated and
-            role in ('INSTITUTION_ADMIN', 'ADMIN')
+            role in ('INST_ADMIN', 'INSTITUTION_ADMIN', 'ADMIN')
         )
 
 class IsTenantStudent(permissions.BasePermission):

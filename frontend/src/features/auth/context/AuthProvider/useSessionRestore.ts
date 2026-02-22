@@ -29,9 +29,8 @@ import type { User } from "../../api/types";
  *   ✅ If server returns access+user → synced + updated
  *   ❌ If server rejects → clean token + null user
  */
-export const useSessionRestore = () => {
+export const useSessionRestore = (setUser: (user: User | null) => void) => {
   const [restoring, setRestoring] = useState(false);
-  const [restoredUser, setRestoredUser] = useState<User | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   /**
@@ -69,24 +68,30 @@ export const useSessionRestore = () => {
       }
 
       if (res?.user) {
-        setRestoredUser(res.user);
+        if (typeof setUser === 'function') {
+          setUser(res.user);
+        }
         return res.user;
       }
 
       // ❌ no user returned → treat as invalid
       clearAccessToken();
-      setRestoredUser(null);
+      if (typeof setUser === 'function') {
+        setUser(null);
+      }
       return null;
     } catch (err: any) {
       console.warn("❌ [useSessionRestore] backend reject:", err);
       clearAccessToken();
       setError("restore_failed");
-      setRestoredUser(null);
+      if (typeof setUser === 'function') {
+        setUser(null);
+      }
       return null;
     } finally {
       setRestoring(false);
     }
-  }, []);
+  }, [setUser]);
 
   /**
    * 🛡️ Proactive Resilience
@@ -111,7 +116,6 @@ export const useSessionRestore = () => {
 
   return {
     restoring,
-    restoredUser,
     error,
     restoreSession,
   };

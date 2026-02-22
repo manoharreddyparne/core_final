@@ -30,8 +30,8 @@ const Navbar = () => {
                 <Link to="/dashboard" className="hover:bg-blue-500 px-3 py-2 rounded">
                   Dashboard
                 </Link>
-                <Link to="/secure-device" className="hover:bg-blue-500 px-3 py-2 rounded">
-                  Secure Device
+                <Link to="/security" className="hover:bg-blue-500 px-3 py-2 rounded">
+                  Security Hub
                 </Link>
                 <Link to="/students" className="hover:bg-blue-500 px-3 py-2 rounded">
                   Students

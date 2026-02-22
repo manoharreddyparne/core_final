@@ -60,18 +60,15 @@ const ProtectedRoute = ({ children, allowedRoles }: Props) => {
       return userRole === allowed;
     })
   ) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-[#0a0a0b] text-white">
-        <h1 className="text-4xl font-black text-red-500 mb-4">403 FORBIDDEN</h1>
-        <p className="text-gray-400">Access Restricted: Your role does not have permission to view this resource.</p>
-        <button
-          onClick={() => window.history.back()}
-          className="mt-8 px-6 py-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all font-bold uppercase tracking-widest text-xs"
-        >
-          Go Back
-        </button>
-      </div>
-    );
+    // 🔀 Smooth Redirect instead of 403 screen
+    const role = user.role?.toLowerCase();
+    const dashboard =
+      role === "student" ? "/student-dashboard" :
+        (role === "inst_admin" || role === "institution_admin") ? "/institution/dashboard" :
+          role === "super_admin" ? "/superadmin/dashboard" :
+            role === "faculty" ? "/faculty-dashboard" : "/";
+
+    return <Navigate to={dashboard} replace />;
   }
 
   /**

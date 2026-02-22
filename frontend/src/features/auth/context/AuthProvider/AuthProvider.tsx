@@ -66,23 +66,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   /* -------------------------------------------------
     3) hydrate session (passport)
   -------------------------------------------------- */
-  const sessionHydration = useSessionHydration();
-  const { user: bootUser } = sessionHydration;
-
-  useEffect(() => {
-    if (bootUser) setUser(bootUser);
-  }, [bootUser, setUser]);
+  const sessionHydration = useSessionHydration(setUser);
 
   /* -------------------------------------------------
     4) auto-restore (visibility / focus)
   -------------------------------------------------- */
-  const sessionRestore = useSessionRestore();
-
-  useEffect(() => {
-    if (sessionRestore.restoredUser) {
-      setUser(sessionRestore.restoredUser);
-    }
-  }, [sessionRestore.restoredUser, setUser]);
+  const sessionRestore = useSessionRestore(setUser);
 
   /* -------------------------------------------------
     5) websocket session presence
@@ -139,7 +128,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         // If BOTH are missing, then the session was truly cleared server-side.
         // We check for both for backward compatibility and surgical isolation.
         if (shieldPresent !== "true" && roleShieldPresent !== "true") {
-          console.warn(`[AUTH] 🛡️ AQOUS Shield signal lost for role ${role}. Server-side invalidation detected.`);
           logout();
         }
       }

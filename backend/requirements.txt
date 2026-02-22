@@ -35,7 +35,8 @@ PyJWT==2.10.1
 python-dateutil==2.9.0.post0
 python-decouple==3.8
 pytz==2025.2
-reportlab==4.4.3
+reportlab==4.2.0
+groq==1.0.0
 requests==2.32.4
 requests-oauthlib==2.0.0
 rsa==4.9.1
@@ -51,3 +52,4 @@ daphne==4.0.0
 geoip2==5.2.0
 httpagentparser==1.9.5
 google-generativeai==0.8.3
+openai==1.55.0

@@ -320,4 +320,4 @@ class AdminAuthorizedAccount(models.Model):
 
     @property
     def role(self):
-        return "INSTITUTION_ADMIN"
+        return "INST_ADMIN"
