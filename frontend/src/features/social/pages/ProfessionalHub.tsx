@@ -36,6 +36,13 @@ const ProfessionalHub: React.FC = () => {
         fetchAll();
     }, []);
 
+    useEffect(() => {
+        if (searchParams.get('review') === '1') {
+            setShowReviewModal(true);
+            setSearchParams({});
+        }
+    }, [searchParams, setSearchParams]);
+
     const handleCreatePost = async () => {
         if (!newPostContent) return;
         try {
