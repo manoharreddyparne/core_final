@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useLocation } from "react-router-dom";
 import { getAccessToken } from "../../auth/utils/tokenStorage";
 
 export const useChatSocket = (sessionId: string | null, currentUserId?: number) => {
@@ -8,7 +9,7 @@ export const useChatSocket = (sessionId: string | null, currentUserId?: number) 
 
     const [typingUser, setTypingUser] = useState<number | null>(null);
 
-    const onMessage = (event: any) => {
+    const onMessage = useCallback((event: any) => {
         const data = JSON.parse(event.data);
         if (data.type === 'chat_broadcast') {
             setMessages((prev) => [...prev, {
@@ -29,7 +30,7 @@ export const useChatSocket = (sessionId: string | null, currentUserId?: number) 
                 ));
             }
         }
-    };
+    }, [currentUserId]);
 
     const connect = useCallback(() => {
         if (!sessionId) return;
@@ -51,7 +52,7 @@ export const useChatSocket = (sessionId: string | null, currentUserId?: number) 
             setConnected(false);
             socketRef.current = null;
         };
-    }, [sessionId, currentUserId]);
+    }, [sessionId, currentUserId, onMessage]);
 
     useEffect(() => {
         connect();
