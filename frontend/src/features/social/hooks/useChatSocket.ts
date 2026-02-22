@@ -11,13 +11,12 @@ export const useChatSocket = (sessionId: string | null, currentUserId?: number) 
     const onMessage = (event: any) => {
         const data = JSON.parse(event.data);
         if (data.type === 'chat_broadcast') {
-            if (data.sender_id === currentUserId) return;
             setMessages((prev) => [...prev, {
                 id: data.msg_id || Date.now(),
                 content: data.message,
                 sender_id: data.sender_id,
                 timestamp: data.timestamp,
-                is_me: false,
+                is_me: data.sender_id === currentUserId,
                 is_read: false
             }]);
         } else if (data.type === 'typing_broadcast') {
