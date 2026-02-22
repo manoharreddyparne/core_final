@@ -107,35 +107,47 @@ class SocialChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def is_member(self):
+        from django_tenants.utils import schema_context
         from apps.social.models import ChatSession
         from apps.social.views import SocialFeedViewSet
-        my_id = SocialFeedViewSet._get_my_profile_id(None, self.user)
-        session = ChatSession.objects.filter(session_id=self.session_id).first()
-        if not session: return False
-        return any(int(p['id']) == int(my_id) for p in session.participants)
+        
+        schema = self.scope.get('token_payload', {}).get('schema', 'public') if self.scope.get('token_payload') else 'public'
+        with schema_context(schema):
+            my_id = SocialFeedViewSet._get_my_profile_id(None, self.user)
+            session = ChatSession.objects.filter(session_id=self.session_id).first()
+            if not session: return False
+            return any(int(p['id']) == int(my_id) for p in session.participants)
 
     @database_sync_to_async
     def save_message(self, content, att_type, metadata):
+        from django_tenants.utils import schema_context
         from apps.social.models import ChatMessage, ChatSession
         from apps.social.security import SecureVaultService
+        
+        schema = self.scope.get('token_payload', {}).get('schema', 'public') if self.scope.get('token_payload') else 'public'
         try:
-            session = ChatSession.objects.get(session_id=self.session_id)
-            encrypted = SecureVaultService.encrypt(content)
-            m = ChatMessage.objects.create(
-                session=session,
-                sender_id=self.user.id,
-                sender_role=getattr(self.user, 'role', 'STUDENT'),
-                content=encrypted,
-                attachment_type=att_type,
-                metadata=metadata
-            )
-            session.last_message_at = timezone.now()
-            session.save()
-            return m.id
+            with schema_context(schema):
+                session = ChatSession.objects.get(session_id=self.session_id)
+                encrypted = SecureVaultService.encrypt(content)
+                m = ChatMessage.objects.create(
+                    session=session,
+                    sender_id=self.user.id,
+                    sender_role=getattr(self.user, 'role', 'STUDENT'),
+                    content=encrypted,
+                    attachment_type=att_type,
+                    metadata=metadata
+                )
+                session.last_message_at = timezone.now()
+                session.save()
+                return m.id
         except Exception:
             return None
 
     @database_sync_to_async
     def mark_as_read(self, msg_ids):
+        from django_tenants.utils import schema_context
         from apps.social.models import ChatMessage
-        ChatMessage.objects.filter(id__in=msg_ids).update(is_read=True, read_at=timezone.now())
+        
+        schema = self.scope.get('token_payload', {}).get('schema', 'public') if self.scope.get('token_payload') else 'public'
+        with schema_context(schema):
+            ChatMessage.objects.filter(id__in=msg_ids).update(is_read=True, read_at=timezone.now())
