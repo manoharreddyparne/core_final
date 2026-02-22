@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Send, Image as ImageIcon, Smile, MoreVertical, Phone, Video, Check, CheckCheck, MessageCircle, ShieldCheck, Trash2, Users, X, UserPlus, Mic } from 'lucide-react';
+import { Search, Send, Image as ImageIcon, Smile, Sticker, MoreVertical, Phone, Video, Check, CheckCheck, MessageCircle, ShieldCheck, Trash2, Users, X, UserPlus, Mic } from 'lucide-react';
 import { socialApi } from '../api';
 import { useAuth } from '../../auth/context/AuthProvider/AuthProvider';
 import { useChatSocket } from '../hooks/useChatSocket';
@@ -18,12 +18,23 @@ export const ChatHub = () => {
     const scrollRef = useRef<HTMLDivElement>(null);
 
     const [showEmojis, setShowEmojis] = useState(false);
+    const [showStickers, setShowStickers] = useState(false);
     const [isRecording, setIsRecording] = useState(false);
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const chunksRef = useRef<Blob[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏', '🚀', '🔥', '✨', '🎉', '👀', '💯', '🙌', '💡', '🤔'];
+    const STICKERS = [
+        'https://fonts.gstatic.com/s/e/notoemoji/latest/1f600/512.webp',
+        'https://fonts.gstatic.com/s/e/notoemoji/latest/2764_fe0f/512.webp',
+        'https://fonts.gstatic.com/s/e/notoemoji/latest/1f680/512.webp',
+        'https://fonts.gstatic.com/s/e/notoemoji/latest/1f525/512.webp',
+        'https://fonts.gstatic.com/s/e/notoemoji/latest/1f602/512.webp',
+        'https://fonts.gstatic.com/s/e/notoemoji/latest/1f4af/512.webp',
+        'https://fonts.gstatic.com/s/e/notoemoji/latest/1f973/512.webp',
+        'https://fonts.gstatic.com/s/e/notoemoji/latest/1f4a5/512.webp'
+    ];
 
     const { messages, setMessages, sendMessage, sendTyping, markRead, typingUser, connected } = useChatSocket(activeSession?.session_id || null, user?.id);
 
@@ -152,6 +163,11 @@ export const ChatHub = () => {
     const handleEmojiSelect = (emoji: string) => {
         setMsgInput(prev => prev + emoji);
         setShowEmojis(false);
+    };
+
+    const handleStickerSelect = (stickerUrl: string) => {
+        sendMessage(stickerUrl, 'STICKER');
+        setShowStickers(false);
     };
 
     const onTyping = (val: string) => {
@@ -347,12 +363,14 @@ export const ChatHub = () => {
                                         <div className={`p-4 px-6 rounded-[2rem] text-sm leading-relaxed shadow-lg relative group transition-all duration-300
                                             ${isMe ? 'bg-indigo-500 text-white rounded-tr-sm border border-indigo-400/30' : 'bg-white/5 border border-white/10 text-gray-200 rounded-tl-sm'}
                                         `}>
-                                            {msg.attachment_type === 'IMAGE' ? (
+                                            {(msg.attachment_type === 'IMAGE' || typeof msg.content === 'string' && msg.content.startsWith('data:image/')) ? (
                                                 <img src={msg.content} alt="Media message" className="max-w-[150px] sm:max-w-[250px] rounded-xl object-cover hover:scale-105 transition-transform cursor-zoom-in" />
-                                            ) : msg.attachment_type === 'VIDEO' ? (
+                                            ) : (msg.attachment_type === 'VIDEO' || typeof msg.content === 'string' && msg.content.startsWith('data:video/')) ? (
                                                 <video src={msg.content} controls className="max-w-[150px] sm:max-w-[250px] rounded-xl" />
-                                            ) : msg.attachment_type === 'VOICE' ? (
+                                            ) : (msg.attachment_type === 'VOICE' || typeof msg.content === 'string' && msg.content.startsWith('data:audio/')) ? (
                                                 <audio src={msg.content} controls className="w-48 sm:w-64 h-10 rounded-full" />
+                                            ) : msg.attachment_type === 'STICKER' ? (
+                                                <img src={msg.content} alt="Sticker" className="w-32 h-32 object-contain animate-in zoom-in spin-in hover:scale-110 transition-transform" />
                                             ) : (
                                                 <p className="break-words font-medium whitespace-pre-wrap">{msg.content}</p>
                                             )}
@@ -402,10 +420,27 @@ export const ChatHub = () => {
                             </div>
                         )}
 
+                        {/* Sticker Picker Popup */}
+                        {showStickers && (
+                            <div className="absolute bottom-full left-16 mb-2 p-3 bg-[#111218] border border-white/10 rounded-3xl shadow-2xl z-50 animate-in slide-in-from-bottom-2 fade-in w-72">
+                                <div className="grid grid-cols-4 gap-2">
+                                    {STICKERS.map((sticker, idx) => (
+                                        <button key={idx} onClick={() => handleStickerSelect(sticker)} className="hover:scale-110 transition-transform p-2 bg-white/5 rounded-xl hover:bg-white/10 flex items-center justify-center">
+                                            <img src={sticker} alt="Sticker" className="w-12 h-12 object-contain" />
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         <div className="flex items-center gap-3">
                             <div className="flex gap-1 shrink-0 bg-white/5 p-1 rounded-full">
-                                <button onClick={() => setShowEmojis(!showEmojis)} className={`p-3 transition-all rounded-full ${showEmojis ? 'bg-white/10 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}>
+                                <button onClick={() => { setShowEmojis(!showEmojis); setShowStickers(false); }} className={`p-3 transition-all rounded-full ${showEmojis ? 'bg-white/10 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}>
                                     <Smile className="w-5 h-5" />
+                                </button>
+
+                                <button onClick={() => { setShowStickers(!showStickers); setShowEmojis(false); }} className={`p-3 transition-all rounded-full ${showStickers ? 'bg-primary/20 text-primary shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}>
+                                    <Sticker className="w-5 h-5" />
                                 </button>
 
                                 <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept="image/*,video/*" className="hidden" />
