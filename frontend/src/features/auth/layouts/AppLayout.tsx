@@ -473,7 +473,7 @@ export const AppLayout = () => {
     }, [user]);
 
     return (
-        <div className="min-h-screen bg-[#0b1120] text-foreground flex flex-col md:flex-row font-sans">
+        <div className="h-screen bg-[#0b1120] text-foreground flex flex-col md:flex-row font-sans overflow-hidden">
             {/* Mobile Header */}
             <div className="md:hidden bg-background border-b border-border p-4 flex items-center justify-between sticky top-0 z-20">
                 <div className="font-bold text-lg text-primary">AUIP <span className="text-white italic">Platform</span></div>
@@ -618,19 +618,20 @@ export const AppLayout = () => {
             )}
 
             {/* Content Area */}
-            <main className="flex-1 p-4 md:p-8 overflow-y-auto h-[calc(100vh-64px)] md:h-screen w-full">
-                <div className="max-w-7xl mx-auto animate-in fade-in duration-300">
-                    <div className="mb-6 flex items-center justify-between">
-                        <div className="md:invisible font-bold text-gray-500 uppercase tracking-widest text-[10px]">Portal Access</div>
-                        <div className="flex items-center gap-4">
+            <main className={`flex-1 flex flex-col min-h-0 w-full overflow-hidden ${location.pathname === '/chat-hub' ? 'p-2 md:p-4' : 'p-4 md:p-8 overflow-y-auto'
+                }`}>
+                {location.pathname === '/chat-hub' ? (
+                    /* Chat route: full height, no max-width, just a top bar + outlet */
+                    <div className="flex flex-col h-full min-h-0 overflow-hidden">
+                        <div className="flex items-center justify-end gap-3 mb-2 shrink-0 px-2">
                             <div className="relative">
                                 <button
                                     onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-                                    className={`relative w-10 h-10 rounded-2xl glass border-white/5 flex items-center justify-center transition-colors ${isNotificationsOpen ? 'text-primary bg-white/10' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
+                                    className={`relative w-9 h-9 rounded-xl glass border-white/5 flex items-center justify-center transition-colors ${isNotificationsOpen ? 'text-primary bg-white/10' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
                                 >
-                                    <Bell className="w-5 h-5" />
+                                    <Bell className="w-4 h-4" />
                                     {unreadNotifs > 0 && (
-                                        <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                                        <span className="absolute top-1.5 right-2 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
                                     )}
                                 </button>
                                 <NotificationOverlay
@@ -640,16 +641,50 @@ export const AppLayout = () => {
                             </div>
                             <button
                                 onClick={() => setIsSearchOpen(true)}
-                                className="glass px-4 py-2 rounded-2xl border-white/5 flex items-center gap-3 text-xs font-bold text-gray-400 hover:text-white hover:bg-white/10 transition-all group"
+                                className="glass px-3 py-2 rounded-xl border-white/5 flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-white hover:bg-white/10 transition-all"
                             >
-                                <Search className="w-4 h-4 group-hover:text-primary transition-colors" />
-                                <span className="hidden sm:inline">Type <span className="text-white hover:text-primary">Cmd+K</span> to search everything...</span>
-                                <span className="sm:hidden">Search...</span>
+                                <Search className="w-4 h-4" />
+                                <span className="hidden sm:inline">Cmd+K</span>
                             </button>
                         </div>
+                        <div className="flex-1 min-h-0 overflow-hidden">
+                            <Outlet />
+                        </div>
                     </div>
-                    <Outlet />
-                </div>
+                ) : (
+                    /* Normal routes: regular max-width scrollable content */
+                    <div className="max-w-7xl mx-auto animate-in fade-in duration-300 w-full">
+                        <div className="mb-6 flex items-center justify-between">
+                            <div className="md:invisible font-bold text-gray-500 uppercase tracking-widest text-[10px]">Portal Access</div>
+                            <div className="flex items-center gap-4">
+                                <div className="relative">
+                                    <button
+                                        onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+                                        className={`relative w-10 h-10 rounded-2xl glass border-white/5 flex items-center justify-center transition-colors ${isNotificationsOpen ? 'text-primary bg-white/10' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
+                                    >
+                                        <Bell className="w-5 h-5" />
+                                        {unreadNotifs > 0 && (
+                                            <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                                        )}
+                                    </button>
+                                    <NotificationOverlay
+                                        isOpen={isNotificationsOpen}
+                                        onClose={() => setIsNotificationsOpen(false)}
+                                    />
+                                </div>
+                                <button
+                                    onClick={() => setIsSearchOpen(true)}
+                                    className="glass px-4 py-2 rounded-2xl border-white/5 flex items-center gap-3 text-xs font-bold text-gray-400 hover:text-white hover:bg-white/10 transition-all group"
+                                >
+                                    <Search className="w-4 h-4 group-hover:text-primary transition-colors" />
+                                    <span className="hidden sm:inline">Type <span className="text-white hover:text-primary">Cmd+K</span> to search everything...</span>
+                                    <span className="sm:hidden">Search...</span>
+                                </button>
+                            </div>
+                        </div>
+                        <Outlet />
+                    </div>
+                )}
             </main>
 
             {/* Secure Device Modal */}

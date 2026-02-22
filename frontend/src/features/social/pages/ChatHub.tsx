@@ -1,589 +1,760 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Search, Send, Image as ImageIcon, Smile, Sticker, MoreVertical, Phone, Video, Check, CheckCheck, MessageCircle, ShieldCheck, Trash2, Users, X, UserPlus, Mic } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import {
+    Search, Send, Image as ImageIcon, Smile, Phone, Video,
+    CheckCheck, Check, MessageCircle, ShieldCheck, Trash2, Users, X,
+    UserPlus, Mic, Wifi, WifiOff, ArrowLeft, ChevronRight, Clock
+} from 'lucide-react';
 import { socialApi } from '../api';
 import { useAuth } from '../../auth/context/AuthProvider/AuthProvider';
 import { useChatSocket } from '../hooks/useChatSocket';
 import { toast } from 'react-hot-toast';
 
+/* ─────────── Emoji panel ─────────── */
+const EMOJIS = [
+    '😀', '😂', '😍', '😎', '😭', '😡', '🥳', '🤔', '😊', '😇',
+    '👍', '❤️', '🔥', '✨', '🎉', '💯', '🙏', '🚀', '💡', '👀',
+    '🙌', '😴', '🤣', '🥰', '😏', '😢', '😤', '😱', '🫡', '🫂',
+];
+
+/* ─────────── Time helpers ─────────── */
+function safeTime(ts: any): string {
+    if (!ts) return '';
+    const d = new Date(ts);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function safeDate(ts: any): Date | null {
+    if (!ts) return null;
+    const d = new Date(ts);
+    return isNaN(d.getTime()) ? null : d;
+}
+
+function getDateLabel(ts: any): string {
+    const d = safeDate(ts);
+    if (!d) return '';
+    const today = new Date();
+    const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+    if (d.toDateString() === today.toDateString()) return 'Today';
+    if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
+    return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+function groupByDate(messages: any[]) {
+    const groups: { label: string; msgs: any[] }[] = [];
+    let lastLabel = '';
+    for (const msg of messages) {
+        const label = getDateLabel(msg.timestamp) || 'Unknown';
+        if (label !== lastLabel) { groups.push({ label, msgs: [] }); lastLabel = label; }
+        groups[groups.length - 1].msgs.push(msg);
+    }
+    return groups;
+}
+
+function formatLastSeen(ts: any): string {
+    const d = safeDate(ts);
+    if (!d) return '';
+    const now = new Date();
+    const diff = now.getTime() - d.getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+/* ─────────── Sub-components ─────────── */
+const DateSep = ({ label }: { label: string }) => (
+    <div className="flex justify-center my-4 select-none">
+        <span className="text-[10px] font-black text-white/30 bg-white/5 border border-white/10 px-3 py-1 rounded-full uppercase tracking-wider">
+            {label}
+        </span>
+    </div>
+);
+
+const MsgBubble = ({ msg }: { msg: any }) => {
+    const isMe = msg.is_me;
+    const time = safeTime(msg.timestamp);
+    const hasContent = msg.content && msg.content.trim().length > 0;
+
+    return (
+        <div className={`flex w-full mb-1.5 ${isMe ? 'justify-end' : 'justify-start'}`}>
+            <div
+                className={`flex flex-col gap-0.5 ${isMe ? 'items-end' : 'items-start'}`}
+                style={{ maxWidth: 'min(76%, 500px)' }}
+            >
+                <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed shadow-sm break-words transition-opacity ${isMe
+                    ? `bg-indigo-600 text-white rounded-tr-none${msg.is_pending ? ' opacity-60' : ''}`
+                    : 'bg-white/8 border border-white/10 text-gray-100 rounded-tl-none'
+                    }`}>
+                    {/* Render based on attachment type */}
+                    {(msg.attachment_type === 'IMAGE' || msg.content?.startsWith('data:image/')) ? (
+                        <img src={msg.content} alt="attachment" className="max-w-full rounded-xl object-cover cursor-zoom-in" style={{ maxWidth: 240 }} />
+                    ) : (msg.attachment_type === 'VIDEO' || msg.content?.startsWith('data:video/')) ? (
+                        <video src={msg.content} controls className="rounded-xl" style={{ maxWidth: 240 }} />
+                    ) : (msg.attachment_type === 'VOICE' || msg.content?.startsWith('data:audio/')) ? (
+                        <audio src={msg.content} controls className="h-9" style={{ width: 220 }} />
+                    ) : msg.attachment_type === 'STICKER' ? (
+                        <img src={msg.content} alt="sticker" className="object-contain rounded-xl" style={{ width: 100, height: 100 }} />
+                    ) : hasContent ? (
+                        <p className="whitespace-pre-wrap">{msg.content}</p>
+                    ) : msg.attachment_type && msg.attachment_type !== 'TEXT' ? (
+                        /* Attachment message with no displayable content (URL not loaded) */
+                        <span className="italic opacity-60 text-xs">[{msg.attachment_type.toLowerCase()}]</span>
+                    ) : (
+                        /* Truly empty message — show a placeholder dot to prevent zero-height bubbles */
+                        <span className="opacity-20 select-none">·</span>
+                    )}
+                </div>
+                <div className={`flex items-center gap-1 px-1 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                    {time && <span className="text-[10px] text-gray-500">{time}</span>}
+                    {isMe && (
+                        msg.is_pending
+                            ? <Clock className="w-3 h-3 text-gray-500/70 animate-pulse" aria-label="Sending…" />
+                            : msg.is_read
+                                ? <CheckCheck className="w-3.5 h-3.5 text-indigo-400" aria-label="Seen" />
+                                : <Check className="w-3.5 h-3.5 text-gray-500" aria-label="Sent" />
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const TypingBubble = ({ name }: { name: string }) => (
+    <div className="flex justify-start mb-2 animate-in fade-in slide-in-from-left-2 duration-200">
+        <div className="bg-white/8 border border-white/10 px-4 py-2.5 rounded-2xl rounded-tl-none flex items-center gap-2 shadow-sm">
+            {[0, 150, 300].map(d => (
+                <span key={d} className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />
+            ))}
+            <span className="text-[10px] font-bold text-indigo-300 tracking-wide ml-1">
+                {name.split(' ')[0]} is typing…
+            </span>
+        </div>
+    </div>
+);
+
+const SessionItem = ({ s, isActive, onClick }: { s: any; isActive: boolean; onClick: () => void }) => (
+    <button
+        onClick={onClick}
+        className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-all border-l-2 ${isActive
+            ? 'bg-indigo-500/10 border-indigo-500'
+            : 'border-transparent hover:bg-white/5 hover:border-white/10'
+            }`}
+    >
+        <div className="relative shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500/30 to-violet-500/20 flex items-center justify-center text-indigo-200 font-black text-base">
+                {s.other_name?.[0] ?? '?'}
+            </div>
+            {s.is_online && (
+                <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-[#0b1120]" />
+            )}
+            {s.unread_count > 0 && (
+                <div className="absolute -top-1 -right-1 min-w-[16px] h-4 bg-indigo-500 text-white text-[9px] font-black rounded-full flex items-center justify-center px-1 border-2 border-[#0b1120]">
+                    {s.unread_count}
+                </div>
+            )}
+        </div>
+        <div className="flex-1 min-w-0">
+            <div className="flex items-baseline justify-between gap-1">
+                <span className="text-sm font-bold text-white truncate">{s.other_name}</span>
+                {s.last_msg_at && (
+                    <span className="text-[9px] text-gray-500 shrink-0">{safeTime(s.last_msg_at)}</span>
+                )}
+            </div>
+            <p className="text-[11px] text-gray-500 truncate mt-0.5">
+                {s.last_msg_preview || 'Start a conversation…'}
+            </p>
+        </div>
+        <ChevronRight className="w-4 h-4 text-gray-600 shrink-0 sm:hidden" />
+    </button>
+);
+
+/* ══════════════════════════════════════════════════════
+   MAIN COMPONENT
+══════════════════════════════════════════════════════ */
 export const ChatHub = () => {
     const { user } = useAuth();
+
     const [sessions, setSessions] = useState<any[]>([]);
-    const [activeSession, setActiveSession] = useState<any | null>(null);
-    const [msgInput, setMsgInput] = useState("");
-    const [searchQuery, setSearchQuery] = useState("");
     const [connections, setConnections] = useState<any[]>([]);
-    const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
-    const [groupName, setGroupName] = useState("");
-    const [selectedPeers, setSelectedPeers] = useState<any[]>([]);
-    const scrollRef = useRef<HTMLDivElement>(null);
+    const [activeSession, setActiveSession] = useState<any | null>(null);
 
+    const [msgInput, setMsgInput] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
     const [showEmojis, setShowEmojis] = useState(false);
-    const [showStickers, setShowStickers] = useState(false);
     const [isRecording, setIsRecording] = useState(false);
-    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const [isGroupModal, setIsGroupModal] = useState(false);
+    const [groupName, setGroupName] = useState('');
+    const [selPeers, setSelPeers] = useState<any[]>([]);
+    const [mobileView, setMobileView] = useState<'list' | 'chat'>('list');
+
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
+    const fileRef = useRef<HTMLInputElement>(null);
+    const emojiRef = useRef<HTMLDivElement>(null);
+    const mediaRecRef = useRef<MediaRecorder | null>(null);
     const chunksRef = useRef<Blob[]>([]);
-    const fileInputRef = useRef<HTMLInputElement>(null);
+    const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const isTypingRef = useRef(false);
 
-    const EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏', '🚀', '🔥', '✨', '🎉', '👀', '💯', '🙌', '💡', '🤔'];
-    const STICKERS = [
-        'https://fonts.gstatic.com/s/e/notoemoji/latest/1f600/512.webp',
-        'https://fonts.gstatic.com/s/e/notoemoji/latest/2764_fe0f/512.webp',
-        'https://fonts.gstatic.com/s/e/notoemoji/latest/1f680/512.webp',
-        'https://fonts.gstatic.com/s/e/notoemoji/latest/1f525/512.webp',
-        'https://fonts.gstatic.com/s/e/notoemoji/latest/1f602/512.webp',
-        'https://fonts.gstatic.com/s/e/notoemoji/latest/1f4af/512.webp',
-        'https://fonts.gstatic.com/s/e/notoemoji/latest/1f973/512.webp',
-        'https://fonts.gstatic.com/s/e/notoemoji/latest/1f4a5/512.webp'
-    ];
+    const {
+        messages, setMessages: ingestHistory,
+        connected, sendMessage, sendTyping, markRead,
+        typingUser, otherId
+    } = useChatSocket(activeSession, user?.id);
 
-    const { messages, setMessages, sendMessage, sendTyping, markRead, typingUser, connected } = useChatSocket(activeSession?.session_id || null, user?.id);
-
-    const loadData = async () => {
+    /* ── Load sessions & connections ── */
+    const loadData = useCallback(async () => {
         try {
             const params = new URLSearchParams(window.location.search);
             const peerId = params.get('peer');
             const peerRole = params.get('role');
 
-            const [data, connData] = await Promise.all([
+            const [sessData, connData] = await Promise.all([
                 socialApi.getChatSessions(),
-                socialApi.getDetailedConnections()
+                socialApi.getDetailedConnections(),
             ]);
-
-            setSessions(data);
-            setConnections(connData.connections || []); // The mutual friends
+            setSessions(sessData ?? []);
+            setConnections(connData?.connections ?? []);
 
             if (peerId && peerRole) {
                 const session = await socialApi.startChat(parseInt(peerId), peerRole);
                 if (session?.session_id) {
                     const fresh = await socialApi.getChatSessions();
-                    setSessions(fresh);
-                    const found = fresh.find((s: any) => s.session_id === session.session_id);
-                    if (found) setActiveSession(found);
+                    setSessions(fresh ?? []);
+                    const found = fresh?.find((s: any) => s.session_id === session.session_id);
+                    if (found) { setActiveSession(found); setMobileView('chat'); }
                 }
-            } else if (data.length > 0 && !activeSession) {
-                setActiveSession(data[0]);
+            } else if (sessData?.length > 0) {
+                setActiveSession(sessData[0]);
             }
         } catch (err: any) {
-            if (err.response?.status === 403) {
-                toast.error("Handshake Required: Connect as FRIENDS first.");
-            }
+            if (err?.response?.status === 403) toast.error('Connect as FRIENDS first.');
         }
-    };
-
-    useEffect(() => {
-        loadData();
     }, []);
 
-    const handleDeleteSession = async (sid: string) => {
-        if (!window.confirm("Bury this conversation? (Removed for you)")) return;
-        try {
-            await socialApi.deleteChatSession(sid);
-            toast.success("Identity purged from thread.");
-            setActiveSession(null);
-            loadData();
-        } catch (err) {
-            toast.error("Redaction failed.");
-        }
-    };
+    useEffect(() => { loadData(); }, []);
 
-    const handleCall = () => toast.success("Secure Voice Uplink: Under Construction");
-    const handleVideo = () => toast.success("Holistic Video Matrix: Under Construction");
-
+    /* ── Load message history when session changes ── */
     useEffect(() => {
-        if (activeSession) {
-            socialApi.getChatMessages(activeSession.session_id).then(setMessages);
-            // Mark all current visible as read
-            const unread = messages.filter(m => !m.is_me && !m.is_read).map(m => m.id);
-            if (unread.length > 0) markRead(unread);
-        }
-    }, [activeSession, setMessages]);
+        if (!activeSession?.session_id) return;
+        socialApi.getChatMessages(activeSession.session_id)
+            .then((msgs: any[]) => ingestHistory(msgs ?? []))
+            .catch(() => ingestHistory([]));
+    }, [activeSession?.session_id]);
 
+    /* ── Auto-scroll ── */
     useEffect(() => {
-        if (scrollRef.current) {
-            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        const el = scrollRef.current;
+        if (!el) return;
+        const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 180;
+        if (nearBottom || messages[messages.length - 1]?.is_me) {
+            requestAnimationFrame(() => el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' }));
         }
-    }, [messages, typingUser]);
+    }, [messages.length, typingUser]);
 
+    /* ── Mark incoming messages as read ── */
+    useEffect(() => {
+        // Only mark messages with real DB IDs (not optimistic tmp- entries)
+        const unread = messages
+            .filter(m => !m.is_me && !m.is_read && !String(m.id).startsWith('tmp-'))
+            .map(m => Number(m.id));
+        if (unread.length > 0) markRead(unread);
+    }, [messages.length]);
+
+    /* ── Close emoji on outside click ── */
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (emojiRef.current && !emojiRef.current.contains(e.target as Node)) {
+                setShowEmojis(false);
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
+
+    /* ── Send ── */
     const handleSend = () => {
-        if (!msgInput.trim()) return;
-        sendMessage(msgInput);
-        setMsgInput("");
+        const txt = msgInput.trim();
+        if (!txt || !connected) return;
+        sendMessage(txt);
+        setMsgInput('');
         sendTyping(false);
+        isTypingRef.current = false;
+        if (typingTimer.current) clearTimeout(typingTimer.current);
+        inputRef.current?.focus();
     };
 
-    const handleVoiceRecord = async () => {
+    /* ── Typing indicator (throttled, stops after 2s idle) ── */
+    const onTyping = (val: string) => {
+        setMsgInput(val);
+        if (val.length > 0) {
+            if (!isTypingRef.current) { isTypingRef.current = true; sendTyping(true); }
+            if (typingTimer.current) clearTimeout(typingTimer.current);
+            typingTimer.current = setTimeout(() => {
+                isTypingRef.current = false;
+                sendTyping(false);
+            }, 2000);
+        } else {
+            if (isTypingRef.current) { isTypingRef.current = false; sendTyping(false); }
+            if (typingTimer.current) clearTimeout(typingTimer.current);
+        }
+    };
+
+    /* ── File attach ── */
+    const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (file.size > 10 * 1024 * 1024) { toast.error('File too large (10MB max)'); return; }
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onloadend = () =>
+            sendMessage(reader.result as string, file.type.startsWith('video/') ? 'VIDEO' : 'IMAGE');
+        e.target.value = '';
+    };
+
+    /* ── Voice ── */
+    const handleVoice = async () => {
         if (!isRecording) {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                const mediaRecorder = new MediaRecorder(stream);
-                mediaRecorderRef.current = mediaRecorder;
+                const mr = new MediaRecorder(stream);
+                mediaRecRef.current = mr;
                 chunksRef.current = [];
-
-                mediaRecorder.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
-                mediaRecorder.onstop = () => {
+                mr.ondataavailable = ev => { if (ev.data.size > 0) chunksRef.current.push(ev.data); };
+                mr.onstop = () => {
                     const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
-                    const reader = new FileReader();
-                    reader.readAsDataURL(blob);
-                    reader.onloadend = () => {
-                        const base64data = reader.result as string;
-                        sendMessage(base64data, 'VOICE');
-                    };
-                    stream.getTracks().forEach(track => track.stop());
+                    const r = new FileReader();
+                    r.readAsDataURL(blob);
+                    r.onloadend = () => sendMessage(r.result as string, 'VOICE');
+                    stream.getTracks().forEach(t => t.stop());
                 };
-                mediaRecorder.start();
+                mr.start();
                 setIsRecording(true);
-            } catch (err) {
-                toast.error("Microphone permission denied");
-            }
+            } catch { toast.error('Microphone access denied'); }
         } else {
-            mediaRecorderRef.current?.stop();
+            mediaRecRef.current?.stop();
             setIsRecording(false);
         }
     };
 
-    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
+    const openChat = (s: any) => { setActiveSession(s); setMobileView('chat'); };
 
-        if (file.size > 10 * 1024 * 1024) { // 10MB limit
-            toast.error("File size limits exceeded for direct websocket payload.");
-            return;
-        }
-
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onloadend = () => {
-            const base64data = reader.result as string;
-            const attType = file.type.startsWith('video/') ? 'VIDEO' : 'IMAGE';
-            sendMessage(base64data, attType);
-        };
-        e.target.value = '';
-    };
-
-    const handleEmojiSelect = (emoji: string) => {
-        setMsgInput(prev => prev + emoji);
-        setShowEmojis(false);
-    };
-
-    const handleStickerSelect = (stickerUrl: string) => {
-        sendMessage(stickerUrl, 'STICKER');
-        setShowStickers(false);
-    };
-
-    const onTyping = (val: string) => {
-        setMsgInput(val);
-        sendTyping(val.length > 0);
-    };
-
-    const startChatWithConn = async (c: any) => {
-        setSearchQuery("");
+    const startWithConn = async (c: any) => {
+        setSearchQuery('');
         try {
             const session = await socialApi.startChat(c.id, c.role);
             if (session?.session_id) {
                 const fresh = await socialApi.getChatSessions();
-                setSessions(fresh);
-                const found = fresh.find((s: any) => s.session_id === session.session_id);
-                if (found) setActiveSession(found);
+                setSessions(fresh ?? []);
+                const found = fresh?.find((s: any) => s.session_id === session.session_id);
+                if (found) openChat(found);
             }
-        } catch (e) {
-            toast.error("Handshake Required.");
-        }
+        } catch { toast.error('Handshake Required — must be FRIENDS first.'); }
     };
 
-    const handleCreateGroup = async () => {
-        if (!groupName.trim() || selectedPeers.length === 0) return;
+    const deleteSession = async (sid: string) => {
+        if (!window.confirm('Remove this conversation?')) return;
         try {
-            const peersToInvite = selectedPeers.map(p => ({ id: p.id, role: p.role }));
-            const session = await socialApi.startGroupChat(peersToInvite, groupName);
+            await socialApi.deleteChatSession(sid);
+            setActiveSession(null);
+            setMobileView('list');
+            loadData();
+        } catch { toast.error('Could not remove conversation.'); }
+    };
+
+    const createGroup = async () => {
+        if (!groupName.trim() || selPeers.length === 0) return;
+        try {
+            const session = await socialApi.startGroupChat(
+                selPeers.map(p => ({ id: p.id, role: p.role })), groupName
+            );
             if (session?.session_id) {
                 const fresh = await socialApi.getChatSessions();
-                setSessions(fresh);
-                const found = fresh.find((s: any) => s.session_id === session.session_id);
-                if (found) setActiveSession(found);
-                setIsGroupModalOpen(false);
-                setGroupName("");
-                setSelectedPeers([]);
-                toast.success("Group instantiated.");
+                setSessions(fresh ?? []);
+                const found = fresh?.find((s: any) => s.session_id === session.session_id);
+                if (found) openChat(found);
+                setIsGroupModal(false);
+                setGroupName('');
+                setSelPeers([]);
+                toast.success('Group created!');
             }
-        } catch (e) {
-            toast.error("Handshake failed. Ensure you are connected to all peers.");
-        }
+        } catch { toast.error('Could not create group. Ensure you are FRIENDS with all peers.'); }
     };
 
     const togglePeer = (c: any) => {
-        const identifier = `${c.role}-${c.id}`;
-        if (selectedPeers.find(p => `${p.role}-${p.id}` === identifier)) {
-            setSelectedPeers(selectedPeers.filter(p => `${p.role}-${p.id}` !== identifier));
-        } else {
-            setSelectedPeers([...selectedPeers, c]);
-        }
+        const key = `${c.role}-${c.id}`;
+        setSelPeers(prev =>
+            prev.find(p => `${p.role}-${p.id}` === key)
+                ? prev.filter(p => `${p.role}-${p.id}` !== key)
+                : [...prev, c]
+        );
     };
 
+    const filteredConns = connections.filter(c =>
+        c.name?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    const groups = groupByDate(messages);
+
+    // Show typing indicator only when the OTHER person is typing
+    const showTyping = typingUser !== null && otherId !== null && String(typingUser) === String(otherId);
+
+    /* ════════════════════════════════════════ RENDER ════════════════════════════════════════ */
     return (
-        <div className="h-full flex flex-col md:flex-row gap-6 animate-in fade-in duration-700">
-            {/* Left Sidebar */}
-            <div className="w-full md:w-80 glass rounded-[2.5rem] border-white/5 flex flex-col overflow-hidden h-full shrink-0">
-                <div className="p-6 border-b border-white/5">
-                    <div className="flex justify-between items-center">
-                        <h2 className="text-2xl font-black text-white italic tracking-tighter">Secure <span className="text-primary NOT-italic">Sync</span></h2>
-                        <div className="flex items-center gap-2">
-                            <button onClick={() => setIsGroupModalOpen(true)} className="w-8 h-8 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 flex items-center justify-center text-indigo-400 border border-indigo-500/20 transition-all" title="Create Secure Workgroup">
-                                <UserPlus className="w-4 h-4" />
+        <div className="flex h-full w-full overflow-hidden gap-3">
+
+            {/* ═══════════════ SIDEBAR ═══════════════ */}
+            <div className={`
+                flex flex-col glass rounded-2xl border border-white/5 overflow-hidden shrink-0 transition-all duration-300
+                ${mobileView === 'chat' ? 'hidden sm:flex sm:w-64 lg:w-72' : 'flex w-full sm:w-64 lg:w-72'}
+            `}>
+                {/* Header */}
+                <div className="px-4 py-3 border-b border-white/5 shrink-0 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-base font-black text-white tracking-tight">
+                            <span className="text-indigo-400 italic">Sync</span> Chat
+                        </h2>
+                        <div className="flex gap-1.5">
+                            <button
+                                onClick={() => setIsGroupModal(true)}
+                                className="w-7 h-7 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 flex items-center justify-center text-indigo-400 border border-indigo-500/20 transition-all"
+                                title="New group"
+                            >
+                                <UserPlus className="w-3.5 h-3.5" />
                             </button>
-                            <div className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center text-green-500 border border-green-500/20" title="E2EE Vault Active">
-                                <ShieldCheck className="w-4 h-4" />
+                            <div className="w-7 h-7 rounded-lg bg-green-500/10 flex items-center justify-center text-green-400 border border-green-500/20" title="E2EE Active">
+                                <ShieldCheck className="w-3.5 h-3.5" />
                             </div>
                         </div>
                     </div>
-                    <div className="relative mt-4">
+                    <div className="relative">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500 pointer-events-none" />
                         <input
                             type="text"
-                            placeholder="Identify Peer..."
+                            placeholder="Find people…"
                             value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2 text-xs text-white focus:outline-none focus:border-primary transition-all"
+                            onChange={e => setSearchQuery(e.target.value)}
+                            className="w-full bg-white/5 border border-white/10 rounded-xl pl-8 pr-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-indigo-400 transition-all"
                         />
-                        <Search className="w-4 h-4 text-gray-500 absolute left-4 top-1/2 -translate-y-1/2" />
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
+                {/* List */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0 py-1">
                     {searchQuery ? (
-                        connections
-                            .filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()))
-                            .map(c => (
-                                <div
-                                    key={`conn-${c.id}`}
-                                    onClick={() => startChatWithConn(c)}
-                                    className="flex items-center gap-4 p-4 rounded-3xl cursor-pointer transition-all hover:bg-white/5 border border-transparent"
+                        filteredConns.length === 0
+                            ? <p className="text-center text-gray-600 text-xs py-10 px-4">No results for "{searchQuery}"</p>
+                            : filteredConns.map(c => (
+                                <button
+                                    key={`c-${c.role}-${c.id}`}
+                                    onClick={() => startWithConn(c)}
+                                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-all text-left"
                                 >
-                                    <div className="relative">
-                                        <div className="w-12 h-12 rounded-[1.2rem] bg-indigo-500/20 flex items-center justify-center text-indigo-400 font-black text-lg">
-                                            {c.avatar}
+                                    <div className="relative shrink-0">
+                                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500/30 to-violet-500/20 flex items-center justify-center text-indigo-200 font-black">
+                                            {c.avatar || c.name?.[0]}
                                         </div>
                                         {c.is_online && (
-                                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-[#0a0a0a]" />
+                                            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-[#0b1120]" />
                                         )}
                                     </div>
-                                    <div className="flex-1 min-w-0">
-                                        <h3 className="font-bold text-white truncate text-sm">{c.name}</h3>
-                                        <p className="text-[10px] font-black text-primary uppercase tracking-widest">{c.role}</p>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-sm font-bold text-white truncate">{c.name}</p>
+                                        <p className="text-[10px] text-indigo-400 uppercase font-bold tracking-wider">{c.role}</p>
                                     </div>
-                                </div>
+                                    <ChevronRight className="w-4 h-4 text-gray-600 shrink-0" />
+                                </button>
                             ))
-                    ) : (
-                        sessions.map(s => (
-                            <div
-                                key={s.session_id}
-                                onClick={() => setActiveSession(s)}
-                                className={`flex items-center gap-4 p-4 rounded-3xl cursor-pointer transition-all ${activeSession?.session_id === s.session_id ? 'bg-primary/10 border border-primary/20' : 'hover:bg-white/5 border border-transparent'}`}
-                            >
-                                <div className="relative">
-                                    <div className="w-12 h-12 rounded-[1.2rem] bg-indigo-500/20 flex items-center justify-center text-indigo-400 font-black text-lg">
-                                        {s.other_name[0]}
-                                    </div>
-                                    {s.unread_count > 0 && (
-                                        <div className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-primary text-white text-[9px] font-black rounded-full flex items-center justify-center border-2 border-[#121212] px-1">
-                                            {s.unread_count}
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex justify-between items-baseline mb-0.5">
-                                        <h3 className="font-bold text-white truncate text-sm">{s.other_name}</h3>
-                                        <span className="text-[9px] text-gray-500 font-bold shrink-0">
-                                            {new Date(s.last_msg_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                        </span>
-                                    </div>
-                                    <p className="text-[10px] text-muted-foreground truncate italic opacity-60">
-                                        {s.last_msg_preview || `Start conversation...`}
-                                    </p>
-                                </div>
-                            </div>
-                        ))
-                    )}
-
-                    {!searchQuery && sessions.length === 0 && (
-                        <div className="p-10 text-center text-gray-500 text-xs italic">
-                            No active channels. Identify a peer above to start.
+                    ) : sessions.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center h-full py-16 px-4 text-center gap-3">
+                            <MessageCircle className="w-8 h-8 text-white/10" />
+                            <p className="text-xs text-gray-600 leading-relaxed">No conversations yet.<br />Search a person above to start.</p>
                         </div>
-                    )}
-                    {searchQuery && connections.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
-                        <div className="p-10 text-center text-gray-500 text-xs italic">
-                            No connections found.
-                        </div>
-                    )}
+                    ) : sessions.map(s => (
+                        <SessionItem
+                            key={s.session_id}
+                            s={s}
+                            isActive={activeSession?.session_id === s.session_id}
+                            onClick={() => openChat(s)}
+                        />
+                    ))}
                 </div>
             </div>
 
-            {/* Right Side */}
-            {activeSession ? (
-                <div className="flex-1 glass rounded-[2.5rem] border-white/5 flex flex-col overflow-hidden h-full relative min-w-0 min-h-0">
-                    {/* Header */}
-                    <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/[0.02] backdrop-blur-xl shrink-0">
-                        <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-[1.2rem] bg-indigo-500/20 flex items-center justify-center text-indigo-400 font-black shadow-lg shrink-0">
-                                {activeSession.other_name[0]}
-                            </div>
-                            <div className="flex flex-col min-w-0">
-                                <h3 className="font-bold text-white text-lg flex items-center gap-2 truncate">
-                                    {activeSession.other_name}
-                                    <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest shrink-0 ${activeSession.is_online ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-white/5 text-gray-500 border border-white/5'}`}>
-                                        {activeSession.is_online ? 'Online' : `Last seen ${activeSession.last_seen ? new Date(activeSession.last_seen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Unknown'}`}
-                                    </span>
-                                </h3>
-                                <div className="flex items-center gap-2 mt-0.5">
-                                    <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${connected ? 'bg-indigo-500 animate-pulse shadow-[0_0_8px_rgba(99,102,241,0.5)]' : 'bg-red-500'}`} />
-                                    <p className={`text-[8px] uppercase font-black tracking-widest truncate ${connected ? 'text-indigo-400' : 'text-red-500'}`}>
-                                        {connected ? 'E2EE Channel Established' : 'Connecting Vault...'}
-                                    </p>
+            {/* ═══════════════ CHAT PANEL ═══════════════ */}
+            <div className={`
+                flex-1 flex flex-col glass rounded-2xl border border-white/5 overflow-hidden min-w-0 min-h-0
+                ${mobileView === 'list' ? 'hidden sm:flex' : 'flex'}
+            `}>
+                {activeSession ? (
+                    <>
+                        {/* ── Chat header ── */}
+                        <div className="px-4 py-3 border-b border-white/5 flex items-center gap-3 bg-white/[0.02] shrink-0">
+                            {/* Back (mobile) */}
+                            <button
+                                onClick={() => setMobileView('list')}
+                                className="sm:hidden w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-gray-400 transition-all shrink-0"
+                            >
+                                <ArrowLeft className="w-4 h-4" />
+                            </button>
+
+                            {/* Avatar with online dot */}
+                            <div className="relative shrink-0">
+                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500/30 to-violet-500/20 flex items-center justify-center text-indigo-200 font-black">
+                                    {activeSession.other_name?.[0] ?? '?'}
                                 </div>
-                            </div>
-                        </div>
-                        <div className="flex gap-3 shrink-0">
-                            <button onClick={handleCall} className="w-11 h-11 rounded-2xl bg-white/5 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all"><Phone className="w-5 h-5" /></button>
-                            <button onClick={handleVideo} className="w-11 h-11 rounded-2xl bg-white/5 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all"><Video className="w-5 h-5" /></button>
-                            <div className="w-px h-8 bg-white/10 mx-1 self-center" />
-                            <button onClick={() => handleDeleteSession(activeSession.session_id)} className="w-11 h-11 rounded-2xl bg-red-500/10 flex items-center justify-center text-red-500 hover:bg-red-500/20 transition-all"><Trash2 className="w-5 h-5" /></button>
-                        </div>
-                    </div>
-
-                    {/* Messages */}
-                    <div className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar min-h-0 relative" ref={scrollRef}>
-                        <div className="flex flex-col items-center gap-2 py-4">
-                            <ShieldCheck className="w-4 h-4 text-green-500/30" />
-                            <span className="text-[9px] font-black text-white/20 uppercase tracking-[0.3em]">End-to-End Encrypted Channel</span>
-                        </div>
-
-                        {messages.map((msg, i) => {
-                            const isMe = msg.is_me;
-                            return (
-                                <div key={msg.id || i} className={`flex ${isMe ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom-2`}>
-                                    <div className={`flex flex-col gap-1.5 max-w-[75%] ${isMe ? 'items-end' : 'items-start'}`}>
-                                        <div className={`p-4 px-6 rounded-[2rem] text-sm leading-relaxed shadow-lg relative group transition-all duration-300
-                                            ${isMe ? 'bg-indigo-500 text-white rounded-tr-sm border border-indigo-400/30' : 'bg-white/5 border border-white/10 text-gray-200 rounded-tl-sm'}
-                                        `}>
-                                            {(msg.attachment_type === 'IMAGE' || typeof msg.content === 'string' && msg.content.startsWith('data:image/')) ? (
-                                                <img src={msg.content} alt="Media message" className="max-w-[150px] sm:max-w-[250px] rounded-xl object-cover hover:scale-105 transition-transform cursor-zoom-in" />
-                                            ) : (msg.attachment_type === 'VIDEO' || typeof msg.content === 'string' && msg.content.startsWith('data:video/')) ? (
-                                                <video src={msg.content} controls className="max-w-[150px] sm:max-w-[250px] rounded-xl" />
-                                            ) : (msg.attachment_type === 'VOICE' || typeof msg.content === 'string' && msg.content.startsWith('data:audio/')) ? (
-                                                <audio src={msg.content} controls className="w-48 sm:w-64 h-10 rounded-full" />
-                                            ) : msg.attachment_type === 'STICKER' ? (
-                                                <img src={msg.content} alt="Sticker" className="w-32 h-32 object-contain animate-in zoom-in spin-in hover:scale-110 transition-transform" />
-                                            ) : (
-                                                <p className="break-words font-medium whitespace-pre-wrap">{msg.content}</p>
-                                            )}
-                                        </div>
-                                        <div className="flex items-center gap-2 px-2">
-                                            <span className="text-[9px] text-gray-500 font-bold tracking-wider">
-                                                {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                            </span>
-                                            {isMe && (
-                                                <div className="flex items-center space-x-0.5">
-                                                    <CheckCheck className={`w-3.5 h-3.5 ${msg.is_read ? 'text-green-400' : 'text-gray-500'}`} />
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
-
-                        {typingUser === Number(activeSession.other_id) && (
-                            <div className="flex justify-start animate-in fade-in slide-in-from-left-2">
-                                <div className="bg-white/5 p-4 py-3 rounded-2xl rounded-tl-sm border border-white/10 flex items-center gap-3 shadow-lg">
-                                    <div className="flex gap-1.5">
-                                        <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                                        <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                                        <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" />
-                                    </div>
-                                    <p className="text-[9px] font-black text-indigo-300 uppercase tracking-widest">{activeSession.other_name.split(' ')[0]} is typing...</p>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Input */}
-                    <div className="relative p-4 bg-white/[0.02] border-t border-white/5 m-3 rounded-[2.5rem]">
-
-                        {/* Emoji Picker Popup */}
-                        {showEmojis && (
-                            <div className="absolute bottom-full left-4 mb-2 p-4 bg-[#111218] border border-white/10 rounded-3xl shadow-2xl z-50 animate-in slide-in-from-bottom-2 fade-in">
-                                <div className="grid grid-cols-5 gap-3">
-                                    {EMOJIS.map(emoji => (
-                                        <button key={emoji} onClick={() => handleEmojiSelect(emoji)} className="text-2xl hover:scale-125 transition-transform p-1">
-                                            {emoji}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Sticker Picker Popup */}
-                        {showStickers && (
-                            <div className="absolute bottom-full left-16 mb-2 p-3 bg-[#111218] border border-white/10 rounded-3xl shadow-2xl z-50 animate-in slide-in-from-bottom-2 fade-in w-72">
-                                <div className="grid grid-cols-4 gap-2">
-                                    {STICKERS.map((sticker, idx) => (
-                                        <button key={idx} onClick={() => handleStickerSelect(sticker)} className="hover:scale-110 transition-transform p-2 bg-white/5 rounded-xl hover:bg-white/10 flex items-center justify-center">
-                                            <img src={sticker} alt="Sticker" className="w-12 h-12 object-contain" />
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        <div className="flex items-center gap-3">
-                            <div className="flex gap-1 shrink-0 bg-white/5 p-1 rounded-full">
-                                <button onClick={() => { setShowEmojis(!showEmojis); setShowStickers(false); }} className={`p-3 transition-all rounded-full ${showEmojis ? 'bg-white/10 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}>
-                                    <Smile className="w-5 h-5" />
-                                </button>
-
-                                <button onClick={() => { setShowStickers(!showStickers); setShowEmojis(false); }} className={`p-3 transition-all rounded-full ${showStickers ? 'bg-primary/20 text-primary shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}>
-                                    <Sticker className="w-5 h-5" />
-                                </button>
-
-                                <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept="image/*,video/*" className="hidden" />
-                                <button onClick={() => fileInputRef.current?.click()} className="p-3 text-gray-400 hover:text-white transition-all hover:bg-white/10 rounded-full">
-                                    <ImageIcon className="w-5 h-5" />
-                                </button>
-
-                                <button onClick={handleVoiceRecord} className={`p-3 transition-all rounded-full ${isRecording ? 'bg-red-500/20 text-red-500 hover:bg-red-500/30 animate-pulse' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}>
-                                    <Mic className="w-5 h-5" />
-                                </button>
-                            </div>
-
-                            <div className="flex-1 relative">
-                                <input
-                                    type="text"
-                                    placeholder={isRecording ? "Recording your message..." : `Secure message to ${activeSession.other_name}...`}
-                                    className="w-full bg-white/5 border-none rounded-full px-6 py-4 text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 placeholder:text-gray-600 text-sm font-medium transition-all"
-                                    value={msgInput}
-                                    onChange={e => onTyping(e.target.value)}
-                                    onKeyDown={e => e.key === 'Enter' && handleSend()}
-                                    disabled={isRecording}
-                                />
-                                {isRecording && (
-                                    <div className="absolute inset-y-0 right-4 flex items-center">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
-                                            <span className="text-red-500 text-[10px] uppercase font-black tracking-widest animate-pulse">Recording</span>
-                                        </div>
-                                    </div>
+                                {activeSession.is_online && (
+                                    <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-[#0b1120]" />
                                 )}
                             </div>
 
-                            <button
-                                onClick={isRecording ? handleVoiceRecord : handleSend}
-                                disabled={!isRecording && !msgInput.trim()}
-                                className={`w-14 h-14 shrink-0 rounded-full flex items-center justify-center text-white shadow-xl transition-all ${isRecording ? 'bg-red-500 hover:bg-red-600 animate-pulse' : 'premium-gradient shadow-primary/20 hover:scale-105 disabled:opacity-50 disabled:scale-100'}`}
-                            >
-                                {isRecording ? <div className="w-4 h-4 bg-white rounded-sm" /> : <Send className="w-6 h-6 ml-1" />}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            ) : (
-                <div className="flex-1 glass rounded-[3.5rem] border-white/5 flex flex-col items-center justify-center text-center p-12 space-y-8 bg-gradient-to-br from-primary/5 via-transparent to-transparent">
-                    <div className="relative">
-                        <div className="absolute inset-0 bg-primary/20 blur-[100px] rounded-full" />
-                        <div className="w-32 h-32 rounded-[3.5rem] bg-white/5 border border-white/10 flex items-center justify-center text-white/20 relative backdrop-blur-3xl shadow-2xl">
-                            <MessageCircle className="w-12 h-12" />
-                        </div>
-                        <div className="absolute -bottom-4 -right-4 w-12 h-12 rounded-2xl bg-primary flex items-center justify-center text-white shadow-xl rotate-12">
-                            <ShieldCheck className="w-6 h-6" />
-                        </div>
-                    </div>
-                    <div className="max-w-md space-y-3">
-                        <h2 className="text-4xl font-black text-white italic tracking-tighter">E2EE <span className="text-primary NOT-italic">Secure Vault</span></h2>
-                        <p className="text-gray-500 text-sm font-medium leading-relaxed">
-                            Bilateral professional connections are encrypted point-to-point.
-                            Identify a peer from your network to start collaborating.
-                        </p>
-                    </div>
-                    <button
-                        onClick={() => window.location.href = '/discovery'}
-                        className="px-8 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white transition-all hover:scale-105"
-                    >
-                        Explore Network
-                    </button>
-                </div>
-            )}
-
-            {/* Create Group Modal */}
-            {isGroupModalOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300" onClick={() => setIsGroupModalOpen(false)} />
-                    <div className="relative w-full max-w-lg glass p-8 rounded-[3rem] border-white/10 shadow-3xl animate-in zoom-in-95 duration-300 flex flex-col max-h-[85vh]">
-                        <div className="flex items-center justify-between mb-8 pb-4 border-b border-white/10 shrink-0">
-                            <div>
-                                <h3 className="text-2xl font-black text-white uppercase italic tracking-tighter">
-                                    Establish <span className="text-indigo-400">Workgroup</span>
-                                </h3>
-                                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">Encrypted Multi-Peer Channel</p>
-                            </div>
-                            <button onClick={() => setIsGroupModalOpen(false)} className="w-10 h-10 glass bg-white/5 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors">
-                                <X className="w-4 h-4 text-white" />
-                            </button>
-                        </div>
-
-                        <div className="space-y-6 flex-1 overflow-y-auto custom-scrollbar pr-2 mb-6">
-                            <div>
-                                <label className="text-[10px] font-black text-white uppercase tracking-widest mb-2 block">Workgroup Designation</label>
-                                <input
-                                    type="text"
-                                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:border-indigo-500 text-sm font-medium"
-                                    placeholder="e.g. Thesis Research Team"
-                                    value={groupName}
-                                    onChange={(e) => setGroupName(e.target.value)}
-                                />
-                            </div>
-
-                            <div>
-                                <label className="text-[10px] font-black text-white uppercase tracking-widest mb-2 block flex justify-between">
-                                    <span>Select Peers (Connections)</span>
-                                    <span className="text-secondary">{selectedPeers.length} Selected</span>
-                                </label>
-                                <div className="space-y-2">
-                                    {connections.length > 0 ? connections.map(c => {
-                                        const isSelected = selectedPeers.find(p => p.id === c.id && p.role === c.role);
-                                        return (
-                                            <div
-                                                key={`peer-${c.role}-${c.id}`}
-                                                onClick={() => togglePeer(c)}
-                                                className={`flex items-center gap-4 p-4 rounded-2xl cursor-pointer transition-all border ${isSelected ? 'bg-indigo-500/10 border-indigo-500/30' : 'bg-black/20 border-white/5 hover:border-white/10'}`}
-                                            >
-                                                <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center font-black text-white shrink-0">
-                                                    {c.avatar}
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <h4 className="text-sm font-bold text-white truncate">{c.name}</h4>
-                                                    <p className="text-[9px] text-gray-500 uppercase tracking-widest">{c.role}</p>
-                                                </div>
-                                                <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-indigo-500 border-indigo-500 text-black' : 'border-white/20'}`}>
-                                                    {isSelected && <Check className="w-4 h-4 stroke-[3]" />}
-                                                </div>
-                                            </div>
-                                        );
-                                    }) : (
-                                        <div className="p-8 text-center bg-white/5 rounded-2xl border border-white/5">
-                                            <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">No active connections found.</p>
-                                            <p className="text-[10px] text-white/40 mt-2">Connect with peers before forming a group.</p>
+                            {/* Name + status */}
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-bold text-white text-sm truncate">{activeSession.other_name}</span>
+                                </div>
+                                {/* Second line: typing |last seen | live indicator */}
+                                <div className="flex items-center gap-1.5 mt-0.5 h-4">
+                                    {showTyping ? (
+                                        /* Show typing in header for desktop users too */
+                                        <div className="flex items-center gap-1.5 animate-in fade-in duration-200">
+                                            <span className="flex gap-0.5">
+                                                {[0, 100, 200].map(d => (
+                                                    <span key={d} className="w-1 h-1 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />
+                                                ))}
+                                            </span>
+                                            <span className="text-[10px] font-bold text-indigo-300">typing…</span>
+                                        </div>
+                                    ) : activeSession.is_online ? (
+                                        <div className="flex items-center gap-1">
+                                            {connected
+                                                ? <Wifi className="w-2.5 h-2.5 text-green-400" />
+                                                : <WifiOff className="w-2.5 h-2.5 text-red-400" />
+                                            }
+                                            <span className={`text-[10px] font-bold ${connected ? 'text-green-400' : 'text-red-400'}`}>
+                                                {connected ? 'Active now' : 'Reconnecting…'}
+                                            </span>
+                                        </div>
+                                    ) : activeSession.last_seen ? (
+                                        <div className="flex items-center gap-1 text-gray-500">
+                                            <Clock className="w-2.5 h-2.5" />
+                                            <span className="text-[10px]">Seen {formatLastSeen(activeSession.last_seen)}</span>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-1">
+                                            {connected
+                                                ? <Wifi className="w-2.5 h-2.5 text-indigo-400 animate-pulse" />
+                                                : <WifiOff className="w-2.5 h-2.5 text-red-400" />
+                                            }
+                                            <span className={`text-[10px] font-bold ${connected ? 'text-indigo-400' : 'text-red-400'}`}>
+                                                {connected ? 'E2EE Live' : 'Reconnecting…'}
+                                            </span>
                                         </div>
                                     )}
                                 </div>
                             </div>
+
+                            {/* Action buttons */}
+                            <div className="flex items-center gap-1.5 shrink-0">
+                                <button onClick={() => toast('Voice call — coming soon')} className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-all" title="Voice call"><Phone className="w-3.5 h-3.5" /></button>
+                                <button onClick={() => toast('Video call — coming soon')} className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-all" title="Video call"><Video className="w-3.5 h-3.5" /></button>
+                                <button onClick={() => deleteSession(activeSession.session_id)} className="w-8 h-8 rounded-xl bg-red-500/10 hover:bg-red-500/20 flex items-center justify-center text-red-400 transition-all" title="Remove chat"><Trash2 className="w-3.5 h-3.5" /></button>
+                            </div>
                         </div>
 
-                        <div className="shrink-0 pt-4 border-t border-white/10">
-                            <button
-                                onClick={handleCreateGroup}
-                                disabled={!groupName.trim() || selectedPeers.length === 0}
-                                className="w-full py-4 bg-indigo-500 hover:bg-indigo-400 text-black font-black uppercase tracking-widest rounded-2xl transition-all shadow-xl disabled:opacity-50 tracking-[0.2em] text-xs flex justify-center items-center gap-2"
-                            >
-                                <Users className="w-4 h-4" /> Instantiate Workgroup
+                        {/* ── Messages ── */}
+                        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 custom-scrollbar min-h-0">
+                            {/* E2EE badge */}
+                            <div className="flex flex-col items-center gap-1 py-3 mb-2 select-none">
+                                <ShieldCheck className="w-3.5 h-3.5 text-green-500/25" />
+                                <span className="text-[9px] font-black text-white/15 uppercase tracking-[0.2em]">End-to-End Encrypted</span>
+                            </div>
+
+                            {groups.map(g => (
+                                <div key={g.label}>
+                                    <DateSep label={g.label} />
+                                    {g.msgs.map((msg, i) => <MsgBubble key={msg.id ?? i} msg={msg} />)}
+                                </div>
+                            ))}
+
+                            {/* Typing indicator in chat (bubble) */}
+                            {showTyping && (
+                                <TypingBubble name={activeSession.other_name ?? 'Someone'} />
+                            )}
+                        </div>
+
+                        {/* ── Input bar ── */}
+                        <div className="shrink-0 px-3 py-2.5 border-t border-white/5 bg-white/[0.02] relative">
+                            {/* Emoji panel */}
+                            {showEmojis && (
+                                <div
+                                    ref={emojiRef}
+                                    className="absolute bottom-full left-3 mb-2 z-50 bg-[#111218] border border-white/10 rounded-2xl p-3 shadow-2xl animate-in slide-in-from-bottom-2 fade-in duration-150"
+                                >
+                                    <div className="grid grid-cols-6 gap-1" style={{ width: 216 }}>
+                                        {EMOJIS.map(e => (
+                                            <button
+                                                key={e}
+                                                onClick={() => {
+                                                    setMsgInput(p => p + e);
+                                                    setShowEmojis(false);
+                                                    inputRef.current?.focus();
+                                                }}
+                                                className="text-xl hover:scale-125 transition-transform p-1 rounded-lg hover:bg-white/10"
+                                            >{e}</button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="flex items-center gap-2">
+                                {/* Emoji */}
+                                <button
+                                    onClick={() => setShowEmojis(v => !v)}
+                                    className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all shrink-0 ${showEmojis ? 'bg-yellow-500/20 text-yellow-400' : 'bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white'}`}
+                                >
+                                    <Smile className="w-4 h-4" />
+                                </button>
+
+                                {/* Attach */}
+                                <input type="file" ref={fileRef} onChange={handleFile} accept="image/*,video/*" className="hidden" />
+                                <button
+                                    onClick={() => fileRef.current?.click()}
+                                    className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-all shrink-0"
+                                    title="Attach file"
+                                >
+                                    <ImageIcon className="w-4 h-4" />
+                                </button>
+
+                                {/* Voice */}
+                                <button
+                                    onClick={handleVoice}
+                                    className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all shrink-0 ${isRecording ? 'bg-red-500/20 text-red-400 animate-pulse' : 'bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white'}`}
+                                    title={isRecording ? 'Stop recording' : 'Voice message'}
+                                >
+                                    <Mic className="w-4 h-4" />
+                                </button>
+
+                                {/* Text input */}
+                                <input
+                                    ref={inputRef}
+                                    type="text"
+                                    placeholder={
+                                        isRecording ? '🔴 Recording…'
+                                            : !connected ? 'Reconnecting…'
+                                                : `Message ${activeSession.other_name}…`
+                                    }
+                                    className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-all font-medium"
+                                    value={msgInput}
+                                    onChange={e => onTyping(e.target.value)}
+                                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                                    disabled={isRecording}
+                                    autoComplete="off"
+                                />
+
+                                {/* Send */}
+                                <button
+                                    onClick={isRecording ? handleVoice : handleSend}
+                                    disabled={!isRecording && (!msgInput.trim() || !connected)}
+                                    className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shadow transition-all shrink-0 ${isRecording
+                                        ? 'bg-red-500 hover:bg-red-600 animate-pulse'
+                                        : 'bg-indigo-600 hover:bg-indigo-500 disabled:opacity-25 hover:scale-105 active:scale-95'
+                                        }`}
+                                >
+                                    {isRecording
+                                        ? <div className="w-3 h-3 bg-white rounded-sm" />
+                                        : <Send className="w-4 h-4 ml-0.5" />
+                                    }
+                                </button>
+                            </div>
+                        </div>
+                    </>
+                ) : (
+                    /* Empty state */
+                    <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-5">
+                        <div className="relative">
+                            <div className="absolute inset-0 bg-indigo-500/10 blur-3xl rounded-full pointer-events-none" />
+                            <div className="w-20 h-20 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center relative">
+                                <MessageCircle className="w-8 h-8 text-white/20" />
+                            </div>
+                            <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center shadow-lg rotate-12">
+                                <ShieldCheck className="w-4 h-4 text-white" />
+                            </div>
+                        </div>
+                        <div className="space-y-2 max-w-xs">
+                            <h2 className="text-xl font-black text-white">Secure <span className="text-indigo-400 italic">Chat</span></h2>
+                            <p className="text-sm text-gray-500 leading-relaxed">
+                                Select a conversation or search for a friend to start a real-time encrypted chat.
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => window.location.href = '/discovery'}
+                            className="px-5 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs font-black uppercase tracking-widest text-white transition-all hover:scale-105"
+                        >
+                            Explore Network
+                        </button>
+                    </div>
+                )}
+            </div>
+
+            {/* ═══════════════ GROUP MODAL ═══════════════ */}
+            {isGroupModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/70 backdrop-blur-xl" onClick={() => setIsGroupModal(false)} />
+                    <div className="relative w-full max-w-sm glass p-5 rounded-3xl border border-white/10 shadow-2xl flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200">
+                        <div className="flex items-start justify-between mb-4">
+                            <div>
+                                <h3 className="text-base font-black text-white">Create <span className="text-indigo-400">Group</span></h3>
+                                <p className="text-[10px] text-gray-500 uppercase tracking-widest mt-0.5">Encrypted multi-peer channel</p>
+                            </div>
+                            <button onClick={() => setIsGroupModal(false)} className="w-7 h-7 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white transition-colors shrink-0">
+                                <X className="w-3.5 h-3.5" />
                             </button>
                         </div>
+
+                        <input
+                            type="text"
+                            placeholder="Group name…"
+                            value={groupName}
+                            onChange={e => setGroupName(e.target.value)}
+                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 mb-3 transition-all"
+                        />
+                        <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">
+                            Select members ({selPeers.length})
+                        </p>
+                        <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0 space-y-1.5 mb-4">
+                            {connections.length === 0
+                                ? <p className="text-xs text-gray-600 text-center py-6">No connections to add.</p>
+                                : connections.map(c => {
+                                    const sel = !!selPeers.find(p => p.id === c.id && p.role === c.role);
+                                    return (
+                                        <button
+                                            key={`g-${c.role}-${c.id}`}
+                                            onClick={() => togglePeer(c)}
+                                            className={`w-full flex items-center gap-3 p-2.5 rounded-xl border transition-all ${sel ? 'bg-indigo-500/10 border-indigo-500/30' : 'bg-white/5 border-white/5 hover:border-white/15'}`}
+                                        >
+                                            <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center font-black text-white shrink-0">{c.avatar || c.name?.[0]}</div>
+                                            <div className="flex-1 text-left min-w-0">
+                                                <p className="text-sm font-bold text-white truncate">{c.name}</p>
+                                                <p className="text-[9px] text-gray-500 uppercase">{c.role}</p>
+                                            </div>
+                                            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${sel ? 'bg-indigo-500 border-indigo-500' : 'border-white/20'}`}>
+                                                {sel && <div className="w-2 h-2 bg-white rounded-full" />}
+                                            </div>
+                                        </button>
+                                    );
+                                })
+                            }
+                        </div>
+                        <button
+                            onClick={createGroup}
+                            disabled={!groupName.trim() || selPeers.length === 0}
+                            className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-30 text-white font-black uppercase tracking-widest rounded-2xl transition-all flex items-center justify-center gap-2 text-xs"
+                        >
+                            <Users className="w-3.5 h-3.5" /> Create Group
+                        </button>
                     </div>
                 </div>
             )}
