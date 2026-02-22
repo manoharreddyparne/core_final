@@ -1,14 +1,18 @@
 // src/features/social/pages/ProfessionalHub.tsx
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { socialApi } from '../api';
+import { X } from 'lucide-react';
 
 import { FeedPost } from '../components/FeedPost';
 
 const ProfessionalHub: React.FC = () => {
+    const [searchParams, setSearchParams] = useSearchParams();
     const [blogs, setBlogs] = useState<any[]>([]);
     const [posts, setPosts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const [showReviewModal, setShowReviewModal] = useState(searchParams.get('review') === '1');
     const [newPostContent, setNewPostContent] = useState("");
     const [mediaFile, setMediaFile] = useState<File | null>(null);
     const [discoverList, setDiscoverList] = useState<any[]>([]);
@@ -158,36 +162,73 @@ const ProfessionalHub: React.FC = () => {
 
                 {/* Right: Blogs & Discovery */}
                 <div className="lg:col-span-1 space-y-8">
-                    {/* Pending Requests */}
+                    {/* Pending Requests Button */}
                     {pendingRequests.length > 0 && (
-                        <div className="glass p-8 rounded-[3rem] border-indigo-500/20 bg-indigo-500/5 animate-pulse-slow">
-                            <h2 className="text-xl font-bold text-white flex items-center gap-3 mb-6">
-                                <div className="w-2 h-8 bg-indigo-400 rounded-full"></div>
-                                Pending Influx
-                            </h2>
-                            <div className="space-y-4">
-                                {pendingRequests.map(req => (
-                                    <div key={req.request_id} className="flex items-center justify-between">
-                                        <div>
-                                            <p className="text-white text-xs font-bold">{req.sender_name}</p>
-                                            <p className="text-[9px] text-muted-foreground uppercase">{req.sender_role}</p>
+                        <div className="glass p-8 rounded-[3rem] border-indigo-500/20 bg-indigo-500/5 animate-pulse-slow text-center space-y-4">
+                            <div className="w-16 h-16 mx-auto bg-indigo-500/20 rounded-full flex items-center justify-center text-indigo-400">
+                                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                            </div>
+                            <h2 className="text-xl font-black text-white">Pending Requests</h2>
+                            <p className="text-xs text-indigo-200/60 font-bold uppercase tracking-widest">{pendingRequests.length} Waiting</p>
+                            <button
+                                onClick={() => setShowReviewModal(true)}
+                                className="w-full py-4 bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:scale-105 transition-all shadow-xl shadow-indigo-500/20"
+                            >
+                                Review Influx
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Pending Requests Modal */}
+                    {showReviewModal && pendingRequests.length > 0 && (
+                        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+                            <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setShowReviewModal(false)}></div>
+                            <div className="glass-dark border border-white/10 w-full max-w-lg rounded-[2.5rem] p-8 relative z-10 animate-in zoom-in-95 fade-in duration-300 shadow-2xl">
+                                <div className="flex justify-between items-center mb-6">
+                                    <h2 className="text-2xl font-black text-white flex items-center gap-3">
+                                        <div className="w-2 h-8 bg-indigo-500 rounded-full shadow-[0_0_15px_rgba(99,102,241,0.5)]"></div>
+                                        Connection Requests
+                                    </h2>
+                                    <button onClick={() => setShowReviewModal(false)} className="p-2 bg-white/5 rounded-full hover:bg-white/10 text-white/60 hover:text-white transition-all">
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                </div>
+
+                                <div className="space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
+                                    {pendingRequests.map(req => (
+                                        <div key={req.request_id} className="glass p-5 rounded-3xl flex items-center justify-between border-white/5 hover:border-white/10 transition-all">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-black text-xl shadow-lg border-2 border-white/10">
+                                                    {req.sender_name.charAt(0).toUpperCase()}
+                                                </div>
+                                                <div>
+                                                    <p className="text-white text-sm font-bold">{req.sender_name}</p>
+                                                    <p className="text-[10px] text-indigo-300 font-bold uppercase tracking-wider">{req.sender_role}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => {
+                                                        handleRespondRequest(req.request_id, 'ACCEPT');
+                                                        if (pendingRequests.length === 1) setShowReviewModal(false);
+                                                    }}
+                                                    className="px-4 py-2 bg-green-500 text-white text-xs font-black uppercase rounded-xl hover:bg-green-400 hover:scale-105 transition-all shadow-lg shadow-green-500/20"
+                                                >
+                                                    Accept
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        handleRespondRequest(req.request_id, 'DECLINE');
+                                                        if (pendingRequests.length === 1) setShowReviewModal(false);
+                                                    }}
+                                                    className="px-4 py-2 bg-white/5 text-gray-400 text-xs font-black uppercase rounded-xl hover:bg-red-500 hover:text-white transition-all"
+                                                >
+                                                    Decline
+                                                </button>
+                                            </div>
                                         </div>
-                                        <div className="flex gap-2">
-                                            <button
-                                                onClick={() => handleRespondRequest(req.request_id, 'ACCEPT')}
-                                                className="p-2 bg-green-500/20 text-green-400 rounded-lg hover:bg-green-500 hover:text-white transition-all"
-                                            >
-                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
-                                            </button>
-                                            <button
-                                                onClick={() => handleRespondRequest(req.request_id, 'DECLINE')}
-                                                className="p-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500 hover:text-white transition-all"
-                                            >
-                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     )}

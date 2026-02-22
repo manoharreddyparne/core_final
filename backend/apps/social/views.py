@@ -299,7 +299,7 @@ class SocialFeedViewSet(viewsets.ModelViewSet):
                 target_email, 
                 "New Connection Request", 
                 f"{requester_name} ({request.user.role}) wants to connect.",
-                "/professional-hub"
+                "/professional-hub?review=1"
             )
 
         return success_response("Connection request dispatched.")
@@ -313,16 +313,14 @@ class SocialFeedViewSet(viewsets.ModelViewSet):
         with schema_context('public'):
             user_obj = User.objects.filter(email=email).first()
             
-            if user_obj:
-                Notification.objects.create(
-                    recipient_id=user_obj.id,
-                    title=title,
-                    message=message,
-                    notification_type='COMMUNICATION',
-                    link_url=link
-                )
-                
         if user_obj:
+            Notification.objects.create(
+                recipient_id=user_obj.id,
+                title=title,
+                message=message,
+                notification_type='COMMUNICATION',
+                link_url=link
+            )
                 
             # WebSocket Push
             from channels.layers import get_channel_layer
