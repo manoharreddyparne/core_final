@@ -15,6 +15,7 @@ export const useChatSocket = (sessionId: string | null, currentUserId?: number) 
                 id: data.msg_id || Date.now(),
                 content: data.message,
                 sender_id: data.sender_id,
+                attachment_type: data.attachment_type || 'TEXT',
                 timestamp: data.timestamp,
                 is_me: data.sender_id === currentUserId,
                 is_read: false
