@@ -22,6 +22,7 @@ export const useChatSocket = (activeSession: any | null, currentUserId?: number)
 
     const socketRef = useRef<WebSocket | null>(null);
     const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const reconnectDelay = useRef<number>(1000);
     const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const sessionIdRef = useRef<string | null>(null);
     /** cached MY profile_id, learned once from history or first echo  */
@@ -31,12 +32,7 @@ export const useChatSocket = (activeSession: any | null, currentUserId?: number)
     const [connected, setConnected] = useState(false);
     const [typingUser, setTypingUser] = useState<string | null>(null);
 
-    /* ── is_me resolution ─────────────────────────────────────────────────
-       Priority order:
-         1. Cached myProfileIdRef (learned from history "is_me":true or echo)
-         2. sender_id !== other_id  (reliable for 2-person chats)
-         3. Fallback: compare with auth user id (less reliable)
-    ─────────────────────────────────────────────────────────────────────── */
+    /* ── is_me resolution ── */
     const resolveIsMe = useCallback((senderId: string | number): boolean => {
         const sid = String(senderId);
         if (myProfileIdRef.current) return sid === myProfileIdRef.current;
@@ -44,26 +40,32 @@ export const useChatSocket = (activeSession: any | null, currentUserId?: number)
         return Number(sid) === currentUserId;
     }, [otherId, currentUserId]);
 
-    /* ── Incoming WS message handler ───────────────────────────────────── */
+    function buildMsg(data: any, isMe: boolean): ChatMessage {
+        return {
+            id: data.msg_id ?? `tmp-${Date.now()}`,
+            content: data.message ?? '',
+            sender_id: data.sender_id,
+            attachment_type: data.attachment_type ?? 'TEXT',
+            timestamp: data.timestamp ?? new Date().toISOString(),
+            is_me: isMe,
+            is_read: false,
+            is_pending: false,
+        };
+    }
+
+    /* ── Incoming WS message handler ── */
     const handleMessage = useCallback((event: MessageEvent) => {
         try {
             const data = JSON.parse(event.data);
 
             if (data.type === "chat_broadcast") {
                 const isMe = resolveIsMe(data.sender_id);
-
-                // Cache our own profile_id the first time we see our own echo
                 if (isMe && myProfileIdRef.current === null) {
                     myProfileIdRef.current = String(data.sender_id);
                 }
 
                 setMessages(prev => {
                     if (isMe) {
-                        /* ─── SENDER path ───
-                           The backend echoes the saved message back to us.
-                           Replace the optimistic tmp entry (matched by content)
-                           with the confirmed message that has a real DB id.
-                        */
                         const tmpIdx = prev.findIndex(
                             m => String(m.id).startsWith('tmp-') &&
                                 m.content === (data.message ?? '') &&
@@ -79,20 +81,10 @@ export const useChatSocket = (activeSession: any | null, currentUserId?: number)
                             };
                             return updated;
                         }
-
-                        // No tmp found → deduplicate by msg_id
-                        if (data.msg_id && prev.find(m => String(m.id) === String(data.msg_id))) {
-                            return prev;
-                        }
-                        // Edge case: add as confirmed (e.g. another device/tab)
+                        if (data.msg_id && prev.find(m => String(m.id) === String(data.msg_id))) return prev;
                         return [...prev, buildMsg(data, true)];
                     } else {
-                        /* ─── RECEIVER path ───
-                           New message from the other person. Deduplicate by msg_id.
-                        */
-                        if (data.msg_id && prev.find(m => String(m.id) === String(data.msg_id))) {
-                            return prev;
-                        }
+                        if (data.msg_id && prev.find(m => String(m.id) === String(data.msg_id))) return prev;
                         return [...prev, buildMsg(data, false)];
                     }
                 });
@@ -109,91 +101,65 @@ export const useChatSocket = (activeSession: any | null, currentUserId?: number)
                 }
 
             } else if (data.type === "status_broadcast" && data.status === "SEEN") {
-                /*
-                 * The other person opened the chat and read messages.
-                 * Mark ALL our outgoing messages as read (double blue tick).
-                 * We mark all is_me=true messages because:
-                 *   a) msg_ids are real DB ids that may not match our tmp ids
-                 *   b) If they saw the latest, they saw everything before it
-                 */
-                setMessages(prev =>
-                    prev.map(m => m.is_me ? { ...m, is_read: true } : m)
-                );
+                setMessages(prev => prev.map(m => m.is_me ? { ...m, is_read: true } : m));
             }
         } catch (e) {
             console.error("[ChatSocket] Parse error:", e);
         }
     }, [resolveIsMe]);
 
-    function buildMsg(data: any, isMe: boolean): ChatMessage {
-        return {
-            id: data.msg_id ?? `tmp-${Date.now()}`,
-            content: data.message ?? '',
-            sender_id: data.sender_id,
-            attachment_type: data.attachment_type ?? 'TEXT',
-            timestamp: data.timestamp ?? new Date().toISOString(),
-            is_me: isMe,
-            is_read: false,
-            is_pending: false,
-        };
-    }
-
-    /* ── WebSocket connect ─────────────────────────────────────────────── */
+    /* ── WebSocket connect ── */
     const connect = useCallback(() => {
         if (!sessionId) return;
         const token = getAccessToken();
         if (!token) return;
+
+        if (reconnectTimer.current) {
+            clearTimeout(reconnectTimer.current);
+            reconnectTimer.current = null;
+        }
 
         if (socketRef.current && socketRef.current.readyState !== WebSocket.CLOSED) {
             socketRef.current.onclose = null;
             socketRef.current.close();
         }
 
-        const rawWsBase =
-            (import.meta.env.VITE_BACKEND_WS_URL as string | undefined)
-            ?? (import.meta.env.VITE_WS_URL as string | undefined)
-            ?? null;
-
         let wsBase: string;
+        const rawWsBase = (import.meta.env.VITE_BACKEND_WS_URL || import.meta.env.VITE_WS_URL) as string;
         if (rawWsBase) {
             wsBase = rawWsBase.replace(/\/ws\/.*$/, '/ws').replace(/\/+$/, '');
         } else {
-            const httpBase =
-                (import.meta.env.VITE_API_URL as string | undefined)
-                ?? (import.meta.env.VITE_BACKEND_URL as string | undefined)
-                ?? 'http://localhost:8000';
+            const httpBase = (import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000') as string;
             wsBase = httpBase.replace(/^http/, 'ws') + '/ws';
         }
 
         const wsUrl = `${wsBase}/chat/${sessionId}/?token=${token}`;
-        console.info(`[ChatSocket] → ${wsUrl}`);
-
         const ws = new WebSocket(wsUrl);
         socketRef.current = ws;
 
         ws.onopen = () => {
-            console.info('[ChatSocket] ✅ Connected');
             setConnected(true);
-            if (reconnectTimer.current) { clearTimeout(reconnectTimer.current); reconnectTimer.current = null; }
+            reconnectDelay.current = 1000;
         };
         ws.onmessage = handleMessage;
-        ws.onerror = () => console.warn('[ChatSocket] ⚠️ Socket error');
         ws.onclose = (e) => {
-            console.warn(`[ChatSocket] ❌ Closed (code=${e.code})`);
             setConnected(false);
             socketRef.current = null;
             if (sessionIdRef.current && e.code !== 1000) {
+                const delay = reconnectDelay.current;
                 reconnectTimer.current = setTimeout(() => {
                     if (sessionIdRef.current) connect();
-                }, 2500);
+                }, delay);
+                reconnectDelay.current = Math.min(delay * 2, 15000);
             }
         };
     }, [sessionId, handleMessage]);
 
-    /* ── Session lifecycle ─────────────────────────────────────────────── */
+    /* ── Lifecycle ── */
     useEffect(() => {
         sessionIdRef.current = sessionId;
-        myProfileIdRef.current = null;
+        myProfileIdRef.current = activeSession?.my_id ? String(activeSession.my_id) : null;
+        reconnectDelay.current = 1000;
 
         if (sessionId) {
             setMessages([]);
@@ -201,25 +167,21 @@ export const useChatSocket = (activeSession: any | null, currentUserId?: number)
             connect();
         } else {
             socketRef.current?.close(1000);
-            socketRef.current = null;
             setConnected(false);
         }
 
         return () => {
             sessionIdRef.current = null;
             if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
-            if (typingTimer.current) clearTimeout(typingTimer.current);
             if (socketRef.current) {
                 socketRef.current.onclose = null;
                 socketRef.current.close(1000);
-                socketRef.current = null;
             }
         };
-    }, [sessionId]);
+    }, [sessionId, connect, activeSession?.my_id]);
 
-    /* ── History ingestion ─────────────────────────────────────────────── */
+    /* ── History Ingestion ── */
     const ingestHistory = useCallback((msgs: any[]) => {
-        // Prime myProfileIdRef from history
         const mine = msgs.find(m => m.is_me === true);
         if (mine) myProfileIdRef.current = String(mine.sender_id);
 
@@ -228,9 +190,7 @@ export const useChatSocket = (activeSession: any | null, currentUserId?: number)
             content: m.content ?? '',
             sender_id: m.sender_id,
             attachment_type: m.attachment_type ?? 'TEXT',
-            timestamp: m.timestamp
-                ? (typeof m.timestamp === 'string' ? m.timestamp : new Date(m.timestamp).toISOString())
-                : new Date().toISOString(),
+            timestamp: m.timestamp ? (typeof m.timestamp === 'string' ? m.timestamp : new Date(m.timestamp).toISOString()) : new Date().toISOString(),
             is_me: Boolean(m.is_me),
             is_read: Boolean(m.is_read),
             read_at: m.read_at ?? null,
@@ -238,24 +198,14 @@ export const useChatSocket = (activeSession: any | null, currentUserId?: number)
         })));
     }, []);
 
-    /* ── Public send helpers ───────────────────────────────────────────── */
     const rawSend = (payload: object) => {
         if (socketRef.current?.readyState === WebSocket.OPEN) {
             socketRef.current.send(JSON.stringify(payload));
-        } else {
-            console.warn('[ChatSocket] Cannot send — not connected');
         }
     };
 
-    /**
-     * sendMessage: optimistically renders the message on the sender's side
-     * immediately (single grey tick = pending), then the WS echo from the
-     * backend replaces it with the real DB id (still single tick until read).
-     * When receiver reads → status_broadcast SEEN → double blue tick.
-     */
     const sendMessage = (message: string, attType = 'TEXT') => {
         const tmpId = `tmp-${Date.now()}`;
-        // Optimistic render — appears instantly on sender's screen
         setMessages(prev => [...prev, {
             id: tmpId,
             content: message,
@@ -264,27 +214,17 @@ export const useChatSocket = (activeSession: any | null, currentUserId?: number)
             timestamp: new Date().toISOString(),
             is_me: true,
             is_read: false,
-            is_pending: true,   // shows clock / single faint tick
+            is_pending: true,
         }]);
-        // Fire over WS
         rawSend({ type: 'chat_message', message, attachment_type: attType });
     };
 
-    const sendTyping = (isTyping: boolean) =>
-        rawSend({ type: 'typing_status', is_typing: isTyping });
-
-    const markRead = (msgIds: number[]) => {
-        if (msgIds.length > 0) rawSend({ type: 'read_receipt', message_ids: msgIds });
-    };
+    const sendTyping = (isTyping: boolean) => rawSend({ type: 'typing_status', is_typing: isTyping });
+    const markRead = (msgIds: number[]) => { if (msgIds.length > 0) rawSend({ type: 'read_receipt', message_ids: msgIds }); };
 
     return {
-        messages,
-        setMessages: ingestHistory,
-        connected,
-        sendMessage,
-        sendTyping,
-        markRead,
-        typingUser,
-        otherId,
+        messages, setMessages: ingestHistory, connected,
+        sendMessage, sendTyping, markRead,
+        typingUser, otherId
     };
 };

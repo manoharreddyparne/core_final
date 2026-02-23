@@ -14,8 +14,13 @@ class SecureVaultService:
     @classmethod
     def _get_key(cls):
         if not cls._key:
-            # Derive or use a master communication key from settings
-            master_key = getattr(settings, 'COMMUNICATION_VAULT_KEY', '0123456789abcdef0123456789abcdef')
+            # Strictly enforce key presence in production
+            master_key = getattr(settings, 'COMMUNICATION_VAULT_KEY', None)
+            if not master_key:
+                if not getattr(settings, 'DEBUG', True):
+                    raise RuntimeError("COMMUNICATION_VAULT_KEY is required in production for E2EE.")
+                master_key = 'django-insecure-dev-only-vault-key-12345'
+                
             if isinstance(master_key, str):
                 master_key = master_key.encode().ljust(32)[:32]
             cls._key = AESGCM(master_key)

@@ -79,6 +79,11 @@ export const StudentRegistry = () => {
     const [viewingProfile, setViewingProfile] = useState<Student | null>(null);
     const [collisionInfo, setCollisionInfo] = useState<{ student: any; originalData: any } | null>(null);
 
+    // 🏎️ Ingestion Engine States
+    const [isCommitting, setIsCommitting] = useState(false);
+    const [commitPhase, setCommitPhase] = useState("");
+    const [commitProgress, setCommitProgress] = useState(0);
+
     // 🧙‍♂️ Record Wizard (Manual Form)
     const [formStudents, setFormStudents] = useState<Partial<Student>[]>([]);
     const [currentFormIndex, setCurrentFormIndex] = useState(0);
@@ -153,6 +158,7 @@ export const StudentRegistry = () => {
     };
 
     // 📤 Bulk Operations
+    // 📤 Bulk Operations
     const handleFileUpload = async (e: any, isPreview: boolean = true) => {
         const file = e.target?.files?.[0] || e;
         if (!file) return;
@@ -161,24 +167,50 @@ export const StudentRegistry = () => {
         formData.append("file", file);
         formData.append("preview", isPreview ? "true" : "false");
 
-        const loadingToast = toast.loading(isPreview ? "Validating data..." : "Updating records...");
+        if (!isPreview) {
+            setIsCommitting(true);
+            setCommitProgress(5);
+            setCommitPhase("Initializing Transmission...");
+        }
+
+        const loadingToast = isPreview ? toast.loading("Validating data...") : null;
+
         try {
+            if (!isPreview) {
+                // Phased Simulation for Premium Feel (since backend is fast now)
+                setTimeout(() => { setCommitPhase("Parsing Identity Bits..."); setCommitProgress(25) }, 400);
+                setTimeout(() => { setCommitPhase("De-listing Collisions..."); setCommitProgress(50) }, 800);
+                setTimeout(() => { setCommitPhase("Finalizing Registry..."); setCommitProgress(75) }, 1200);
+            }
+
             const res = await instApiClient.post("bulk-seed-students/", formData, {
                 headers: { "Content-Type": "multipart/form-data" }
             });
+
             if (res.data.success) {
-                toast.success(isPreview ? "Validation complete" : "Registry updated", { id: loadingToast });
-                if (isPreview) {
-                    setPreviewData({ ...res.data.data, file });
+                if (!isPreview) {
+                    setCommitProgress(100);
+                    setCommitPhase("Migration Complete");
+                    setTimeout(() => {
+                        setIsCommitting(false);
+                        setShowUpload(false);
+                        setPreviewData(null);
+                        toast.success("Registry synchronization successful.");
+                        fetchStudents();
+                        fetchSections();
+                    }, 500);
                 } else {
-                    setShowUpload(false);
-                    setPreviewData(null);
-                    fetchStudents();
-                    fetchSections();
+                    toast.success("Validation complete", { id: loadingToast! });
+                    setPreviewData({ ...res.data.data, file });
                 }
             }
         } catch (err) {
-            toast.error("Process error. Verify CSV column headers.", { id: loadingToast });
+            if (isPreview) {
+                toast.error("Process error. Verify CSV column headers.", { id: loadingToast! });
+            } else {
+                setIsCommitting(false);
+                toast.error("Migration failed. Connection dropped or data corrupt.");
+            }
         }
     };
 
@@ -513,7 +545,33 @@ export const StudentRegistry = () => {
                                     </thead>
                                     <tbody className="divide-y divide-white/5 bg-white/[0.01]">
                                         {loading ? (
-                                            Array(5).fill(0).map((_, i) => <tr key={i} className="animate-pulse"><td colSpan={4} className="p-12 bg-white/[0.01]" /></tr>)
+                                            Array(6).fill(0).map((_, i) => (
+                                                <tr key={i}>
+                                                    {subFeature === "PORTAL" && (
+                                                        <td className="p-6 w-10 text-center">
+                                                            <div className="h-4 w-4 bg-white/5 rounded-md animate-pulse" />
+                                                        </td>
+                                                    )}
+                                                    <td className="p-6">
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="w-10 h-10 rounded-xl glass border-white/10 bg-white/5 animate-pulse" />
+                                                            <div className="space-y-2">
+                                                                <div className="h-3 w-32 bg-white/10 rounded animate-pulse" />
+                                                                <div className="h-2 w-20 bg-white/5 rounded animate-pulse" />
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="p-6">
+                                                        <div className="flex gap-2">
+                                                            <div className="h-4 w-12 bg-white/5 rounded animate-pulse" />
+                                                            <div className="h-4 w-10 bg-white/5 rounded animate-pulse" />
+                                                        </div>
+                                                    </td>
+                                                    <td className="p-6 text-right">
+                                                        <div className="h-8 w-16 bg-white/10 rounded-lg ml-auto animate-pulse" />
+                                                    </td>
+                                                </tr>
+                                            ))
                                         ) : filteredStudents.map(s => (
                                             <tr key={s.id} className="hover:bg-white/[0.02] transition-all group">
                                                 {subFeature === "PORTAL" && (
@@ -717,7 +775,13 @@ export const StudentRegistry = () => {
                                         </div>
                                         <div className="flex items-center gap-4">
                                             <button onClick={() => setPreviewData(null)} className="px-8 py-3.5 glass text-white font-black uppercase text-[10px] tracking-widest hover:bg-white/10 transition-all rounded-xl">Discard</button>
-                                            <button onClick={() => handleFileUpload(previewData.file, false)} className="px-12 py-3.5 bg-primary text-white font-black uppercase text-[10px] tracking-widest rounded-xl shadow-2xl hover:scale-105 transition-all">Commit Sync</button>
+                                            <button
+                                                disabled={isCommitting}
+                                                onClick={() => handleFileUpload(previewData.file, false)}
+                                                className="px-12 py-3.5 bg-primary text-white font-black uppercase text-[10px] tracking-widest rounded-xl shadow-2xl hover:scale-105 transition-all disabled:opacity-50 disabled:scale-100"
+                                            >
+                                                {isCommitting ? "Transmitting..." : "Commit Sync"}
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -1001,6 +1065,58 @@ export const StudentRegistry = () => {
                             <button onClick={() => setCollisionInfo(null)} className="w-full bg-white/5 text-white py-4 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all">
                                 Cancel &amp; Review
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* 🏎️ Registry Transmission Modal (Progress Overlay) */}
+            {isCommitting && (
+                <div className="fixed inset-0 z-[150] flex items-center justify-center p-8 bg-black/90 backdrop-blur-3xl animate-in fade-in zoom-in duration-300">
+                    <div className="max-w-md w-full space-y-8 text-center">
+                        <div className="relative w-32 h-32 mx-auto">
+                            <div className="absolute inset-0 bg-primary/20 rounded-full blur-3xl animate-pulse" />
+                            <div className="relative w-full h-full glass rounded-full flex items-center justify-center border border-primary/30 shadow-2xl shadow-primary/20">
+                                <Activity className="w-12 h-12 text-primary animate-bounce" />
+                            </div>
+                            <svg className="absolute -inset-2 w-36 h-36 rotate-[-90deg]">
+                                <circle
+                                    cx="72" cy="72" r="68"
+                                    fill="none" stroke="white" strokeWidth="2" strokeOpacity="0.05"
+                                />
+                                <circle
+                                    cx="72" cy="72" r="68"
+                                    fill="none" stroke="currentColor" strokeWidth="4"
+                                    className="text-primary transition-all duration-500 ease-out"
+                                    strokeDasharray={427}
+                                    strokeDashoffset={427 - (427 * commitProgress) / 100}
+                                    strokeLinecap="round"
+                                />
+                            </svg>
+                        </div>
+
+                        <div className="space-y-3">
+                            <h2 className="text-2xl font-black text-white italic uppercase tracking-tighter">
+                                Registry <span className="text-primary not-italic">Transmission</span>
+                            </h2>
+                            <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em] font-mono animate-pulse">
+                                {commitPhase}
+                            </p>
+                        </div>
+
+                        <div className="glass p-6 rounded-[2rem] border-white/5 bg-white/[0.02] shadow-inner">
+                            <div className="flex justify-between text-[10px] font-black text-muted-foreground uppercase mb-3">
+                                <span>Optimization Engine</span>
+                                <span className="text-white">{commitProgress}%</span>
+                            </div>
+                            <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                                <div
+                                    className="h-full bg-primary shadow-[0_0_15px_rgba(var(--primary-rgb),0.5)] transition-all duration-700 ease-in-out"
+                                    style={{ width: `${commitProgress}%` }}
+                                />
+                            </div>
+                            <p className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest mt-4 opacity-40">
+                                Strictly synchronizing institutional identity bits...
+                            </p>
                         </div>
                     </div>
                 </div>

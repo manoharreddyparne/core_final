@@ -242,10 +242,12 @@ class SocialFeedViewSet(viewsets.ModelViewSet):
 
     def _get_my_profile_id(self, user):
         """Standardized ID resolution: Registry ID for students/faculty, Auth ID for admins."""
-        if user.role == "STUDENT":
-            return user.academic_ref.id if user.academic_ref else user.id
-        if user.role == "FACULTY":
-            return user.academic_ref.id if user.academic_ref else user.id
+        if not user: return None
+        role = getattr(user, 'role', 'STUDENT')
+        if role == "STUDENT":
+            return user.academic_ref.id if hasattr(user, 'academic_ref') and user.academic_ref else user.id
+        if role == "FACULTY":
+            return user.academic_ref.id if hasattr(user, 'academic_ref') and user.academic_ref else user.id
         return user.id
 
     @action(detail=False, methods=['post'])
@@ -487,18 +489,18 @@ class ChatViewSet(viewsets.ViewSet):
         
         # Filter sessions where I am a participant and I haven't 'deleted' it
         # Since participants is a JSON list, we use a manual filter for reliability across DB engines
-        all_sessions = ChatSession.objects.all().order_by('-last_message_at')
+        # Database-level filtering for JSON participants
+        all_sessions = ChatSession.objects.filter(
+            participants__contains=[{"id": int(my_id), "role": user_role}]
+        ).order_by('-last_message_at')
         
         results = []
         from .security import SecureVaultService
         from apps.auip_institution.models import StudentAcademicRegistry, FacultyAcademicRegistry, AdminAuthorizedAccount
         
         for s in all_sessions:
-            if not any(int(p['id']) == int(my_id) and p['role'] == user_role for p in s.participants):
-                continue
-                
             # Skip if I've 'deleted' this conversation (individual removal)
-            if f"{user_role}-{my_id}" in s.deleted_for:
+            if s.deleted_for and f"{user_role}-{my_id}" in s.deleted_for:
                 continue
 
             if s.is_group:
@@ -528,15 +530,20 @@ class ChatViewSet(viewsets.ViewSet):
                 preview = SecureVaultService.decrypt(last_msg.content)
                 if len(preview) > 30: preview = preview[:30] + "..."
 
-            # Resolve Presence (Last Seen / Live)
+            # Resolve Presence (Last Seen / Live) - tenant isolated
             from apps.identity.models import LoginSession
             from django_tenants.utils import schema_context
             from datetime import timedelta
             
             online = False
             last_seen = None
+            schema = request.tenant.schema_name
             with schema_context('public'):
-                psess = LoginSession.objects.filter(tenant_user_id=oid, role=orole).order_by('-last_active').first()
+                psess = LoginSession.objects.filter(
+                    tenant_user_id=oid, 
+                    role=orole,
+                    tenant_schema=schema
+                ).order_by('-last_active').first()
                 if psess:
                     last_seen = psess.last_active
                     if psess.is_active and psess.last_active > timezone.now() - timedelta(minutes=5):

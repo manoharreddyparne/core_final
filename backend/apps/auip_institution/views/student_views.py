@@ -226,6 +226,7 @@ class TenantBulkStudentUploadView(APIView):
         except Exception as e:
             return error_response(f"File process error: {str(e)}", code=400)
         
+        from django.db import transaction
         from apps.auip_institution.models import StudentAcademicRegistry, StudentPreSeededRegistry
         from django_tenants.utils import schema_context
         
@@ -234,7 +235,8 @@ class TenantBulkStudentUploadView(APIView):
         updates = []
         errors = []
 
-        with schema_context(institution.schema_name):
+        with schema_context(institution.schema_name), transaction.atomic():
+            # 🏎️ Faster execution: wrap in atomic transaction
             for row in reader:
                 roll = row.get('roll_number', '').strip()
                 if not roll: continue
@@ -251,6 +253,15 @@ class TenantBulkStudentUploadView(APIView):
                             old_val = getattr(existing, key, None)
                             
                             # Type-aware comparison to prevent false positives (e.g. 9.5 vs 9.50)
+                            if key == 'history_data':
+                                if isinstance(old_val, dict) and isinstance(val, dict):
+                                    # Simple dict comparison
+                                    if old_val.get('10th_percent') != val.get('10th_percent') or \
+                                       old_val.get('12th_percent') != val.get('12th_percent') or \
+                                       old_val.get('active_backlogs') != val.get('active_backlogs'):
+                                        diff[key] = {"old": "Past Data", "new": "Updated JSON"}
+                                continue
+
                             if isinstance(val, (int, float, type(None))) or str(type(val)).find('Decimal') != -1:
                                 if old_val != val:
                                     diff[key] = {"old": str(old_val), "new": str(val)}
@@ -331,4 +342,9 @@ class TenantBulkStudentUploadView(APIView):
             "cgpa": to_decimal(row.get('cgpa')) if row.get('cgpa') else Decimal('0.00'),
             "current_semester": int(row.get('current_semester')) if row.get('current_semester') and str(row.get('current_semester')).strip().isdigit() else 1,
             "date_of_birth": to_date_or_none(row.get('date_of_birth')),
+            "history_data": {
+                "10th_percent": float(row.get("10th_percent", 0)) if str(row.get("10th_percent", "")).replace(".","",1).isdigit() else 0.0,
+                "12th_percent": float(row.get("12th_percent", 0)) if str(row.get("12th_percent", "")).replace(".","",1).isdigit() else 0.0,
+                "active_backlogs": int(float(row.get("active_backlogs", 0))) if str(row.get("active_backlogs", "")).replace(".","",1).isdigit() else 0,
+            }
         }

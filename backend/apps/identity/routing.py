@@ -6,7 +6,7 @@ from . import consumers
 from apps.social import consumers as social_consumers
 
 websocket_urlpatterns = [
-    re_path(r"ws/sessions/$", consumers.SessionConsumer.as_asgi()),
-    re_path(r"ws/chat/(?P<session_id>[^/]+)/$", social_consumers.SocialChatConsumer.as_asgi()),
-    re_path(r"^$", consumers.SessionConsumer.as_asgi()),  # ✅ Catch-all for root path
+    re_path(r"^/?ws/sessions/?$", consumers.SessionConsumer.as_asgi()),
+    re_path(r"^/?ws/chat/(?P<session_id>[^/]+)/?$", social_consumers.SocialChatConsumer.as_asgi()),
+    re_path(r"^/?$", consumers.SessionConsumer.as_asgi()),  # Catch-all
 ]

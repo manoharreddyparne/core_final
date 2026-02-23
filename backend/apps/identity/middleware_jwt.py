@@ -22,9 +22,9 @@ def get_user_tenant_aware(user_id, role, schema):
     )
 
     try:
-        if schema and role in ("INSTITUTION_ADMIN", "FACULTY", "STUDENT"):
+        if schema and role in ("INSTITUTION_ADMIN", "INST_ADMIN", "FACULTY", "STUDENT"):
             with schema_context(schema):
-                if role == "INSTITUTION_ADMIN":
+                if role in ("INSTITUTION_ADMIN", "INST_ADMIN"):
                     return AdminAuthorizedAccount.objects.get(id=user_id)
                 elif role == "FACULTY":
                     return FacultyAuthorizedAccount.objects.get(id=user_id)
@@ -63,11 +63,12 @@ class JWTAuthMiddleware(BaseMiddleware):
         scope["session_id"] = None
         scope["token_payload"] = None
 
+        print(f"[WS-AUTH] Initializing. Path={scope.get('path')} HasToken={token is not None}")
+
         if token:
             try:
                 payload = UntypedToken(token)
                 user_id = payload.get("user_id")
-                # v2 compatible id extraction
                 tenant_user_id = payload.get("tenant_user_id")
                 final_user_id = tenant_user_id if tenant_user_id else user_id
                 
@@ -76,13 +77,22 @@ class JWTAuthMiddleware(BaseMiddleware):
                 schema = payload.get("schema")
                 
                 user = await get_user_tenant_aware(final_user_id, role, schema)
-                if user:
-                    session = await validate_session_tenant_aware(user, jti, schema)
-                    if session:
-                        scope["user"] = user
-                        scope["session_id"] = session.jti
-                        scope["token_payload"] = payload
-            except Exception:
+                print(f"[WS-AUTH] Payload Decoded. JTI={jti} User={final_user_id} Role={role} Schema={schema} Found={user is not None}")
+                
+                if not user:
+                    return await super().__call__(scope, receive, send)
+
+                session = await validate_session_tenant_aware(user, jti, schema)
+                print(f"[WS-AUTH] Session Validation. Active={session is not None}")
+                
+                if session:
+                    scope["user"] = user
+                    scope["session_id"] = session.jti
+                    scope["token_payload"] = payload
+            except Exception as e:
+                print(f"[WS-AUTH] Exception: {e}")
                 pass
+        else:
+             print("[WS-AUTH] No token found in query string")
 
         return await super().__call__(scope, receive, send)

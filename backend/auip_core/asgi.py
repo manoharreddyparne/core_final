@@ -8,14 +8,11 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "auip_core.settings.development"
 django_asgi_app = get_asgi_application()
 
 # Import routing and middleware AFTER django_asgi_app to avoid AppRegistryNotReady
-try:
-    from apps.identity.middleware_jwt import JWTAuthMiddleware
-    import apps.identity.routing
-    websocket_routes = apps.identity.routing.websocket_urlpatterns
-except Exception as e:
-    # Fallback/Log if there's an issue during early import
-    websocket_routes = []
-    print(f"ASGI Load Warning: {e}")
+from apps.identity.middleware_jwt import JWTAuthMiddleware
+import apps.identity.routing
+websocket_routes = apps.identity.routing.websocket_urlpatterns
+
+print(f"[ASGI] Loaded {len(websocket_routes)} websocket routes.")
 
 application = ProtocolTypeRouter({
     "http": django_asgi_app,

@@ -20,21 +20,22 @@ class SessionConsumer(AsyncWebsocketConsumer):
 
     async def connect(self):
         self.user = self.scope.get("user")
-        self.session_id = self.scope.get("session_id")  # front-end should send this in scope
+        self.session_id = self.scope.get("session_id")
+        
+        print(f"[WS-SESSION] Connect check: user={self.user} is_auth={getattr(self.user, 'is_authenticated', False)} session_id={self.session_id}")
 
         if not self.user or not self.user.is_authenticated:
+            print("[WS-SESSION] Rejected: user not authenticated or None")
             await self.close()
-            logger.debug("WS connection rejected: unauthenticated user")
             return
 
         # 🚀 Role-based Group Isolation
-        # This prevents Super Admin and Institutional Admin (sharing same email)
-        # from kicking each other out via WebSocket events.
         role = "anonymous"
         payload = self.scope.get("token_payload")
         if payload:
             role = payload.get("role") or getattr(self.user, 'role', 'anonymous')
         
+        print(f"[WS-SESSION] Setting up group: user_id={self.user.id} role={role}")
         self.group_name = f"user_sessions_{self.user.id}_{role}"
         await self.channel_layer.group_add(self.group_name, self.channel_name)
 
@@ -81,17 +82,23 @@ class SessionConsumer(AsyncWebsocketConsumer):
                 latitude = data.get("latitude")
                 longitude = data.get("longitude")
                 if jti and latitude is not None and longitude is not None:
-                    await self.update_session_location(jti, latitude, longitude)
+                    payload = await self.update_session_location(jti, latitude, longitude)
+                if payload:
+                    await self.channel_layer.group_send(self.group_name, {"type": "session_update", "data": payload})
 
             elif action == "logout_current":
                 jti = data.get("jti")
                 if jti:
-                    await self.force_logout(jti)
+                    payload = await self.force_logout(jti)
+                if payload:
+                    await self.channel_layer.group_send(self.group_name, {"type": "session_update", "data": payload})
 
             elif action == "logout_others":
                 origin_jti = data.get("jti")
                 if origin_jti:
-                    await self.logout_other_devices(origin_jti)
+                    payload = await self.logout_other_devices(origin_jti)
+                if payload:
+                    await self.channel_layer.group_send(self.group_name, {"type": "session_update", "data": payload})
 
         except Exception as e:
             logger.exception(f"WS receive error user_id={getattr(self.user,'id', None)}: {e}")
@@ -130,14 +137,16 @@ class SessionConsumer(AsyncWebsocketConsumer):
                 session.save(update_fields=["latitude", "longitude"])
                 logger.debug(f"Updated location for session {jti} | user_id={self.user.id}")
 
-                self._broadcast_to_group({
+                return {
                     "action": "location_update",
                     "session_id": session.id,
                     "latitude": latitude,
                     "longitude": longitude
-                })
+                }
+            return None
         except Exception as e:
             logger.exception(f"Failed to update session location jti={jti} user_id={self.user.id}: {e}")
+            return None
 
     @sync_to_async
     def force_logout(self, jti: str):
@@ -157,14 +166,16 @@ class SessionConsumer(AsyncWebsocketConsumer):
                 session.save(update_fields=["is_active"])
                 logger.info(f"Forced logout session {jti} | user_id={self.user.id}")
 
-                self._broadcast_to_group({
+                return {
                     "action": "force_logout",
                     "session_id": session.id,
                     "jti": session.jti,
                     "reason": "terminated_by_admin"
-                })
+                }
+            return None
         except Exception as e:
             logger.exception(f"Failed to force logout jti={jti} user_id={self.user.id}: {e}")
+            return None
 
     @sync_to_async
     def logout_other_devices(self, origin_jti: str):
@@ -184,15 +195,10 @@ class SessionConsumer(AsyncWebsocketConsumer):
                 session.save(update_fields=["is_active"])
                 logger.info(f"Logged out other session {session.jti} | user_id={self.user.id}")
 
-                self._broadcast_to_group({
-                    "action": "force_logout",
-                    "session_id": session.id,
-                    "jti": session.jti,
-                    "origin_session_id": origin_jti,
-                    "reason": "terminated_by_other_device"
-                })
+            return None
         except Exception as e:
             logger.exception(f"Failed to logout other devices for user_id={self.user.id}: {e}")
+            return None
 
     def _broadcast_to_group(self, data: dict):
         """Helper to send WS events to the user's group safely."""

@@ -22,14 +22,18 @@ class PlacementDrive(models.Model):
     deadline = models.DateTimeField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='DRAFT')
     
-    # Eligibility Criteria (Simplified for US-4.1, logic in US-4.2)
+    # Eligibility Criteria (Advanced & Governed)
     min_cgpa = models.DecimalField(max_digits=4, decimal_places=2, default=0.00)
+    cgpa_to_percentage_multiplier = models.DecimalField(max_digits=4, decimal_places=2, default=9.5, help_text="Used dynamically to convert CGPA to %")
     min_10th_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0.00, null=True, blank=True)
     min_12th_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0.00, null=True, blank=True)
+    allowed_active_backlogs = models.IntegerField(default=0)
     eligible_branches = models.JSONField(default=list, help_text="List of eligible branch names (e.g. ['CSE', 'IT'])")
     eligible_batches = models.JSONField(default=list, help_text="List of eligible batch years (e.g. [2024, 2025])")
     
     other_requirements = models.TextField(blank=True)
+    jd_document = models.FileField(upload_to='placements/jds/', null=True, blank=True)
+    is_broadcasted = models.BooleanField(default=False)
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

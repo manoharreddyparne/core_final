@@ -30,8 +30,20 @@ class PlacementApplicationSerializer(serializers.ModelSerializer):
     """
     stages = PlacementProcessStageSerializer(many=True, read_only=True)
     drive_details = PlacementDriveSerializer(source='drive', read_only=True)
+    student_details = serializers.SerializerMethodField()
 
     class Meta:
         model = PlacementApplication
-        fields = ['id', 'drive', 'drive_details', 'student', 'resume_url', 'status', 'stages', 'applied_at', 'updated_at']
+        fields = ['id', 'drive', 'drive_details', 'student', 'student_details', 'resume_url', 'status', 'stages', 'applied_at', 'updated_at']
         read_only_fields = ['student', 'status', 'applied_at']
+
+    def get_student_details(self, obj):
+        if obj.student:
+            return {
+                "full_name": obj.student.full_name,
+                "roll_number": obj.student.roll_number,
+                "email": obj.student.official_email,
+                "branch": obj.student.branch,
+                "cgpa": obj.student.cgpa,
+            }
+        return None

@@ -9,15 +9,41 @@ const PlacementHub: React.FC = () => {
     const [apps, setApps] = useState<PlacementApplication[]>([]);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        Promise.all([
-            placementApi.getEligibleDrives(),
-            placementApi.getApplications()
-        ]).then(([d, a]) => {
+    const [applying, setApplying] = useState<number | null>(null);
+
+    const fetchData = async () => {
+        try {
+            const [d, a] = await Promise.all([
+                placementApi.getEligibleDrives(),
+                placementApi.getApplications()
+            ]);
             setDrives(d);
             setApps(a);
-        }).finally(() => setLoading(false));
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchData();
     }, []);
+
+    const handleApply = async (driveId: number) => {
+        try {
+            setApplying(driveId);
+            // using empty resume string for now, will integrate Resume Builder later
+            await placementApi.applyForDrive(driveId, "default_resume.pdf");
+            // refresh data
+            await fetchData();
+            // Need to import toast at top if not there
+            // toast.success("Applied successfully!");
+        } catch (error: any) {
+            // error could be deadline passed etc.
+            alert(error.response?.data?.message || "Failed to apply");
+        } finally {
+            setApplying(null);
+        }
+    };
 
     if (loading) return <div className="text-white animate-pulse">Scanning recruitment database...</div>;
 
@@ -86,9 +112,11 @@ const PlacementHub: React.FC = () => {
                                 </p>
 
                                 <button
-                                    className="w-full py-3 bg-white/5 border border-white/10 rounded-2xl text-xs font-black text-white hover:bg-primary hover:border-primary transition-all group-hover:shadow-lg group-hover:shadow-primary/20"
+                                    onClick={() => handleApply(drive.id as number)}
+                                    disabled={applying === drive.id}
+                                    className="w-full py-3 bg-white/5 border border-white/10 rounded-2xl text-xs font-black text-white hover:bg-primary hover:border-primary transition-all group-hover:shadow-lg group-hover:shadow-primary/20 disabled:opacity-50"
                                 >
-                                    VIEW ELIGIBILITY & APPLY
+                                    {applying === drive.id ? "APPLYING..." : "APPLY NOW"}
                                 </button>
                             </div>
                         ))}

@@ -9,8 +9,8 @@ class SocialChatConsumer(AsyncWebsocketConsumer):
     Implements High-Fidelity status tracking (Typing, Seen, Sent).
     """
     async def connect(self):
-        self.user = self.scope["user"]
-        if self.user.is_anonymous:
+        self.user = self.scope.get("user")
+        if not self.user or self.user.is_anonymous:
             await self.close()
             return
             
@@ -142,8 +142,13 @@ class SocialChatConsumer(AsyncWebsocketConsumer):
         with schema_context(schema):
             my_id = self.profile_id
             session = ChatSession.objects.filter(session_id=self.session_id).first()
-            if not session: return False
-            return any(int(p['id']) == int(my_id) for p in session.participants)
+            if not session: 
+                print(f"[WS-MEMBER] Session not found: {self.session_id}")
+                return False
+            
+            member = any(int(p['id']) == int(my_id) for p in session.participants)
+            print(f"[WS-MEMBER] Check: my_profile_id={my_id} participants={session.participants} member={member}")
+            return member
 
     @database_sync_to_async
     def save_message(self, content, att_type, metadata):
@@ -167,7 +172,9 @@ class SocialChatConsumer(AsyncWebsocketConsumer):
                 session.last_message_at = timezone.now()
                 session.save()
                 return m.id
-        except Exception:
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"WS Save Message Error: {e}", exc_info=True)
             return None
 
     @database_sync_to_async

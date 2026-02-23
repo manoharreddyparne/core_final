@@ -23,7 +23,8 @@ import {
     Globe,
     HelpCircle,
     MessageCircle,
-    Bell
+    Bell,
+    Target
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 
@@ -196,6 +197,13 @@ export const AppLayout = () => {
             to: "/institution/students",
             label: "Student Base",
             icon: User,
+            roles: ["institution_admin", "super_admin", "admin"],
+            hideInGlobal: true
+        },
+        {
+            to: "/institution/placements",
+            label: "Placements & JD AI",
+            icon: Target,
             roles: ["institution_admin", "super_admin", "admin"],
             hideInGlobal: true
         },

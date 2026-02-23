@@ -26,6 +26,7 @@ import { FacultyRegistry } from "../../features/institution/pages/FacultyRegistr
 import IntelligenceDashboard from "../../features/intelligence/pages/IntelligenceDashboard";
 import SmartResumeStudio from "../../features/resumes/pages/SmartResumeStudio";
 import PlacementHub from "../../features/placement/pages/PlacementHub";
+import AdminPlacementHub from "../../features/placement/pages/AdminPlacementHub";
 import ProfessionalHub from "../../features/social/pages/ProfessionalHub";
 import SupportDesk from "../../features/social/pages/SupportDesk";
 import { ChatHub } from "../../features/social/pages/ChatHub";
@@ -330,6 +331,14 @@ export const AppRoutes = () => {
           element={
             <ProtectedRoute allowedRoles={["institution_admin", "super_admin"]}>
               <StudentRegistry />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/institution/placements"
+          element={
+            <ProtectedRoute allowedRoles={["institution_admin", "super_admin", "admin"]}>
+              <AdminPlacementHub />
             </ProtectedRoute>
           }
         />
