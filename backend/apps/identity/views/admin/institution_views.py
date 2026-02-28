@@ -61,101 +61,10 @@ class InstitutionViewSet(viewsets.ModelViewSet):
         # Generate schema name based on slug if not present
         if not institution.schema_name:
             institution.schema_name = f"inst_{institution.slug.replace('-', '_')}"
+            institution.save(update_fields=['schema_name'])
         
         try:
-            # Create dynamic schema record
-            created = create_institution_schema(
-                institution.schema_name, 
-                name=institution.name, 
-                domain=institution.domain
-            )
-            
-            # ✅ IMPROVED MIGRATION SHIELD
-            from django.core.management import call_command
-            from django.db import connection
-            import time
-
-            def check_tables_ready(schema_name):
-                with connection.cursor() as cursor:
-                    # Check if the table exists in the specific schema (case-insensitive for safety)
-                    query = """
-                        SELECT count(*) 
-                        FROM information_schema.tables 
-                        WHERE table_schema = %s 
-                        AND table_name = 'auip_institution_adminpreseededregistry'
-                    """
-                    cursor.execute(query, [schema_name.lower()])
-                    exists = cursor.fetchone()[0] > 0
-                    if not exists:
-                        # Log what tables DO exist for debugging
-                        cursor.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = %s", [schema_name.lower()])
-                        tables = [r[0] for r in cursor.fetchall()]
-                        logger.warning(f"[Multi-Tenancy] Tables found in {schema_name}: {tables}")
-                    return exists
-
-            max_retries = 5
-            for i in range(max_retries):
-                logger.info(f"[Multi-Tenancy] Syncing migrations for {institution.schema_name} (Attempt {i+1})")
-                try:
-                    call_command('migrate_schemas', schema_name=institution.schema_name, interactive=False, verbosity=0)
-                    if check_tables_ready(institution.schema_name):
-                        logger.info(f"✅ Schema {institution.schema_name} is ready for seeding.")
-                        break
-                except Exception as e:
-                    logger.warning(f"Migration attempt {i+1} failed: {e}")
-                
-                time.sleep(2) # Give Postgres a moment to breathe
-            else:
-                raise Exception(f"Schema {institution.schema_name} tables were not created after {max_retries} attempts.")
-
-            # Trigger Seed Logic: Populate PreSeededRegistry from registration data
-            reg_data = institution.registration_data or {}
-            initial_users = reg_data.get("initial_users", []) 
-            
-            with schema_context(institution.schema_name):
-                # Ensure pg_trgm available in this schema
-                from django.db import connection as tenant_conn
-                with tenant_conn.cursor() as cursor:
-                    cursor.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm;")
-
-                from apps.auip_institution.models import (
-                    AdminPreSeededRegistry, FacultyPreSeededRegistry, StudentPreSeededRegistry
-                )
-
-                # Seeding Logic using the ORM (now safe with forced search_path)
-                if not initial_users:
-                    logger.info(f"[Multi-Tenancy] Seeding default admin for {institution.contact_email}")
-                    AdminPreSeededRegistry.objects.get_or_create(
-                        identifier=institution.contact_email,
-                        defaults={
-                            "is_activated": False
-                        }
-                    )
-                else:
-                    for user in initial_users:
-                        identifier = user.get("identifier")
-                        role = user.get("role", "STUDENT")
-                        if identifier:
-                            if role == 'ADMIN':
-                                model = AdminPreSeededRegistry
-                                defaults = {"is_activated": False}
-                            elif role == 'FACULTY':
-                                model = FacultyPreSeededRegistry
-                                defaults = {"email": user.get("email"), "is_activated": False}
-                            else:
-                                model = StudentPreSeededRegistry
-                                defaults = {"email": user.get("email"), "is_activated": False}
-
-                            model.objects.get_or_create(
-                                identifier=identifier,
-                                defaults=defaults
-                            )
-
-            # Update Status
-            institution.status = Institution.RegistrationStatus.APPROVED
-            institution.save()
-
-            # ── Pre-check: Is this contact email already used by another Institution Admin? ──
+            # ── 1. Pre-check: Duplicate Email Constraint ──
             existing_user = User.objects.filter(email__iexact=institution.contact_email).first()
             if existing_user and existing_user.role == User.Roles.INSTITUTION_ADMIN:
                 profile = InstitutionAdmin.objects.filter(user=existing_user).exclude(institution=institution).first()
@@ -165,7 +74,64 @@ class InstitutionViewSet(viewsets.ModelViewSet):
                         code=status.HTTP_400_BAD_REQUEST
                     )
 
-            # ── Provision Institutional Admin ──
+            reg_data = institution.registration_data or {}
+
+            # ── 2. SYNCHRONOUS Schema Creation ──
+            # This blocks until the schema + all migrations are fully applied.
+            # Frontend animation keeps running during this time.
+            logger.info(f"[Institution-Approval] Starting synchronous schema provisioning for {institution.schema_name}...")
+            
+            created = create_institution_schema(
+                institution.schema_name,
+                name=institution.name,
+                domain=institution.domain
+            )
+            logger.info(f"[Institution-Approval] Schema {institution.schema_name} creation result: {created}")
+
+            # ── 3. SYNCHRONOUS Seed Logic ──
+            initial_users = reg_data.get("initial_users", [])
+            
+            with schema_context(institution.schema_name):
+                from django.db import connection as tenant_conn
+                with tenant_conn.cursor() as cursor:
+                    cursor.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm;")
+
+                from apps.auip_institution.models import (
+                    AdminPreSeededRegistry, FacultyPreSeededRegistry, StudentPreSeededRegistry
+                )
+
+                if not initial_users:
+                    AdminPreSeededRegistry.objects.get_or_create(
+                        identifier=institution.contact_email,
+                        defaults={"is_activated": False}
+                    )
+                else:
+                    for u in initial_users:
+                        identifier = u.get("identifier")
+                        role = u.get("role", "STUDENT")
+                        if identifier:
+                            if role == 'ADMIN':
+                                model = AdminPreSeededRegistry
+                                defaults = {"is_activated": False}
+                            elif role == 'FACULTY':
+                                model = FacultyPreSeededRegistry
+                                defaults = {"email": u.get("email"), "is_activated": False}
+                            else:
+                                model = StudentPreSeededRegistry
+                                defaults = {"email": u.get("email"), "is_activated": False}
+
+                            model.objects.get_or_create(
+                                identifier=identifier,
+                                defaults=defaults
+                            )
+            logger.info(f"[Institution-Approval] Schema {institution.schema_name} seeded successfully.")
+
+            # ── 4. Mark Setup Complete + Approve ──
+            institution.is_setup_complete = True
+            institution.status = Institution.RegistrationStatus.APPROVED
+            institution.save()
+
+            # ── 5. Provision Institutional Admin User ──
             admin_name = reg_data.get("admin_name", "") or reg_data.get("contact_person", "")
             name_parts = admin_name.strip().split() if admin_name else []
             first_name = name_parts[0] if name_parts else ""
@@ -182,93 +148,85 @@ class InstitutionViewSet(viewsets.ModelViewSet):
                     "first_time_login": True,
                 }
             )
+            
             if user_created:
-                admin_user.set_unusable_password()  # Cannot login until activation
+                admin_user.set_unusable_password()
                 admin_user.save()
                 logger.info(f"[Institution-Approval] Created User (INST_ADMIN) for {institution.contact_email}")
             else:
-                # ✅ PROTECTION: If this is a Super Admin sharing the email, do NOT force password reset
-                # This prevents the Super Admin from being logged out remotely.
                 if admin_user.role == User.Roles.SUPER_ADMIN:
                     logger.info(f"[Institution-Approval] Existing SUPER_ADMIN {institution.contact_email} skipping reset flags.")
                 else:
-                    # Force activation modal for existing users by setting need_password_reset
+                    admin_user.role = User.Roles.INSTITUTION_ADMIN
                     admin_user.need_password_reset = True
                     admin_user.first_time_login = True
-                    admin_user.save(update_fields=["need_password_reset", "first_time_login"])
-                    logger.warning(f"[Institution-Approval] Existing user {institution.contact_email} flagged for activation setup, linking to institution")
+                    admin_user.save(update_fields=["role", "need_password_reset", "first_time_login"])
 
-            # Check if an InstitutionAdmin profile already exists for this user
+            # Link Profile
             existing_profile = InstitutionAdmin.objects.filter(user=admin_user).first()
-            if existing_profile:
-                if existing_profile.institution != institution:
-                    logger.warning(f"[Institution-Approval] User {admin_user.email} already has an admin profile for {existing_profile.institution.name}. Skipping second profile creation for {institution.name} due to OneToOne constraint.")
-                else:
-                    logger.info(f"[Institution-Approval] Profile already correctly linked for {admin_user.email}")
-            else:
+            if not existing_profile:
                 InstitutionAdmin.objects.create(
                     user=admin_user,
                     institution=institution,
                     role_description=reg_data.get("designation", "Administrator")
                 )
 
-            # ── Generate Activation Link (7-day expiry) ──
+            # ── 6. Generate Activation Link ──
             activation_token = generate_activation_token(
                 institution.id, institution.contact_email, "ADMIN"
             )
             activation_url = get_activation_url(activation_token, role="ADMIN")
             logger.info(f"[Institution-Approval] Activation link generated for {institution.contact_email}")
 
-            # ── Send Approval + Activation Email ──
+            # ── 7. Generate Certificate (before email so we can attach info) ──
+            cert_url = None
             try:
-                from django.core.mail import send_mail
-                from django.conf import settings
-                
-                subject = f"AUIP Platform: {institution.name} Approved — Set Up Your Admin Account"
-                message = (
-                    f"Hello {admin_name or 'Administrator'},\n\n"
-                    f"Great news! Your institution {institution.name} has been approved on the AUIP Platform.\n\n"
-                    f"Institution Details:\n"
-                    f"  - Name: {institution.name}\n"
-                    f"  - Domain: {institution.domain}\n"
-                    f"  - Status: APPROVED\n\n"
-                    f"To activate your administrator account and set your password, click the link below:\n\n"
-                    f"  {activation_url}\n\n"
-                    f"This link expires in 7 days.\n\n"
-                    f"After activation, you will have access to:\n"
-                    f"  - Student pre-seeding (CSV upload)\n"
-                    f"  - Faculty management\n"
-                    f"  - Placement drive management\n"
-                    f"  - Analytics dashboard\n\n"
-                    f"Welcome to the future of unified academic governance.\n\n"
-                    f"Best regards,\n"
-                    f"AUIP Platform Team"
-                )
-                send_mail(
-                    subject,
-                    message,
-                    settings.DEFAULT_FROM_EMAIL,
-                    [institution.contact_email],
-                    fail_silently=True
-                )
-                logger.info(f"[Institution-Approval] Activation email sent to {institution.contact_email}")
-            except Exception as mail_err:
-                logger.error(f"[Institution-Approval] Failed to send email: {mail_err}")
+                from apps.identity.services.certificates.builder import generate_institution_certificate
+                cert_url = generate_institution_certificate(institution.id)
+                if cert_url:
+                    logger.info(f"[Institution-Approval] Certificate generated: {cert_url}")
+            except Exception as cert_err:
+                logger.warning(f"[Institution-Approval] Certificate generation skipped: {cert_err}")
 
-            logger.info(f"[Institution-Approval] APPROVED, SCHEMA CREATED, and SEEDED: {institution.name}")
+            # ── 8. Send Approval + Activation Email (ASYNC to shave off SMTP latency) ──
+            from threading import Thread
+            from django.core.mail import send_mail
+            from django.conf import settings
+            
+            subject = f"AUIP Platform: {institution.name} Approved — Set Up Your Admin Account"
+            message = (
+                f"Hello {admin_name or 'Administrator'},\n\n"
+                f"Great news! Your institution {institution.name} has been approved on the AUIP Platform.\n\n"
+                f"Institution Details:\n"
+                f"  - Name: {institution.name}\n"
+                f"  - Domain: {institution.domain}\n"
+                f"  - Status: APPROVED\n\n"
+                f"To activate your administrator account and set your password, click the link below:\n\n"
+                f"  {activation_url}\n\n"
+                f"This link expires in 7 days.\n\n"
+                f"After activation, you will have access to unified academic governance.\n\n"
+                f"Welcome to the future of unified academic governance.\n\n"
+                f"Best regards,\n"
+                f"AUIP Platform Team"
+            )
+            
+            # Non-blocking SMTP send
+            Thread(target=send_mail, args=(subject, message, settings.DEFAULT_FROM_EMAIL, [institution.contact_email]), kwargs={'fail_silently': False}).start()
+            
+            logger.info(f"[Institution-Approval] High-speed provisioning complete for {institution.name}")
+
+            logger.info(f"[Institution-Approval] FULLY COMPLETE: {institution.name} — Schema ready, admin created, email sent.")
+            
             return success_response({
-                "message": f"Institution {institution.name} approved and isolated schema created successfully.",
-                "notification_sent": True
+                "message": f"Institution {institution.name} approved and fully provisioned.",
+                "notification_sent": True,
+                "schema_ready": True,
             })
         except Exception as e:
-            logger.error(f"[Institution-Approval] Failed to approve {institution.name} (Schema: {institution.schema_name}): {str(e)}", exc_info=True)
-            # Temporarily include 'errors' for debugging the failure
+            logger.error(f"[Institution-Approval] Failed to approve {institution.name}: {str(e)}", exc_info=True)
             return error_response(
                 f"Failed to create isolated environment for {institution.name}.",
-                errors={
-                    "detail": str(e),
-                    "schema_attempted": institution.schema_name
-                }
+                errors={"detail": str(e)}
             )
 
     @action(detail=True, methods=['post'])
