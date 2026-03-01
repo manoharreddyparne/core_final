@@ -71,5 +71,5 @@ export const DialogTitle = ({ children, className }: { children: ReactNode; clas
 );
 
 export const DialogDescription = ({ children, className }: { children: ReactNode; className?: string }) => (
-    <p className={cn("text-sm text-gray-400", className)}>{children}</p>
+    <p className={cn("text-sm text-[var(--text-secondary)]", className)}>{children}</p>
 );

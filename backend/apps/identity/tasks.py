@@ -169,3 +169,159 @@ def check_expiring_certificates():
 
     logger.info(f"[EXPIRY-CHECK] Daily check complete. {total_queued} warning(s) queued.")
     return total_queued
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TASK 5 — Institution Provisioning
+# Asynchronous schema creation, seeding, and admin user setup.
+# Returns 100% via WS when complete.
+# ─────────────────────────────────────────────────────────────────────────────
+
+@shared_task(
+    bind=True,
+    max_retries=1,
+    queue="certificates",
+    name="apps.identity.tasks.provision_institution_task",
+)
+def provision_institution_task(self, institution_id: int):
+    """
+    Handles the heavy lifting of schema creation, multitenant migrations,
+    and initial data seeding. Communicates progress via WebSockets.
+    """
+    from apps.identity.models.institution import Institution, InstitutionAdmin
+    from apps.identity.models.core_models import User
+    from apps.identity.utils.multitenancy import create_institution_schema
+    from apps.identity.utils.activation import generate_activation_token, get_activation_url
+    from django_tenants.utils import schema_context
+    from apps.identity.tasks import send_approval_certificate_email_task
+    from channels.layers import get_channel_layer
+    from asgiref.sync import async_to_sync
+
+    try:
+        institution = Institution.objects.get(id=institution_id)
+        schema_name = institution.schema_name
+        reg_data = institution.registration_data or {}
+        
+        layer = get_channel_layer()
+
+        def send_ws(msg, progress):
+            if layer:
+                async_to_sync(layer.group_send)(
+                    "superadmin_updates",
+                    {
+                        "type": "institution_update",
+                        "data": {
+                            "type": "PROVISION_PROGRESS",
+                            "schema_name": schema_name,
+                            "progress": progress,
+                            "message": msg
+                        }
+                    }
+                )
+
+        # 1. Create Schema (Progress: 10% - 85%)
+        # create_institution_schema internally sends WS updates during migrations
+        send_ws("Initializing isolation kernel...", 5)
+        created = create_institution_schema(
+            schema_name,
+            name=institution.name,
+            domain=institution.domain
+        )
+        
+        if not created:
+             # If already created, just proceed
+             send_ws("Schema already exists, moving to seeding...", 85)
+        
+        # 2. Seed Logic (Progress: 85% - 95%)
+        send_ws("Seeding registry tables...", 86)
+        initial_users = reg_data.get("initial_users", [])
+        
+        with schema_context(schema_name):
+            from django.db import connection as tenant_conn
+            with tenant_conn.cursor() as cursor:
+                cursor.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm;")
+
+            from apps.auip_institution.models import (
+                AdminPreSeededRegistry, FacultyPreSeededRegistry, StudentPreSeededRegistry
+            )
+
+            if not initial_users:
+                AdminPreSeededRegistry.objects.get_or_create(
+                    identifier=institution.contact_email,
+                    defaults={"is_activated": False}
+                )
+            else:
+                for u in initial_users:
+                    identifier = u.get("identifier")
+                    role = u.get("role", "STUDENT")
+                    if identifier:
+                        if role == 'ADMIN':
+                            model = AdminPreSeededRegistry
+                            defaults = {"is_activated": False}
+                        elif role == 'FACULTY':
+                            model = FacultyPreSeededRegistry
+                            defaults = {"email": u.get("email"), "is_activated": False}
+                        else:
+                            model = StudentPreSeededRegistry
+                            defaults = {"email": u.get("email"), "is_activated": False}
+
+                        model.objects.get_or_create(
+                            identifier=identifier,
+                            defaults=defaults
+                        )
+        
+        # 3. Provision Admin User (Progress: 95% - 98%)
+        send_ws("Provisioning administrative edge...", 96)
+        admin_name = reg_data.get("admin_name", "") or reg_data.get("contact_person", "")
+        name_parts = admin_name.strip().split() if admin_name else []
+        first_name = name_parts[0] if name_parts else ""
+        last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
+
+        admin_user, user_created = User.objects.get_or_create(
+            email=institution.contact_email,
+            defaults={
+                "username": institution.contact_email,
+                "role": User.Roles.INSTITUTION_ADMIN,
+                "first_name": first_name,
+                "last_name": last_name,
+                "need_password_reset": True,
+                "first_time_login": True,
+            }
+        )
+        if user_created:
+            admin_user.set_unusable_password()
+            admin_user.save()
+        else:
+            if admin_user.role != User.Roles.SUPER_ADMIN:
+                admin_user.role = User.Roles.INSTITUTION_ADMIN
+                admin_user.need_password_reset = True
+                admin_user.first_time_login = True
+                admin_user.save(update_fields=["role", "need_password_reset", "first_time_login"])
+
+        InstitutionAdmin.objects.get_or_create(
+            user=admin_user,
+            institution=institution,
+            defaults={"role_description": reg_data.get("designation", "Administrator")}
+        )
+
+        # 4. Generate Activation link + Cert Task
+        send_ws("Generating governance tokens...", 99)
+        activation_token = generate_activation_token(institution.id, institution.contact_email, "ADMIN")
+        activation_url = get_activation_url(activation_token, role="ADMIN")
+        
+        send_approval_certificate_email_task.delay(institution.id, activation_url)
+
+        # 5. Finalize
+        institution.is_setup_complete = True
+        institution.status = Institution.RegistrationStatus.APPROVED
+        institution.save()
+        
+        send_ws("Environment LIVE", 100)
+        logger.info(f"[PROVISION-TASK] Successfully provisioned {institution.name}")
+
+    except Exception as exc:
+        logger.error(f"[PROVISION-TASK] Failed for institution {institution_id}: {exc}", exc_info=True)
+        # Attempt to inform UI of failure
+        try:
+             send_ws(f"ERROR: {str(exc)}", -1)
+        except: pass
+        raise self.retry(exc=exc, max_retries=1)

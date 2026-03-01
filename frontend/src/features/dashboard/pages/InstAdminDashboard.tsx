@@ -8,8 +8,10 @@ import {
     Zap,
     CheckCircle2,
     BarChart3,
+    Brain,
     ExternalLink,
-    ArrowRight
+    ArrowRight,
+    BookOpen
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
@@ -143,6 +145,78 @@ export const InstAdminDashboard = () => {
                             className="px-8 py-3 glass bg-white/5 border-white/10 text-white font-bold rounded-2xl hover:bg-white/10 transition-all flex items-center gap-2"
                         >
                             Manage Faculty <ExternalLink className="w-4 h-4 opacity-50" />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Academic Hub Card */}
+                <div className="glass p-10 rounded-[3rem] bg-white/[0.03] border-cyan-500/10 relative overflow-hidden group flex flex-col justify-between h-[320px]">
+                    <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-110 transition-transform">
+                        <BookOpen className="w-48 h-48 text-cyan-400" />
+                    </div>
+                    <div className="relative z-10 space-y-4">
+                        <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 flex items-center justify-center text-cyan-400 border border-cyan-500/20">
+                            <BookOpen className="w-6 h-6" />
+                        </div>
+                        <h2 className="text-3xl font-black text-white leading-tight">Academic Ecosystem</h2>
+                        <p className="text-gray-500 text-sm font-medium max-w-sm leading-relaxed">
+                            Manage departments, programs, subject allocations, and track academic health seamlessly.
+                        </p>
+                    </div>
+                    <div className="relative z-10">
+                        <button
+                            onClick={() => navigate("/institution/academic")}
+                            className="px-8 py-3 glass bg-cyan-500/10 border-cyan-500/20 text-cyan-300 font-bold rounded-2xl hover:bg-cyan-500/20 transition-all flex items-center gap-2"
+                        >
+                            Open Academics <ArrowRight className="w-4 h-4 opacity-50" />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Governance Brain Card */}
+                <div className="glass p-10 rounded-[3rem] bg-white/[0.03] border-purple-500/10 relative overflow-hidden group flex flex-col justify-between h-[260px]">
+                    <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-110 transition-transform">
+                        <Brain className="w-48 h-48 text-purple-400" />
+                    </div>
+                    <div className="relative z-10 space-y-4">
+                        <div className="w-12 h-12 rounded-2xl bg-purple-500/10 flex items-center justify-center text-purple-400 border border-purple-500/20">
+                            <Brain className="w-6 h-6" />
+                        </div>
+                        <h2 className="text-2xl font-black text-white leading-tight">Governance Brain</h2>
+                        <p className="text-gray-500 text-sm font-medium leading-relaxed">
+                            AI-powered student readiness scoring, at-risk detection, and intervention management.
+                        </p>
+                    </div>
+                    <div className="relative z-10">
+                        <button
+                            onClick={() => navigate("/institution/brain")}
+                            className="px-6 py-2.5 glass bg-purple-500/10 border-purple-500/20 text-purple-300 font-bold rounded-2xl hover:bg-purple-500/20 transition-all flex items-center gap-2 text-sm"
+                        >
+                            Open Brain <ArrowRight className="w-4 h-4" />
+                        </button>
+                    </div>
+                </div>
+
+                {/* TPO Analytics Card */}
+                <div className="glass p-10 rounded-[3rem] bg-white/[0.03] border-primary/10 relative overflow-hidden group flex flex-col justify-between h-[260px]">
+                    <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-110 transition-transform">
+                        <BarChart3 className="w-48 h-48 text-primary" />
+                    </div>
+                    <div className="relative z-10 space-y-4">
+                        <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
+                            <BarChart3 className="w-6 h-6" />
+                        </div>
+                        <h2 className="text-2xl font-black text-white leading-tight">TPO Analytics</h2>
+                        <p className="text-gray-500 text-sm font-medium leading-relaxed">
+                            Placement reports, company-wise analytics, branch breakdowns, and exportable insights.
+                        </p>
+                    </div>
+                    <div className="relative z-10">
+                        <button
+                            onClick={() => navigate("/institution/analytics")}
+                            className="px-6 py-2.5 glass bg-primary/10 border-primary/20 text-primary font-bold rounded-2xl hover:bg-primary/20 transition-all flex items-center gap-2 text-sm"
+                        >
+                            View Analytics <ArrowRight className="w-4 h-4" />
                         </button>
                     </div>
                 </div>

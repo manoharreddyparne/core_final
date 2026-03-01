@@ -44,6 +44,26 @@ class Institution(models.Model):
     )
     is_setup_complete = models.BooleanField(default=False)
 
+    # Verifiable Certificate (X.509 PKI)
+    import uuid
+    certificate_id          = models.UUIDField(null=True, blank=True, unique=True, default=None, help_text="Verifiable certificate identifier")
+    certificate_issued_at   = models.DateTimeField(null=True, blank=True)
+    certificate_expires_at  = models.DateTimeField(null=True, blank=True)
+    certificate_url         = models.URLField(max_length=500, blank=True, null=True, help_text="URL to the generated PDF certificate")
+    certificate_serial      = models.CharField(max_length=128, blank=True, null=True, help_text="X.509 serial number (hex)")
+    certificate_fingerprint = models.CharField(max_length=256, blank=True, null=True, help_text="SHA-256 fingerprint of the X.509 certificate")
+
+    # ── Sovereign Activation Certificate (issued after admin activates account) ──
+    # Elevated trust scope: clientAuth + emailProtection + codeSigning EKU
+    # 1-year validity — annual renewal cycle
+    activation_cert_id          = models.UUIDField(null=True, blank=True, unique=True, default=None, help_text="Sovereign activation certificate identifier")
+    activation_cert_issued_at   = models.DateTimeField(null=True, blank=True)
+    activation_cert_expires_at  = models.DateTimeField(null=True, blank=True)
+    activation_cert_url         = models.URLField(max_length=500, blank=True, null=True, help_text="URL to the sovereign activation certificate PDF")
+    activation_cert_serial      = models.CharField(max_length=128, blank=True, null=True, help_text="Activation cert X.509 serial number (hex)")
+    activation_cert_fingerprint = models.CharField(max_length=256, blank=True, null=True, help_text="SHA-256 fingerprint of the activation certificate")
+
+
     # Subscription/Status
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)

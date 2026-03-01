@@ -13,7 +13,7 @@ export const TurnstileWidget: FC<Props> = ({
     onSuccess,
     onExpire,
     onError,
-    theme = "dark"
+    theme = "light"
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const widgetIdRef = useRef<string | null>(null);
@@ -30,6 +30,8 @@ export const TurnstileWidget: FC<Props> = ({
         onExpireRef.current = onExpire;
         onErrorRef.current = onError;
     }, [onSuccess, onExpire, onError]);
+
+    // Turnstile always renders - no bypasses
 
     useEffect(() => {
         const renderWidget = () => {

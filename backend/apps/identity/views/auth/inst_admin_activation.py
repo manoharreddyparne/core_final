@@ -178,6 +178,18 @@ class InstAdminActivateView(APIView):
                 registry_entry.is_activated = True
                 registry_entry.activated_at = datetime.now(tz=dt_timezone.utc)
                 registry_entry.save()
+
+                # ── Queue Sovereign Activation Certificate (async via Celery) ──
+                # Generates the Sovereign X.509 cert + teal PDF + sends activation email.
+                # Fully non-blocking — admin is redirected to dashboard instantly.
+                try:
+                    from apps.identity.tasks import send_activation_certificate_email_task
+                    send_activation_certificate_email_task.delay(institution.id)
+                    logger.info(f"[InstAdmin-Activate] Sovereign cert task queued for {institution.name}")
+                except Exception as task_err:
+                    # Task queue failure must never block activation
+                    logger.error(f"[InstAdmin-Activate] Could not queue sovereign cert task: {task_err}")
+
                 
                 logger.info(f"[InstAdmin-Activate] Activated {identifier} in schema {institution.schema_name}")
 

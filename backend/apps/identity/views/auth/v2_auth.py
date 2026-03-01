@@ -1,3 +1,4 @@
+import logging
 from rest_framework import generics, status
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
@@ -15,6 +16,8 @@ from apps.identity.utils.activation import generate_activation_token, verify_act
 from apps.identity.utils.turnstile import verify_turnstile_token
 from apps.auip_tenant.models import Client
 from apps.identity.utils.response_utils import success_response, error_response
+
+logger = logging.getLogger(__name__)
 
 class IdentityCheckView(generics.GenericAPIView):
     """
@@ -105,8 +108,6 @@ class ActivationCompleteView(generics.GenericAPIView):
 
     def get(self, request, *args, **kwargs):
         """Validate activation token and return user details."""
-        import logging
-        logger = logging.getLogger(__name__)
         
         token = request.query_params.get("token")
         if not token:
@@ -523,8 +524,11 @@ class FacultyLoginView(generics.GenericAPIView):
                 from apps.identity.services.auth_service import handle_login
                 from apps.identity.utils.cookie_utils import set_quantum_shield, set_logged_in_cookie
                 
+                # Normalize roles
                 identity_to_login = account
                 final_role = "FACULTY" if is_faculty else "INSTITUTION_ADMIN"
+                
+                logger.info(f"[FACULTY-AUTH] Trusted Login: email={account.email}, is_faculty={is_faculty}, role={final_role}, model={account.__class__.__name__}")
                 
                 if not is_faculty:
                     from apps.identity.models.core_models import User
@@ -618,7 +622,12 @@ class FacultyMFAVerifyView(generics.GenericAPIView):
             
             # ✅ V2 CRITICAL FIX: Bind to Global User for Admins
             identity_to_login = account
-            final_role = account.role if hasattr(account, 'role') else "FACULTY"
+            
+            # Normalize role strings consistently
+            raw_role = account.role if hasattr(account, 'role') else "FACULTY"
+            final_role = "INSTITUTION_ADMIN" if raw_role in ["INST_ADMIN", "INSTITUTION_ADMIN", "ADMIN"] else raw_role
+            
+            logger.info(f"[FACULTY-MFA] Resolved Role: {final_role} (raw: {raw_role}) for {account.email}")
             
             if final_role == "INSTITUTION_ADMIN":
                 global_user = User.objects.filter(email=account.email).first()

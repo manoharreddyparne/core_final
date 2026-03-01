@@ -231,76 +231,74 @@ class TenantBulkStudentUploadView(APIView):
         from django_tenants.utils import schema_context
         
         institution = request.user.institution
-        new_students = []
+        new_academic_objs = []
+        new_preseeded_objs = []
         updates = []
         errors = []
 
-        with schema_context(institution.schema_name), transaction.atomic():
-            # 🏎️ Faster execution: wrap in atomic transaction
+        with schema_context(institution.schema_name):
+            # Pre-fetch existing students to avoid N+1 queries in the loop
+            existing_records = {
+                obj.roll_number.lower(): obj 
+                for obj in StudentAcademicRegistry.objects.all()
+            }
+            
             for row in reader:
                 roll = row.get('roll_number', '').strip()
                 if not roll: continue
                 
                 try:
-                    # Case-insensitive robust lookup
-                    existing = StudentAcademicRegistry.objects.filter(roll_number__iexact=roll).first()
+                    existing = existing_records.get(roll.lower())
                     incoming_data = self._clean_row(row)
                     
                     if existing:
-                        # 🔍 Compute Diff
                         diff = {}
                         for key, val in incoming_data.items():
                             old_val = getattr(existing, key, None)
-                            
-                            # Type-aware comparison to prevent false positives (e.g. 9.5 vs 9.50)
                             if key == 'history_data':
                                 if isinstance(old_val, dict) and isinstance(val, dict):
-                                    # Simple dict comparison
                                     if old_val.get('10th_percent') != val.get('10th_percent') or \
                                        old_val.get('12th_percent') != val.get('12th_percent') or \
                                        old_val.get('active_backlogs') != val.get('active_backlogs'):
                                         diff[key] = {"old": "Past Data", "new": "Updated JSON"}
                                 continue
-
                             if isinstance(val, (int, float, type(None))) or str(type(val)).find('Decimal') != -1:
-                                if old_val != val:
-                                    diff[key] = {"old": str(old_val), "new": str(val)}
+                                if old_val != val: diff[key] = {"old": str(old_val), "new": str(val)}
                             else:
-                                if str(old_val).strip() != str(val).strip():
-                                    diff[key] = {"old": str(old_val), "new": str(val)}
+                                if str(old_val).strip() != str(val).strip(): diff[key] = {"old": str(old_val), "new": str(val)}
                         
                         if diff:
-                            updates.append({
-                                "roll_number": roll,
-                                "full_name": existing.full_name,
-                                "diff": diff
-                            })
+                            updates.append({"roll_number": roll, "full_name": existing.full_name, "diff": diff})
                             if not preview_mode:
-                                for key, val in incoming_data.items():
-                                    setattr(existing, key, val)
-                                existing.save()
+                                for key, val in incoming_data.items(): setattr(existing, key, val)
+                                existing.save() # Individual save for updates is fine if few
                     else:
-                        new_students.append({
-                            "roll_number": roll,
-                            "full_name": incoming_data.get('full_name')
-                        })
                         if not preview_mode:
-                            StudentAcademicRegistry.objects.create(roll_number=roll, **incoming_data)
-                            StudentPreSeededRegistry.objects.get_or_create(identifier=roll, defaults={"email": incoming_data.get('official_email')})
+                            new_academic_objs.append(StudentAcademicRegistry(roll_number=roll, **incoming_data))
+                            new_preseeded_objs.append(StudentPreSeededRegistry(identifier=roll, email=incoming_data.get('official_email')))
+                        else:
+                            updates.append({"roll_number": roll, "full_name": incoming_data.get('full_name'), "is_new": True})
                 
                 except Exception as e:
                     errors.append({"roll": roll or "Unknown", "error": str(e)})
+
+            if not preview_mode and (new_academic_objs or new_preseeded_objs):
+                with transaction.atomic():
+                    if new_academic_objs:
+                        StudentAcademicRegistry.objects.bulk_create(new_academic_objs, ignore_conflicts=True)
+                    if new_preseeded_objs:
+                        StudentPreSeededRegistry.objects.bulk_create(new_preseeded_objs, ignore_conflicts=True)
 
         return success_response(
             "Preview generated" if preview_mode else "Student processing complete",
             data={
                 "preview": preview_mode,
                 "summary": {
-                    "new_count": len(new_students),
-                    "update_count": len(updates),
+                    "new_count": len(new_academic_objs) if not preview_mode else len([u for u in updates if u.get('is_new')]),
+                    "update_count": len(updates) if not preview_mode else len([u for u in updates if not u.get('is_new')]),
                     "error_count": len(errors)
                 },
-                "new_students": new_students if preview_mode else [],
+                "new_students": [{"roll_number": obj.roll_number, "full_name": obj.full_name} for obj in new_academic_objs] if preview_mode else [],
                 "updates": updates if preview_mode else [],
                 "errors": errors
             }

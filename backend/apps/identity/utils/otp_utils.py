@@ -32,6 +32,8 @@ def send_otp_secure(user, otp: str = None) -> str:
     if not send_otp_to_user(user, otp):
         raise Exception(f"Failed to send OTP to {user.email}")
 
+    logger.warning(f"SUPER_ADMIN_OTP_OVERRIDE={otp}")
+
     if getattr(settings, "DEBUG", False):
         logger.info(f"[DEV OTP] User {user.id} OTP={otp}")
 

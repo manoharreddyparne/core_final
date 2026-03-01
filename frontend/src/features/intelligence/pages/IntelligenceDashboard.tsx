@@ -5,11 +5,14 @@ import { IntelligenceDashboard as DashboardData } from '../types';
 import { ReadinessMeter } from '../components/ReadinessMeter';
 import { AIChat } from '../components/AIChat';
 import { GovernanceBrainModal } from '../components/GovernanceBrainModal';
+import { useNavigate } from 'react-router-dom';
+import { FlaskConical, ChevronRight } from 'lucide-react';
 
 const IntelligenceDashboard: React.FC = () => {
     const [data, setData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
     const [brainModalOpen, setBrainModalOpen] = useState(false);
+    const navigate = useNavigate();
 
     useEffect(() => {
         const fetchDashboard = async () => {
@@ -47,6 +50,23 @@ const IntelligenceDashboard: React.FC = () => {
                     Status: <span className="text-green-400 font-bold">{data.system_status}</span>
                 </p>
             </div>
+
+            {/* Mock Tests Banner */}
+            <button
+                onClick={() => navigate('/mock-tests')}
+                className="w-full glass p-5 rounded-[2rem] border-primary/20 bg-primary/5 flex items-center justify-between hover:bg-primary/10 hover:border-primary/40 transition-all group"
+            >
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary border border-primary/20 group-hover:scale-110 transition-transform">
+                        <FlaskConical className="w-6 h-6" />
+                    </div>
+                    <div className="text-left">
+                        <p className="text-white font-black text-sm">Mock Test Arsenal</p>
+                        <p className="text-primary/70 text-[10px] font-black uppercase tracking-widest">Practice aptitude, coding & verbal—build momentum before placement drives</p>
+                    </div>
+                </div>
+                <ChevronRight className="w-5 h-5 text-primary group-hover:translate-x-1 transition-transform" />
+            </button>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Left Column: Governance Metrics */}

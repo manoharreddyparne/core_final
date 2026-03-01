@@ -12,7 +12,9 @@ import FacultyDashboard from "../../features/dashboard/pages/FacultyDashboard";
 import ActivatePage from "../../features/auth/pages/Activate";
 import InstAdminLogin from "../../features/auth/pages/InstAdminLogin";
 import InstAdminActivate from "../../features/auth/pages/InstAdminActivate";
-import FacultyLogin from "../../features/auth/pages/FacultyLogin";
+import SuperAdminDashboard from "../../features/dashboard/pages/SuperAdminDashboard";
+
+// Removed FacultyLogin import to centralize login
 import AdminRecovery from "../../features/auth/pages/AdminRecovery";
 import { PageNotFound } from "../../components/PageNotFound";
 import CoreStudentAdmin from "../../features/dashboard/pages/CoreStudentAdmin";
@@ -32,6 +34,11 @@ import SupportDesk from "../../features/social/pages/SupportDesk";
 import { ChatHub } from "../../features/social/pages/ChatHub";
 import { DiscoveryHub } from "../../features/social/pages/DiscoveryHub";
 import { NewsletterPage } from "../../features/governance/pages/NewsletterPage";
+import GovernanceBrainDashboard from "../../features/intelligence/pages/GovernanceBrainDashboard";
+import TPOAnalyticsDashboard from "../../features/intelligence/pages/TPOAnalyticsDashboard";
+import MockTestHub from "../../features/quizzes/pages/MockTestHub";
+import AcademicHub from "../../features/academic/pages/AcademicHub";
+import CertificateVerify from "../../features/auth/pages/CertificateVerify";
 
 import ProtectedRoute from "../../features/auth/components/ProtectedRoute";
 import PublicRoute from "../../features/auth/components/PublicRoute";
@@ -67,22 +74,27 @@ export const AppRoutes = () => {
   // Persistence logic: Check if we have a saved path to restore
   const savedPath = sessionStorage.getItem("auip_last_valid_path");
 
+  const roleNorm = role?.toLowerCase();
   const defaultLanding =
-    role === "student"
+    roleNorm === "student"
       ? "/student-dashboard"
-      : role === "super_admin"
+      : roleNorm === "super_admin"
         ? "/superadmin/dashboard"
-        : (role === "inst_admin" || role === "institution_admin")
+        : (roleNorm === "inst_admin" || roleNorm === "institution_admin" || roleNorm === "admin")
           ? "/institution/dashboard"
-          : role === "faculty"
+          : (roleNorm === "faculty" || roleNorm === "teacher")
             ? "/faculty-dashboard"
-            : "/institution/dashboard";
+            : "/"; // Safe fallback to landing
 
   // Use saved path if it looks valid for the user's role
   const landing = (savedPath && savedPath !== "/" && savedPath !== "/login") ? savedPath : defaultLanding;
 
   return (
     <Routes>
+      {/* ------- REDIRECTS FOR LEGACY PATHS -------- */}
+      <Route path="/admin/institutions" element={<Navigate to="/superadmin/institutions" replace />} />
+      <Route path="/admin/dashboard" element={<Navigate to="/superadmin/dashboard" replace />} />
+
       {/* ------- DEFAULT LANDING -------- */}
       <Route
         path="/"
@@ -139,25 +151,6 @@ export const AppRoutes = () => {
       />
 
       <Route
-        path="/auth/inst-admin/activate"
-        element={
-          <PublicRoute>
-            <InstAdminActivate />
-          </PublicRoute>
-        }
-      />
-
-      <Route
-        path="/auth/faculty/login"
-        element={
-          <PublicRoute>
-            <FacultyLogin />
-          </PublicRoute>
-        }
-      />
-
-      {/* ─── ACTIVATION (General) ─── */}
-      <Route
         path="/auth/activate"
         element={
           <PublicRoute>
@@ -167,21 +160,16 @@ export const AppRoutes = () => {
       />
 
       <Route
-        path="/auth/student/register"
+        path="/auth/inst-admin/activate"
         element={
           <PublicRoute>
-            <StudentRegistration />
+            <InstAdminActivate />
           </PublicRoute>
         }
       />
 
       <Route
-        path="/activate-request"
-        element={<Navigate to="/auth/student/register" replace />}
-      />
-
-      <Route
-        path="/register-university"
+        path="/auth/register-university"
         element={
           <PublicRoute>
             <RegisterUniversity />
@@ -190,7 +178,7 @@ export const AppRoutes = () => {
       />
 
       <Route
-        path="/reset-password"
+        path="/auth/reset-password"
         element={
           <PublicRoute>
             <ResetPasswordRequestForm />
@@ -199,7 +187,7 @@ export const AppRoutes = () => {
       />
 
       <Route
-        path="/reset-password-confirm/:token"
+        path="/auth/reset-password-confirm/:uid/:token"
         element={
           <PublicRoute>
             <ResetPasswordConfirmWrapper />
@@ -207,7 +195,11 @@ export const AppRoutes = () => {
         }
       />
 
-      {/* ------- AUTHENTICATED LAYOUT ------- */}
+      {/* ─── PUBLIC: Certificate Verification Portal (no auth required) ─── */}
+      <Route path="/verify-certificate/:type/:certId" element={<CertificateVerify />} />
+      <Route path="/verify-certificate/:certId" element={<CertificateVerify />} />
+
+      {/* ------- PROTECTED ------- */}
       <Route
         element={
           <ProtectedRoute>
@@ -215,12 +207,15 @@ export const AppRoutes = () => {
           </ProtectedRoute>
         }
       >
-        {/* DASHBOARDS */}
+        {/* SHARED */}
+        <Route path="/dashboard" element={<Dashboard />} />
+
+        {/* STUDENT HUB */}
         <Route
           path="/student-dashboard"
           element={
             <ProtectedRoute allowedRoles={["student"]}>
-              <Dashboard />
+              <CoreStudentAdmin />
             </ProtectedRoute>
           }
         />
@@ -233,7 +228,7 @@ export const AppRoutes = () => {
           }
         />
         <Route
-          path="/resume-studio/:id?"
+          path="/resume-studio"
           element={
             <ProtectedRoute allowedRoles={["student"]}>
               <SmartResumeStudio />
@@ -251,7 +246,7 @@ export const AppRoutes = () => {
         <Route
           path="/professional-hub"
           element={
-            <ProtectedRoute allowedRoles={["student", "faculty", "institution_admin", "admin", "super_admin"]}>
+            <ProtectedRoute allowedRoles={["student", "faculty", "institution_admin", "admin"]}>
               <ProfessionalHub />
             </ProtectedRoute>
           }
@@ -259,15 +254,23 @@ export const AppRoutes = () => {
         <Route
           path="/discovery"
           element={
-            <ProtectedRoute allowedRoles={["student", "faculty", "institution_admin", "admin", "super_admin"]}>
+            <ProtectedRoute allowedRoles={["student", "faculty", "institution_admin", "admin"]}>
               <DiscoveryHub />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/newsletters"
+          element={
+            <ProtectedRoute allowedRoles={["student", "faculty", "institution_admin", "admin"]}>
+              <NewsletterPage />
             </ProtectedRoute>
           }
         />
         <Route
           path="/chat-hub"
           element={
-            <ProtectedRoute allowedRoles={["student", "faculty", "institution_admin", "admin", "super_admin"]}>
+            <ProtectedRoute allowedRoles={["student", "faculty", "institution_admin", "admin"]}>
               <ChatHub />
             </ProtectedRoute>
           }
@@ -275,27 +278,18 @@ export const AppRoutes = () => {
         <Route
           path="/support-hub"
           element={
-            <ProtectedRoute allowedRoles={["student", "faculty", "institution_admin", "admin", "super_admin"]}>
+            <ProtectedRoute allowedRoles={["student", "faculty", "institution_admin", "admin"]}>
               <SupportDesk />
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/newsletters"
-          element={
-            <ProtectedRoute allowedRoles={["student"]}>
-              <NewsletterPage />
-            </ProtectedRoute>
-          }
-        />
-        {/* --- ADMINISTRATIVE DOMAINS (SEGREGATED) --- */}
 
-        {/* GLOBAL GOVERNANCE (SUPER ADMIN) */}
+        {/* GLOBAL HUB (SUPER ADMIN) */}
         <Route
           path="/superadmin/dashboard"
           element={
             <ProtectedRoute allowedRoles={["super_admin"]}>
-              <Dashboard />
+              <SuperAdminDashboard />
             </ProtectedRoute>
           }
         />
@@ -308,11 +302,11 @@ export const AppRoutes = () => {
           }
         />
 
-        {/* INSTITUTIONAL HUB (INST ADMIN & PROXY SUPER ADMIN) */}
+        {/* INSTITUTIONAL HUB (INST ADMIN ONLY) */}
         <Route
           path="/institution/dashboard"
           element={
-            <ProtectedRoute allowedRoles={["institution_admin", "super_admin"]}>
+            <ProtectedRoute allowedRoles={["institution_admin", "admin", "inst_admin"]}>
               <InstAdminDashboard />
             </ProtectedRoute>
           }
@@ -320,7 +314,7 @@ export const AppRoutes = () => {
         <Route
           path="/faculty-dashboard"
           element={
-            <ProtectedRoute allowedRoles={["faculty"]}>
+            <ProtectedRoute allowedRoles={["faculty", "teacher"]}>
               <FacultyDashboard />
             </ProtectedRoute>
           }
@@ -329,7 +323,7 @@ export const AppRoutes = () => {
         <Route
           path="/institution/students"
           element={
-            <ProtectedRoute allowedRoles={["institution_admin", "super_admin"]}>
+            <ProtectedRoute allowedRoles={["institution_admin", "admin", "inst_admin"]}>
               <StudentRegistry />
             </ProtectedRoute>
           }
@@ -337,7 +331,7 @@ export const AppRoutes = () => {
         <Route
           path="/institution/placements"
           element={
-            <ProtectedRoute allowedRoles={["institution_admin", "super_admin", "admin"]}>
+            <ProtectedRoute allowedRoles={["institution_admin", "admin", "inst_admin"]}>
               <AdminPlacementHub />
             </ProtectedRoute>
           }
@@ -345,8 +339,46 @@ export const AppRoutes = () => {
         <Route
           path="/institution/faculty"
           element={
-            <ProtectedRoute allowedRoles={["institution_admin", "super_admin"]}>
+            <ProtectedRoute allowedRoles={["institution_admin", "admin", "inst_admin"]}>
               <FacultyRegistry />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/institution/academic"
+          element={
+            <ProtectedRoute allowedRoles={["institution_admin", "admin", "inst_admin"]}>
+              <AcademicHub />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* GOVERNANCE BRAIN — Sprint 4 */}
+        <Route
+          path="/institution/brain"
+          element={
+            <ProtectedRoute allowedRoles={["institution_admin", "admin", "inst_admin", "faculty"]}>
+              <GovernanceBrainDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* TPO ANALYTICS — Sprint 7 */}
+        <Route
+          path="/institution/analytics"
+          element={
+            <ProtectedRoute allowedRoles={["institution_admin", "admin", "inst_admin"]}>
+              <TPOAnalyticsDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* MOCK TEST HUB — Sprint 8 */}
+        <Route
+          path="/mock-tests"
+          element={
+            <ProtectedRoute allowedRoles={["student", "faculty"]}>
+              <MockTestHub />
             </ProtectedRoute>
           }
         />
@@ -357,70 +389,84 @@ export const AppRoutes = () => {
         {/* PROFILE */}
         <Route path="/profile" element={<MyProfile />} />
 
-        {/* SECURITY */}
-        <Route path="/security" element={<SecurityOverview />} />
-        <Route path="/security/sessions" element={<SecuritySessions />} />
-
-        {/* USER ADMIN SEARCH */}
         <Route
-          path="/admin/students"
+          path="/settings/security"
           element={
-            <ProtectedRoute allowedRoles={["admin", "institution_admin", "super_admin"]}>
+            <ProtectedRoute>
+              <SecurityOverview />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings/sessions"
+          element={
+            <ProtectedRoute>
+              <SessionManager />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* SEARCH & DETAIL */}
+        <Route
+          path="/search/students"
+          element={
+            <ProtectedRoute allowedRoles={["faculty", "institution_admin", "admin"]}>
               <StudentProfileSearch />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/admin/core-students"
+          path="/search/teachers"
           element={
-            <ProtectedRoute allowedRoles={["institution_admin", "super_admin"]}>
-              <CoreStudentAdmin />
+            <ProtectedRoute allowedRoles={["institution_admin", "admin"]}>
+              <FacultyAdmin />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/admin/teachers"
+          path="/search/profiles"
           element={
-            <ProtectedRoute allowedRoles={["admin"]}>
+            <ProtectedRoute allowedRoles={["institution_admin", "admin"]}>
               <TeacherProfileSearch />
             </ProtectedRoute>
           }
         />
 
-        {/* USER ADMIN DETAIL */}
         <Route
-          path="/admin/students/:id"
+          path="/student/:id"
           element={
-            <ProtectedRoute allowedRoles={["admin"]}>
+            <ProtectedRoute allowedRoles={["faculty", "institution_admin", "admin", "student"]}>
               <StudentDetail />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/admin/teachers/:id"
+          path="/faculty/:id"
           element={
-            <ProtectedRoute allowedRoles={["admin"]}>
+            <ProtectedRoute allowedRoles={["institution_admin", "admin", "faculty"]}>
               <TeacherDetail />
             </ProtectedRoute>
           }
         />
 
-        {/* ACCOUNT MGMT */}
-        <Route path="/change-password" element={<ChangePasswordForm />} />
-        <Route path="/sessions" element={<SessionManager />} />
-
-        {/* SETTINGS (Nested) */}
-        <Route path="/settings">
-          <Route index element={<Navigate to="sessions" replace />} />
-          <Route path="profile" element={<EditProfile />} />
-          <Route path="change-password" element={<ChangePasswordForm />} />
-          <Route path="sessions" element={<SessionManager />} />
-        </Route>
+        <Route path="/settings/change-password" element={<ChangePasswordForm />} />
+        <Route path="/settings/device-management" element={<SessionManager />} />
       </Route>
 
+      <Route
+        path="/settings/profile"
+        element={
+          <ProtectedRoute>
+            <EditProfile />
+          </ProtectedRoute>
+        }
+      />
+      <Route path="/settings/password" element={<ChangePasswordForm />} />
+      <Route path="/settings/devices" element={<SessionManager />} />
 
-      {/* ------- CATCH-ALL ------- */}
-      <Route path="*" element={<PageNotFound />} />
+      {/* FALLBACK */}
+      <Route path="/404" element={<PageNotFound />} />
+      <Route path="*" element={<Navigate to="/404" replace />} />
     </Routes>
   );
 };

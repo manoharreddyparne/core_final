@@ -5,22 +5,18 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 def verify_turnstile_token(token: str) -> bool:
-    """
-    Verify Cloudflare Turnstile token against their API.
-    Returns True if valid or if Turnstile is disabled.
-    """
+    """Verify Cloudflare Turnstile token for human verification."""
     if not settings.TURNSTILE_ENABLED:
         return True
     
     if not token:
+        logger.warning("Turnstile validation failed: No token provided")
         return False
     
     # Support for Cloudflare Testing Keys in Development
     # Sitekey: 1x00000000000000000000AA (Always Pass)
     # Secret:  1x000000000000000000000000000000AA
     secret_key = settings.TURNSTILE_SECRET_KEY
-    if settings.DEBUG and token == "XXXX.DUMMY.TOKEN.XXXX": # or check for testing key prefix
-        return True
         
     try:
         # If token is the global testing token, use the global testing secret

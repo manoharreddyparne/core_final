@@ -11,6 +11,62 @@ from apps.identity.services.token_service import send_session_ws_event
 
 logger = logging.getLogger(__name__)
 
+class CertificateValidityMiddleware:
+    """
+    🏢 Institutional Certificate Enforcement Middleware
+    
+    Verifies that the current tenant's X.509 certificate is valid and not expired.
+    If expired, it blocks all non-public access to the tenant.
+    """
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        from django_tenants.utils import get_tenant
+        from apps.identity.models.institution import Institution
+        from django.http import JsonResponse
+        from django.utils import timezone
+        
+        tenant = get_tenant(request)
+        
+        # Public schema doesn't need certificate check
+        if not tenant or tenant.schema_name == 'public':
+            return self.get_response(request)
+
+        # Bypass paths that might be needed for renewal or public info
+        BYPASS_PATHS = ('/api/public/', '/api/auth/v2/login/')
+        if any(request.path.startswith(p) for p in BYPASS_PATHS):
+            return self.get_response(request)
+
+        # Retrieve the institution record from public schema
+        from django_tenants.utils import schema_context
+        with schema_context('public'):
+            institution = Institution.objects.filter(schema_name=tenant.schema_name).first()
+            
+            if institution:
+                # 1. Check if certificate exists
+                if not institution.certificate_expires_at:
+                    # If it's an old institution without a cert, we might want to allow 
+                    # for now or block. Let's block for maximum security.
+                    return JsonResponse({
+                        "error": "Access Revoked",
+                        "detail": "No valid digital certificate found for this node. Contact AUIP Governance.",
+                        "code": "CERTIFICATE_MISSING"
+                    }, status=403)
+
+                # 2. Check Expiration
+                if institution.certificate_expires_at < timezone.now():
+                    logger.warning(f"[PKI-ENFORCEMENT] Access REVOKED for {institution.name} due to certificate expiry: {institution.certificate_expires_at}")
+                    return JsonResponse({
+                        "error": "Subscription Expired",
+                        "detail": f"Access to this portal has been revoked because the security certificate expired on {institution.certificate_expires_at.strftime('%Y-%m-%d')}. Renewal is required.",
+                        "code": "CERTIFICATE_EXPIRED",
+                        "expires_at": institution.certificate_expires_at.isoformat()
+                    }, status=403)
+
+        return self.get_response(request)
+
+
 class AccessTokenSessionMiddleware:
     """
     Middleware to attach authenticated user to HTTP requests based on active LoginSession.
@@ -23,7 +79,14 @@ class AccessTokenSessionMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
 
+    # Paths that must use Django's default session auth (not JWT)
+    BYPASS_PATHS = ('/admin/',)
+
     def __call__(self, request):
+        # Skip JWT auth for Django admin — it uses session-based auth
+        if any(request.path.startswith(p) for p in self.BYPASS_PATHS):
+            return self.get_response(request)
+
         # We need to load the user (and auth) once per request
         # SimpleLazyObject only caches the callable result
         def get_auth_context():
@@ -126,7 +189,13 @@ class SilentRotationMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
 
+    BYPASS_PATHS = ('/admin/',)
+
     def __call__(self, request):
+        # Skip silent rotation for Django admin endpoints
+        if any(request.path.startswith(p) for p in self.BYPASS_PATHS):
+            return self.get_response(request)
+
         response = self.get_response(request)
         
         # Only rotate on successful responses to avoid redundant logic on errors

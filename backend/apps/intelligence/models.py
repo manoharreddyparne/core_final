@@ -7,7 +7,7 @@ class LLMContext(models.Model):
     RAG (Retrieval-Augmented Generation) context storage for the Student.
     Feeds the LLM with personalized data chunks.
     """
-    student = models.ForeignKey(StudentAcademicRegistry, on_delete=models.CASCADE, related_name='llm_contexts')
+    student_id = models.IntegerField(db_index=True, null=True, blank=True) # Decoupled from tenant model for global migration compatibility
     
     category = models.CharField(max_length=50, default='RESUME') # RESUME, PROJECTS, INTERVIEW_PREP
     content_chunk = models.TextField()
@@ -21,8 +21,8 @@ class ATSAnalysis(models.Model):
     """
     Detailed ATS tracking and JD Matching.
     """
-    student = models.ForeignKey(StudentAcademicRegistry, on_delete=models.CASCADE)
-    drive = models.ForeignKey(PlacementDrive, on_delete=models.SET_NULL, null=True, blank=True)
+    student_id = models.IntegerField(db_index=True, null=True, blank=True)
+    drive_id = models.IntegerField(null=True, blank=True)
     
     # Analysis Result
     fit_score = models.IntegerField(default=0, help_text="0-100 score matching student to JD")
@@ -44,7 +44,7 @@ class LLMInteraction(models.Model):
     """
     Tracks LLM guidance sessions.
     """
-    student = models.ForeignKey(StudentAcademicRegistry, on_delete=models.CASCADE)
+    student_id = models.IntegerField(db_index=True, null=True, blank=True)
     
     prompt = models.TextField()
     response = models.TextField()
@@ -76,7 +76,7 @@ class AIQuerySession(models.Model):
     """
     Tracks LLM-powered interactions (e.g., student asking career advice, resume help).
     """
-    student = models.ForeignKey(StudentAcademicRegistry, on_delete=models.CASCADE, related_name='ai_sessions')
+    student_id = models.IntegerField(db_index=True, null=True, blank=True)
     
     query_text = models.TextField()
     ai_response = models.TextField()
@@ -96,7 +96,7 @@ class StudentResumeInsight(models.Model):
     """
     AI-generated analysis of a student's profile/resume.
     """
-    student = models.OneToOneField(StudentAcademicRegistry, on_delete=models.CASCADE, related_name='ai_insights')
+    student_id = models.IntegerField(unique=True, null=True, blank=True)
     
     score = models.IntegerField(help_text="ATS/Compatibility score (0-100)")
     suggested_roles = models.JSONField(default=list)
@@ -124,7 +124,7 @@ class AIChatConversation(models.Model):
     user_role = models.CharField(max_length=50, null=True, blank=True, help_text="Role of the user at the time of session")
     
     # Optional legacy link for deep student integration
-    student = models.ForeignKey(StudentAcademicRegistry, on_delete=models.CASCADE, related_name='ai_conversations', null=True, blank=True)
+    student_id = models.IntegerField(null=True, blank=True, help_text="Legacy Student Registry ID for deep student integration")
     
     title = models.CharField(max_length=255, default="New Conversation")
     

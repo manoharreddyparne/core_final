@@ -68,20 +68,20 @@ const ChangePassword = () => {
   };
 
   return (
-    <div className="w-full max-w-md mx-auto my-8 px-4">
-      <div className="bg-[#0d1117] border border-white/10 rounded-3xl shadow-2xl p-8 space-y-7 relative overflow-hidden">
+    <div className="w-full max-w-md mx-auto my-8 px-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <div className="bg-[var(--bg-elevated)] border border-[var(--border)] rounded-[2.5rem] shadow-2xl p-8 space-y-7 relative overflow-hidden glass">
         {/* Ambient glow */}
-        <div className="absolute top-0 right-0 w-48 h-48 bg-primary/10 blur-[80px] rounded-full pointer-events-none -z-0" />
+        <div className="absolute top-0 right-0 w-48 h-48 bg-[var(--primary-glow)] blur-[80px] rounded-full pointer-events-none -z-0" />
 
         {/* Title */}
         <div className="relative text-center space-y-1">
-          <div className="w-12 h-12 rounded-2xl bg-primary/15 border border-primary/20 flex items-center justify-center text-primary mx-auto">
+          <div className="w-12 h-12 rounded-2xl bg-[var(--primary-glow)] border border-[var(--primary)]/20 flex items-center justify-center text-[var(--primary)] mx-auto">
             <Lock className="w-6 h-6" />
           </div>
-          <h3 className="text-2xl font-black text-white tracking-tight mt-3">
-            Change <span className="text-primary italic">Password</span>
+          <h3 className="text-2xl font-black text-[var(--text-primary)] tracking-tight mt-3">
+            Change <span className="text-[var(--primary)] italic">Password</span>
           </h3>
-          <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">
+          <p className="text-[10px] text-[var(--text-secondary)] font-black uppercase tracking-widest">
             Keep your account secure
           </p>
         </div>
@@ -89,23 +89,23 @@ const ChangePassword = () => {
         <form className="relative space-y-5" onSubmit={handleSubmit}>
           {/* ── Current Password ── */}
           <div className="space-y-1.5">
-            <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 px-1">
+            <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] px-1">
               Current Password
             </label>
             <div className="relative group">
-              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600 group-focus-within:text-primary transition-colors" />
+              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)] group-focus-within:text-[var(--primary)] transition-colors" />
               <input
                 type={showOld ? "text" : "password"}
                 value={oldPassword}
                 onChange={(e) => setOldPassword(e.target.value)}
                 placeholder="Your current password"
                 required
-                className="w-full h-12 pl-11 pr-11 bg-white/5 border border-white/10 rounded-2xl text-white font-bold text-sm placeholder:text-gray-700 outline-none focus:ring-2 focus:ring-primary/40 transition-all"
+                className="w-full h-12 pl-11 pr-11 bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl text-[var(--text-primary)] font-bold text-sm placeholder:text-[var(--text-muted)] outline-none focus:ring-2 focus:ring-[var(--primary)]/40 hover:border-[var(--border-hover)] transition-all"
               />
               <button
                 type="button"
                 onClick={() => setShowOld(v => !v)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
                 tabIndex={-1}
               >
                 {showOld ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -115,23 +115,23 @@ const ChangePassword = () => {
 
           {/* ── New Password ── */}
           <div className="space-y-1.5">
-            <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 px-1">
+            <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] px-1">
               New Password
             </label>
             <div className="relative group">
-              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600 group-focus-within:text-primary transition-colors" />
+              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)] group-focus-within:text-[var(--primary)] transition-colors" />
               <input
                 type={showNew ? "text" : "password"}
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder="New strong password"
                 required
-                className="w-full h-12 pl-11 pr-11 bg-white/5 border border-white/10 rounded-2xl text-white font-bold text-sm placeholder:text-gray-700 outline-none focus:ring-2 focus:ring-primary/40 transition-all"
+                className="w-full h-12 pl-11 pr-11 bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl text-[var(--text-primary)] font-bold text-sm placeholder:text-[var(--text-muted)] outline-none focus:ring-2 focus:ring-[var(--primary)]/40 hover:border-[var(--border-hover)] transition-all"
               />
               <button
                 type="button"
                 onClick={() => setShowNew(v => !v)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
                 tabIndex={-1}
               >
                 {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -140,27 +140,27 @@ const ChangePassword = () => {
 
             {/* Strength bar + rules */}
             {newPassword && (
-              <div className="mt-3 space-y-3 animate-in fade-in duration-200">
+              <div className="mt-4 p-4 rounded-2xl bg-[var(--bg-base)]/50 border border-[var(--border)] space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
                 <div className="flex items-center gap-3">
-                  <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                  <div className="flex-1 h-1.5 bg-[var(--bg-card)] rounded-full overflow-hidden">
                     <div
-                      className={`h-full rounded-full transition-all duration-500 ${strengthColor}`}
+                      className={`h-full rounded-full transition-all duration-700 ${strengthColor}`}
                       style={{ width: `${strengthPct}%` }}
                     />
                   </div>
-                  <span className={`text-[10px] font-black uppercase tracking-widest w-16 text-right ${strengthPct <= 40 ? "text-red-400" : strengthPct < 80 ? "text-yellow-400" : "text-emerald-400"
+                  <span className={`text-[10px] font-black uppercase tracking-widest w-16 text-right ${strengthPct <= 40 ? "text-red-500" : strengthPct < 80 ? "text-yellow-500" : "text-emerald-500"
                     }`}>
                     {strengthLabel}
                   </span>
                 </div>
 
-                <ul className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                <ul className="grid grid-cols-1 gap-y-2">
                   {strengthState.map((rule, i) => (
                     <li key={i} className="flex items-center gap-2">
                       {rule.passed
-                        ? <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                        : <XCircle className="w-3.5 h-3.5 text-gray-600 shrink-0" />}
-                      <span className={`text-[11px] font-medium ${rule.passed ? "text-gray-300" : "text-gray-600"}`}>
+                        ? <CheckCircle className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                        : <XCircle className="w-3.5 h-3.5 text-[var(--text-muted)] shrink-0" />}
+                      <span className={`text-[11px] font-bold tracking-tight transition-colors duration-300 ${rule.passed ? "text-[var(--text-primary)]" : "text-[var(--text-muted)]"}`}>
                         {rule.label}
                       </span>
                     </li>
@@ -174,12 +174,12 @@ const ChangePassword = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full h-12 bg-primary hover:bg-primary/90 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
+            className="w-full h-12 premium-gradient text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
           >
             {loading ? (
-              <><Loader2 className="w-4 h-4 animate-spin" /> Updating...</>
+              <><Loader2 className="w-4 h-4 animate-spin" /> Updating Security...</>
             ) : (
-              "Update Password"
+              "Apply New Password"
             )}
           </button>
         </form>

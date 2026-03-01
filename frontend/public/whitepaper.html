@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AUIP Platform — Technical Whitepaper</title>
+<meta name="description" content="The official technical whitepaper for the Adaptive University Intelligence Platform (AUIP) — architecture, security model, AI governance, and multi-tenant data isolation." />
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #09090b;
+    --surface: #111113;
+    --border: rgba(255,255,255,0.07);
+    --text: #e4e4e7;
+    --muted: #71717a;
+    --accent: #3b82f6;
+    --accent2: #8b5cf6;
+    --green: #10b981;
+    --amber: #f59e0b;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.75;
+    font-size: 16px;
+  }
+
+  /* ── Layout ──────────────────────────────────────── */
+  .wrap { max-width: 900px; margin: 0 auto; padding: 0 24px; }
+
+  /* ── Cover ───────────────────────────────────────── */
+  .cover {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 80px 0 60px;
+    position: relative;
+    overflow: hidden;
+    border-bottom: 1px solid var(--border);
+  }
+  .cover::before {
+    content: '';
+    position: absolute;
+    top: -20%;
+    right: -10%;
+    width: 60%;
+    height: 60%;
+    background: radial-gradient(ellipse, rgba(59,130,246,0.15) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .cover::after {
+    content: '';
+    position: absolute;
+    bottom: -20%;
+    left: -10%;
+    width: 50%;
+    height: 50%;
+    background: radial-gradient(ellipse, rgba(139,92,246,0.1) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .cover-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid rgba(59,130,246,0.3);
+    background: rgba(59,130,246,0.08);
+    color: #60a5fa;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 6px 16px;
+    border-radius: 999px;
+    margin-bottom: 32px;
+  }
+  .cover h1 {
+    font-size: clamp(2.2rem, 5vw, 3.8rem);
+    font-weight: 900;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+    margin-bottom: 16px;
+  }
+  .cover h1 span {
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6, #06b6d4);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .cover-sub {
+    font-size: 1.15rem;
+    color: #a1a1aa;
+    max-width: 640px;
+    margin-bottom: 48px;
+    font-weight: 400;
+  }
+  .cover-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 32px;
+    border-top: 1px solid var(--border);
+    padding-top: 32px;
+  }
+  .cover-meta-item { display: flex; flex-direction: column; gap: 4px; }
+  .cover-meta-label { font-size: 10px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); }
+  .cover-meta-value { font-size: 14px; font-weight: 600; color: var(--text); }
+
+  /* ── TOC ─────────────────────────────────────────── */
+  .toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 36px 40px;
+    margin: 60px 0;
+  }
+  .toc h2 { font-size: 12px; font-weight: 800; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); margin-bottom: 20px; }
+  .toc ol { padding-left: 20px; }
+  .toc li { margin: 8px 0; }
+  .toc a { color: #60a5fa; text-decoration: none; font-weight: 500; font-size: 14px; }
+  .toc a:hover { text-decoration: underline; }
+  .toc .sub { margin-left: 16px; }
+  .toc .sub a { color: #a78bfa; font-size: 13px; font-weight: 400; }
+
+  /* ── Sections ────────────────────────────────────── */
+  section { padding: 64px 0; border-bottom: 1px solid var(--border); }
+  section:last-child { border-bottom: none; }
+
+  .section-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+  .section-badge.blue { color: #60a5fa; }
+  .section-badge.purple { color: #a78bfa; }
+  .section-badge.green { color: #34d399; }
+  .section-badge.amber { color: #fbbf24; }
+  .section-badge.red { color: #f87171; }
+
+  h2.section-title {
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    margin-bottom: 20px;
+    color: #f4f4f5;
+  }
+
+  h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 32px 0 12px;
+    color: #e4e4e7;
+  }
+
+  p { color: #a1a1aa; margin-bottom: 16px; }
+  p strong { color: #e4e4e7; }
+
+  /* ── Cards ───────────────────────────────────────── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px 32px;
+    margin: 24px 0;
+  }
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+    margin: 24px 0;
+  }
+  .card-grid .card { margin: 0; }
+  .card-icon {
+    font-size: 24px;
+    margin-bottom: 12px;
+    display: block;
+  }
+  .card h4 { font-size: 15px; font-weight: 700; color: #f4f4f5; margin-bottom: 8px; }
+  .card p { font-size: 13.5px; margin: 0; }
+
+  /* ── Tables ──────────────────────────────────────── */
+  .table-wrap { overflow-x: auto; margin: 24px 0; border-radius: 12px; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th {
+    background: rgba(255,255,255,0.03);
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 12px 20px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  td { padding: 12px 20px; border-bottom: 1px solid var(--border); color: #a1a1aa; vertical-align: top; }
+  td:first-child { color: #e4e4e7; font-weight: 500; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+
+  /* ── Code ────────────────────────────────────────── */
+  pre {
+    background: #0d0d10;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    overflow-x: auto;
+    margin: 20px 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: #d4d4d8;
+    line-height: 1.6;
+  }
+  code { font-family: 'JetBrains Mono', monospace; font-size: 13px; background: rgba(255,255,255,0.06); padding: 2px 7px; border-radius: 6px; color: #93c5fd; }
+
+  /* ── Callouts ────────────────────────────────────── */
+  .callout {
+    border-radius: 14px;
+    padding: 20px 24px;
+    margin: 24px 0;
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    font-size: 14px;
+    color: #d4d4d8;
+    line-height: 1.6;
+  }
+  .callout.blue { background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.2); }
+  .callout.purple { background: rgba(139,92,246,0.08); border: 1px solid rgba(139,92,246,0.2); }
+  .callout.green { background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.2); }
+  .callout.amber { background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.25); }
+  .callout-icon { font-size: 20px; flex-shrink: 0; }
+
+  /* ── Flow Diagram (text-art) ─────────────────────── */
+  .flow {
+    background: #0d0d10;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+    margin: 24px 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    color: #a1a1aa;
+    line-height: 1.8;
+    white-space: pre;
+    overflow-x: auto;
+  }
+
+  /* ── Score Bars ──────────────────────────────────── */
+  .score-row { display: flex; align-items: center; gap: 16px; margin: 10px 0; }
+  .score-label { width: 160px; font-size: 13px; color: #e4e4e7; font-weight: 500; flex-shrink: 0; }
+  .score-bar-bg { flex: 1; height: 8px; background: rgba(255,255,255,0.06); border-radius: 999px; overflow: hidden; }
+  .score-bar { height: 100%; border-radius: 999px; background: linear-gradient(90deg, #3b82f6, #8b5cf6); }
+  .score-pct { font-size: 12px; color: var(--muted); width: 40px; text-align: right; }
+
+  /* ── Timeline ────────────────────────────────────── */
+  .timeline { position: relative; padding-left: 28px; margin: 24px 0; }
+  .timeline::before { content: ''; position: absolute; left: 8px; top: 0; bottom: 0; width: 1px; background: var(--border); }
+  .timeline-item { position: relative; margin-bottom: 28px; }
+  .timeline-item::before { content: ''; position: absolute; left: -24px; top: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); }
+  .timeline-item h4 { font-size: 14px; font-weight: 700; color: #e4e4e7; margin-bottom: 4px; }
+  .timeline-item p { font-size: 13px; margin: 0; color: var(--muted); }
+
+  /* ── Policy List ─────────────────────────────────── */
+  .policy-list { list-style: none; margin: 16px 0; }
+  .policy-list li { padding: 10px 0; border-bottom: 1px solid var(--border); display: flex; gap: 12px; align-items: baseline; font-size: 14px; color: #a1a1aa; }
+  .policy-list li:last-child { border-bottom: none; }
+  .policy-list li::before { content: '→'; color: var(--accent); font-weight: 700; flex-shrink: 0; }
+
+  /* ── Nav bar ─────────────────────────────────────── */
+  nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(9,9,11,0.85);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 0;
+  }
+  .nav-inner {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .nav-logo { font-size: 14px; font-weight: 800; letter-spacing: -0.03em; }
+  .nav-logo span { color: #60a5fa; }
+  .nav-actions { display: flex; gap: 12px; }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 18px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border: none;
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+  .btn-primary { background: linear-gradient(135deg, #3b82f6, #6366f1); color: #fff; }
+  .btn-ghost { background: rgba(255,255,255,0.06); border: 1px solid var(--border); color: var(--text); }
+  .btn:hover { transform: translateY(-1px); }
+
+  /* ── Footer ──────────────────────────────────────── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 48px 0;
+    text-align: center;
+  }
+  footer p { font-size: 13px; color: var(--muted); margin: 4px 0; }
+  footer a { color: #60a5fa; text-decoration: none; }
+
+  /* ── Print ───────────────────────────────────────── */
+  @media print {
+    nav, .btn { display: none !important; }
+    body { background: #fff; color: #000; }
+    .cover { min-height: auto; border: none; }
+  }
+
+  @media (max-width: 640px) {
+    .cover-meta { gap: 20px; }
+    pre { font-size: 11px; }
+    .table-wrap { font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Navigation -->
+<nav>
+  <div class="nav-inner">
+    <div class="nav-logo">AUIP <span>Whitepaper</span></div>
+    <div class="nav-actions">
+      <a href="javascript:window.print()" class="btn btn-ghost">🖨 Print</a>
+      <a href="/" class="btn btn-primary">↗ Platform</a>
+    </div>
+  </div>
+</nav>
+
+<div class="wrap">
+
+<!-- ═══════════════════════════════════════════════════════ COVER -->
+<div class="cover">
+  <div class="cover-badge">📄 Technical Whitepaper · v1.0 · February 2026</div>
+  <h1>Adaptive University<br/><span>Intelligence Platform</span></h1>
+  <p class="cover-sub">A comprehensive technical overview of the architecture, security model, AI governance engine, and multi-tenant data isolation strategy powering the next generation of higher education infrastructure.</p>
+  <div class="cover-meta">
+    <div class="cover-meta-item">
+      <span class="cover-meta-label">Lead Architect</span>
+      <span class="cover-meta-value">Parne Manohar Reddy</span>
+    </div>
+    <div class="cover-meta-item">
+      <span class="cover-meta-label">Platform</span>
+      <span class="cover-meta-value">AUIP Foundation</span>
+    </div>
+    <div class="cover-meta-item">
+      <span class="cover-meta-label">Version</span>
+      <span class="cover-meta-value">1.0.0 — Sprint 2</span>
+    </div>
+    <div class="cover-meta-item">
+      <span class="cover-meta-label">Published</span>
+      <span class="cover-meta-value">February 2026</span>
+    </div>
+    <div class="cover-meta-item">
+      <span class="cover-meta-label">Contact</span>
+      <span class="cover-meta-value">contact@auip.edu</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ TOC -->
+<div class="toc">
+  <h2>Table of Contents</h2>
+  <ol>
+    <li><a href="#abstract">Abstract</a></li>
+    <li><a href="#problem">Problem Statement</a></li>
+    <li><a href="#model">The AUIP Identity Model</a>
+      <ol class="sub">
+        <li><a href="#model">Institution-Provisioned Identity</a></li>
+        <li><a href="#lifecycle">Student Lifecycle State Machine</a></li>
+      </ol>
+    </li>
+    <li><a href="#architecture">System Architecture</a>
+      <ol class="sub">
+        <li><a href="#architecture">Technology Stack</a></li>
+        <li><a href="#multitenancy">Multi-Tenant PostgreSQL Isolation</a></li>
+      </ol>
+    </li>
+    <li><a href="#security">Security Model — Quantum Shield</a>
+      <ol class="sub">
+        <li><a href="#security">Quad-Segment Cookie Fragmentation</a></li>
+        <li><a href="#triple">SafeJWT Triple-Check</a></li>
+        <li><a href="#triple">Brute-Force &amp; IP Lockout</a></li>
+      </ol>
+    </li>
+    <li><a href="#governance">AI Governance Brain</a></li>
+    <li><a href="#placement">Placement Management Engine</a></li>
+    <li><a href="#roadmap">Development Roadmap</a></li>
+    <li><a href="#policies">Platform Policies</a></li>
+    <li><a href="#conclusion">Conclusion</a></li>
+  </ol>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ 1. ABSTRACT -->
+<section id="abstract">
+  <div class="section-badge blue">○ Section 1</div>
+  <h2 class="section-title">Abstract</h2>
+  <p>The Adaptive University Intelligence Platform (AUIP) is an enterprise-grade, cloud-native operating system for higher education institutions. It replaces fragmented legacy workflows — manual Excel-based placement tracking, self-service student sign-up portals, and institutional data silos — with a single, intelligence-driven ecosystem.</p>
+  <p>AUIP is built on four foundational pillars: <strong>institution-provisioned identity</strong>, <strong>zero-trust security</strong>, <strong>strict PostgreSQL schema-based multi-tenancy</strong>, and an <strong>AI Governance Brain</strong> that provides placement readiness scoring and personalized interventions.</p>
+  <p>The platform is currently in active development under Sprint 2 (Student Pre-Seeding &amp; Activation), with core authentication, multi-tenancy, and institutional onboarding completed in Sprint 1.</p>
+
+  <div class="callout blue">
+    <span class="callout-icon">💡</span>
+    <span><strong>Core Philosophy:</strong> Identity is institution-provisioned, not user-created. Students do not "create accounts" — they confirm identities that have been pre-seeded by their institution. This ensures zero wasted resources on dormant accounts and gives institutions complete data sovereignty over their student population.</span>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ 2. PROBLEM -->
+<section id="problem">
+  <div class="section-badge red">○ Section 2</div>
+  <h2 class="section-title">Problem Statement</h2>
+  <p>Universities today operate placement and student identity management using a combination of Excel spreadsheets, ad-hoc portals, and manual email coordination. This creates systemic inefficiencies:</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Problem</th><th>Root Cause</th><th>Impact</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Uncontrolled student registration</td><td>No institutional verification gate</td><td>Dormant accounts consume storage and compute</td></tr>
+        <tr><td>No data isolation</td><td>Shared database across all institutions</td><td>Cross-institution data leakage risk</td></tr>
+        <tr><td>Manual placement workflows</td><td>Excel-based eligibility tracking</td><td>Human error, slow processing, audit failures</td></tr>
+        <tr><td>No personalization</td><td>One-size-fits-all communications</td><td>At-risk students missed; poor placement outcomes</td></tr>
+        <tr><td>Weak authentication</td><td>Single-cookie session management</td><td>Session hijacking via XSS/CSRF</td></tr>
+        <tr><td>No AI readiness scoring</td><td>No data aggregation layer</td><td>TPOs cannot identify students needing intervention</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout amber">
+    <span class="callout-icon">⚠️</span>
+    <span>In a typical university placement season, a TPO managing 2,000+ students across 15 companies manually maintains eligibility lists in Excel — resulting in 40–60 hours of cross-referencing per drive, a 15–20% error rate in eligibility classification, and zero ability to identify at-risk students before deadlines pass.</span>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ 3. IDENTITY MODEL -->
+<section id="model">
+  <div class="section-badge purple">○ Section 3</div>
+  <h2 class="section-title">The AUIP Identity Model</h2>
+
+  <h3>3.1 Institution-Provisioned Identity</h3>
+  <p>AUIP fundamentally rethinks how student accounts are created. The platform operates on a <strong>pre-seeded identity model</strong>: universities upload their student roster (via CSV or manual entry), and the system creates internal identity records <em>without allocating any user account resources</em>.</p>
+
+  <p>Each student is assigned a unique <strong>STU_REF</strong> (e.g., <code>STU_2025_0142</code>) — the canonical identity anchor. Email is used only for communication and verification, not as an identity key. This separation means:</p>
+
+  <ul class="policy-list">
+    <li>Email changes do not break existing identity or session history</li>
+    <li>Multiple communication channels can be added without re-registration</li>
+    <li>Institutions retain full control over who can activate an account</li>
+    <li>Zero resources are consumed for students who never activate</li>
+  </ul>
+
+  <h3>3.2 Student Lifecycle State Machine</h3>
+  <p>Every student identity passes through exactly 4 states, with no ability to skip or reverse (except ACTIVE ↔ INACTIVE for admin deactivation):</p>
+
+  <div class="flow">SEEDED → INVITED → VERIFIED → ACTIVE
+    │          │           │            │
+    │          │           │            └── Full account: User record,
+    │          │           │                JWT sessions, dashboard access,
+    │          │           │                placement eligibility engine.
+    │          │           │
+    │          │           └── OTP or activation link verified.
+    │          │               Password set. User account created.
+    │          │
+    │          └── Signed activation email sent (TimestampSigner token,
+    │              24h expiry, single-use, invalidates previous tokens).
+    │
+    └── Admin uploads CSV. Internal identity record created.
+        No User account. No resources allocated.</div>
+
+  <div class="card-grid">
+    <div class="card">
+      <span class="card-icon">🌱</span>
+      <h4>SEEDED</h4>
+      <p>Institution uploads roster. STU_REF assigned. No account exists. No resources consumed. Pure identity record.</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">✉️</span>
+      <h4>INVITED</h4>
+      <p>Admin triggers activation batch. Signed token emailed. Student cannot proceed without institutional invite.</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">✅</span>
+      <h4>VERIFIED</h4>
+      <p>Student clicked link, verified OTP, set password. Identity confirmed.</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">🚀</span>
+      <h4>ACTIVE</h4>
+      <p>Full account provisioned. JWT sessions, Quantum Shield cookies, dashboard access, placement eligibility.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ 4. ARCHITECTURE -->
+<section id="architecture">
+  <div class="section-badge blue">○ Section 4</div>
+  <h2 class="section-title">System Architecture</h2>
+
+  <h3>4.1 Technology Stack</h3>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Layer</th><th>Technology</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td>Frontend</td><td>React 18 + TypeScript + Vite</td><td>Single-Page Application, real-time WebSocket UI</td></tr>
+        <tr><td>API</td><td>Django 5.x + Django REST Framework</td><td>RESTful endpoints, multi-tenant routing, RBAC</td></tr>
+        <tr><td>Real-Time</td><td>Django Channels (WebSocket)</td><td>Session sync, institutional hub broadcasts, live dashboards</td></tr>
+        <tr><td>Auth Tokens</td><td>SimpleJWT + HMAC-SHA256</td><td>Access/refresh token lifecycle with key rotation</td></tr>
+        <tr><td>Database</td><td>PostgreSQL 15 (Supabase)</td><td>Multi-schema tenant isolation</td></tr>
+        <tr><td>Cache / OTP</td><td>Redis 7</td><td>OTP storage, rate limiting, brute-force counters, CMS cache</td></tr>
+        <tr><td>Multi-Tenancy</td><td>django-tenants</td><td>Schema creation, TenantSyncRouter, schema_context()</td></tr>
+        <tr><td>Bot Protection</td><td>Cloudflare Turnstile</td><td>All public endpoints (registration, login)</td></tr>
+        <tr><td>Email</td><td>SMTP (Gmail)</td><td>OTP, activation, password reset, incident reports</td></tr>
+        <tr><td>Infrastructure</td><td>Docker + Docker Compose</td><td>Local dev + production containerisation</td></tr>
+        <tr><td>Production</td><td>AWS ECS + RDS + S3</td><td>Containerised deployment at scale</td></tr>
+        <tr><td>IaC</td><td>Terraform</td><td>Reproducible infrastructure provisioning</td></tr>
+        <tr><td>CI/CD</td><td>GitHub Actions</td><td>Automated testing, build, and deployment pipelines</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 id="multitenancy">4.2 Multi-Tenant PostgreSQL Isolation</h3>
+  <p>Every approved institution receives its own dedicated PostgreSQL schema (<code>inst_&lt;slug&gt;</code>). This is not row-level isolation — it is schema-level physical isolation. Queries running in the context of <code>inst_mit</code> are <em>structurally incapable</em> of reading data from <code>inst_iit_delhi</code>.</p>
+
+  <pre>
+PostgreSQL Database
+├── public schema
+│   ├── User                  (platform-wide identity)
+│   ├── Institution           (registration + approval records)
+│   ├── LoginSession          (device-bound sessions)
+│   ├── BlacklistedAccessToken
+│   ├── RememberedDevice
+│   └── PasswordResetRequest
+│
+├── inst_mit schema
+│   ├── CoreStudent           (academic full records, secured)
+│   ├── PreSeededRegistry     (activation state tracking)
+│   ├── PlacementDrive        (drives created for this institution)
+│   └── TeacherProfile
+│
+└── inst_iit_delhi schema
+    ├── CoreStudent
+    ├── PreSeededRegistry
+    └── ...</pre>
+
+  <div class="callout green">
+    <span class="callout-icon">🔐</span>
+    <span><strong>Security Guarantee:</strong> Cross-tenant queries are physically impossible. PostgreSQL's <code>search_path</code> is set to the institution's schema at the connection level. No application-level filtering can accidentally expose another institution's data.</span>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ 5. SECURITY -->
+<section id="security">
+  <div class="section-badge red">○ Section 5</div>
+  <h2 class="section-title">Security Model — Quantum Shield</h2>
+
+  <p>AUIP's security architecture is built around <strong>defense in depth</strong>: six independent layers, each one capable of catching what the previous layer missed.</p>
+
+  <h3>5.1 Quantum Shield — Quad-Segment Cookie Fragmentation</h3>
+  <p>Traditional applications store the refresh JWT as a single HttpOnly cookie. If that cookie is ever stolen via XSS, MITM, or browser exploit, the attacker gains complete session access. AUIP eliminates this attack vector entirely.</p>
+  <p>The refresh JWT (<code>header.payload.signature</code>) is split into 4 separate cookies with different security properties. <strong>All 4 segments are required to reconstruct a valid token.</strong> Stealing any subset is cryptographically useless.</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Segment</th><th>Cookie Name</th><th>Contents</th><th>HttpOnly</th><th>SameSite</th></tr></thead>
+      <tbody>
+        <tr><td>T (TTL)</td><td><code>_auip_sh_t</code></td><td>Header + first half of payload</td><td>❌ No</td><td>Lax</td></tr>
+        <tr><td>ID (Session)</td><td><code>_auip_sh_id</code></td><td>Opaque LoginSession ID</td><td>✅ Yes</td><td>Strict</td></tr>
+        <tr><td>P (Payload)</td><td><code>_auip_sh_p</code></td><td>Second half of payload</td><td>✅ Yes</td><td>Strict</td></tr>
+        <tr><td>S (Signature)</td><td><code>_auip_sh_s</code></td><td>JWT cryptographic signature</td><td>✅ Yes</td><td>Strict</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout amber">
+    <span class="callout-icon">🧱</span>
+    <span>An XSS attack can only steal Segment T — the only JS-accessible cookie, containing only TTL metadata. Segments ID, P, and S are HttpOnly. Without all four segments, an attacker cannot reconstruct any valid JWT, making session hijacking via XSS structurally impossible.</span>
+  </div>
+
+  <h3 id="triple">5.2 SafeJWT Triple-Check Authentication</h3>
+  <p>Every API request is validated against three independent layers:</p>
+
+  <div class="flow">Layer 1: JWT Signature + Expiry
+  └── SimpleJWT validates cryptographic signature and exp claim.
+
+Layer 2: Database Session Whitelist
+  └── LoginSession with matching JTI must be active in the DB.
+      If the session was force-logged-out, the token is useless
+      even if it hasn't expired.
+
+Layer 3: Device Fingerprint
+  └── SHA256(IP + User-Agent + session-unique salt) must match
+      the hash stored at session creation time.
+      Fingerprint mismatch → session killed + JTI blacklisted
+      + WebSocket force_logout to all user devices.</div>
+
+  <h3>5.3 Defensive Security Stack</h3>
+  <div class="card-grid">
+    <div class="card">
+      <span class="card-icon">🔒</span>
+      <h4>Brute-Force Protection</h4>
+      <p>After 5 failures per (identifier, IP): account locked for 5 min. Redis-backed, per-identifier tracking with configurable thresholds.</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">🌐</span>
+      <h4>Global IP Lockout</h4>
+      <p>After 5 platform-wide failures from same IP: 10-min block. Email incident report auto-sent to Super Admin with IP, target, user-agent, and timestamp.</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">🔑</span>
+      <h4>HMAC Token Hashing</h4>
+      <p>All stored tokens (OTP, reset, access) are HMAC-SHA256 hashed. Format: <code>key_id$hmac_hex</code>. Key rotation supported at runtime without user disruption.</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">🤖</span>
+      <h4>Cloudflare Turnstile</h4>
+      <p>Bot protection on all public endpoints. Configurable ON/OFF per environment. Widget resets on submission failure to prevent token reuse.</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">🔄</span>
+      <h4>Silent Token Rotation</h4>
+      <p>Access tokens auto-renewed 15 seconds before expiry. New tokens delivered via response header. Old refresh JTI immediately blacklisted.</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">🛡️</span>
+      <h4>Content Security Policy</h4>
+      <p>Strict CSP headers via middleware. <code>default-src: 'self'</code>. Only Cloudflare's challenge domain whitelisted for iframes/scripts.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ 6. GOVERNANCE AI -->
+<section id="governance">
+  <div class="section-badge purple">○ Section 6</div>
+  <h2 class="section-title">AI Governance Brain</h2>
+
+  <p>The Governance Brain is AUIP's intelligence layer — an advisory engine that aggregates student performance data across academics, mock tests, interviews, and projects to produce a <strong>Placement Readiness Score (0–100)</strong> for every student, updated daily.</p>
+
+  <div class="callout blue">
+    <span class="callout-icon">🧠</span>
+    <span><strong>Design principle:</strong> AI is used only to assist, never to override institutional authority. Every AI recommendation is labelled as such and can be dismissed or acted upon by the TPO. No student is automatically blocked, accepted, or penalised based on an AI score.</span>
+  </div>
+
+  <h3>6.1 Readiness Score Composition</h3>
+  <div class="score-row"><div class="score-label">Mock Test Performance</div><div class="score-bar-bg"><div class="score-bar" style="width:40%"></div></div><div class="score-pct">40%</div></div>
+  <div class="score-row"><div class="score-label">Academic Record (CGPA)</div><div class="score-bar-bg"><div class="score-bar" style="width:30%"></div></div><div class="score-pct">30%</div></div>
+  <div class="score-row"><div class="score-label">Interview Performance</div><div class="score-bar-bg"><div class="score-bar" style="width:20%"></div></div><div class="score-pct">20%</div></div>
+  <div class="score-row"><div class="score-label">Projects &amp; Portfolio</div><div class="score-bar-bg"><div class="score-bar" style="width:10%"></div></div><div class="score-pct">10%</div></div>
+
+  <h3>6.2 At-Risk Detection &amp; Intervention</h3>
+  <p>Students with readiness scores below 40 are automatically flagged as "at-risk" in the TPO dashboard. For each flagged student, the Governance Brain surfaces:</p>
+  <ul class="policy-list">
+    <li>Specific weak areas (e.g., "Aptitude: 28th percentile, Verbal: 15th percentile")</li>
+    <li>Recommended mock assignments targeting those weak areas (max 2/week to avoid cognitive overload)</li>
+    <li>Predicted placement probability based on historical cohort data</li>
+    <li>Suggested interventions (mentoring, additional mocks, resume workshop)</li>
+  </ul>
+
+  <h3>6.3 Intelligence Service (ML Layer)</h3>
+  <p>The Intelligence Service (Sprint 5) sits beneath the Governance Brain and powers its predictions with trained models:</p>
+  <div class="card-grid">
+    <div class="card">
+      <span class="card-icon">📈</span>
+      <h4>Placement Prediction</h4>
+      <p>ML model predicting per-student placement probability based on cohort history.</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">🔍</span>
+      <h4>Anomaly Detection</h4>
+      <p>Autoencoders flag unusual performance patterns (e.g., sudden CGPA drop, mock abandonment spikes).</p>
+    </div>
+    <div class="card">
+      <span class="card-icon">📄</span>
+      <h4>NLP Resume Parsing</h4>
+      <p>Extracts skills, projects, and experience from uploaded PDFs for ATS scoring and eligibility matching.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ 7. PLACEMENT -->
+<section id="placement">
+  <div class="section-badge green">○ Section 7</div>
+  <h2 class="section-title">Placement Management Engine</h2>
+
+  <p>AUIP replaces Excel-based placement workflows with a dynamic, rule-engine-driven system. TPOs create drives with compound eligibility criteria; the engine evaluates all students automatically and in real-time.</p>
+
+  <h3>7.1 Dynamic Eligibility Engine</h3>
+  <p>Criteria are defined using structured AND/OR/nested logic:</p>
+
+  <pre>Example: Google SWE Drive — Eligibility Rule
+{
+  "operator": "AND",
+  "conditions": [
+    { "field": "cgpa",        "op": "gte", "value": 7.5 },
+    { "field": "tenth_pct",   "op": "gte", "value": 60  },
+    {
+      "operator": "OR",
+      "conditions": [
+        { "field": "branch", "op": "in", "value": ["CS", "IT", "ECE"] },
+        { "field": "twelfth_pct", "op": "gte", "value": 75 }
+      ]
+    }
+  ]
+}</pre>
+
+  <h3>7.2 One-Student-One-Job Rule</h3>
+  <p>The system enforces hard constraints at the application level. Once a student's placement is marked as successful in any drive, they cannot apply to further active drives. This mirrors real-world campus placement policy and prevents unfair multi-offer scenarios.</p>
+
+  <h3>7.3 Drive Lifecycle</h3>
+  <div class="flow">DRAFT → ACTIVE → CLOSED → RESULTS_PUBLISHED
+  │         │          │              │
+  │         │          │              └── TPO marks placed/not-placed.
+  │         │          │                  Student notified. Records updated.
+  │         │          │
+  │         │          └── Application deadline passed. No new applications.
+  │         │
+  │         └── Students notified by email. Eligible students shown drive.
+  │             Application window opens.
+  │
+  └── TPO creates drive. Not visible to students yet.</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ 8. ROADMAP -->
+<section id="roadmap">
+  <div class="section-badge amber">○ Section 8</div>
+  <h2 class="section-title">Development Roadmap</h2>
+
+  <div class="timeline">
+    <div class="timeline-item">
+      <h4>✅ Sprint 1 — Authentication &amp; Security (Complete)</h4>
+      <p>Quantum Shield, SafeJWT Triple-Check, Multi-tenancy, Institution Onboarding, RBAC, Brute-Force, Password Reset, Cloudflare Turnstile.</p>
+    </div>
+    <div class="timeline-item">
+      <h4>🔄 Sprint 2 — Student Identity Lifecycle (Active)</h4>
+      <p>CSV bulk upload, signed activation tokens, student activation flow, admin state dashboard (SEEDED → ACTIVE).</p>
+    </div>
+    <div class="timeline-item">
+      <h4>⏳ Sprint 3 — Placement Management (Upcoming)</h4>
+      <p>Drive CRUD, dynamic eligibility engine, student application flow, one-student-one-job enforcement, drive status management.</p>
+    </div>
+    <div class="timeline-item">
+      <h4>⏳ Sprint 4 — Governance Brain (Planned)</h4>
+      <p>Readiness scoring (0-100), at-risk detection, personalized mock assignment, daily score recalculation, TPO intervention dashboard.</p>
+    </div>
+    <div class="timeline-item">
+      <h4>⏳ Sprint 5 — Intelligence Service (Planned)</h4>
+      <p>ML placement prediction model, anomaly detection autoencoders, NLP resume parsing, LLM explanations for governance decisions.</p>
+    </div>
+    <div class="timeline-item">
+      <h4>⏳ Sprint 6 — Notifications (Planned)</h4>
+      <p>WebSocket push notifications, email automation for drive deadlines, admin broadcast announcements.</p>
+    </div>
+    <div class="timeline-item">
+      <h4>⏳ Sprint 7 — Analytics &amp; Reporting (Planned)</h4>
+      <p>TPO analytics dashboard, PDF/Excel report export, at-risk heatmaps, department/batch comparisons.</p>
+    </div>
+    <div class="timeline-item">
+      <h4>⏳ Sprint 8 — Mock Tests &amp; Anti-Cheat (Planned)</h4>
+      <p>Question bank, timed mock engine, tab-switch detection, fullscreen enforcement, anti-cheat middleware, instant results.</p>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Sprint</th><th>Duration</th><th>Story Points</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>Sprint 1 — Auth &amp; Security</td><td>2 weeks</td><td>~85</td><td>✅ Complete</td></tr>
+        <tr><td>Sprint 2 — Student Identity</td><td>2 weeks</td><td>~35</td><td>🔄 Active</td></tr>
+        <tr><td>Sprint 3 — Placement</td><td>2 weeks</td><td>~50</td><td>⏳ Upcoming</td></tr>
+        <tr><td>Sprint 4 — AI Governance</td><td>3 weeks</td><td>~60</td><td>⏳ Planned</td></tr>
+        <tr><td>Sprint 5 — ML Intelligence</td><td>3 weeks</td><td>~55</td><td>⏳ Planned</td></tr>
+        <tr><td>Sprint 6–8 — Comms, Analytics, Quizzes</td><td>6 weeks</td><td>~90</td><td>⏳ Planned</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ 9. POLICIES -->
+<section id="policies">
+  <div class="section-badge blue">○ Section 9</div>
+  <h2 class="section-title">Platform Policies</h2>
+
+  <h3>9.1 Data Privacy &amp; Sovereignty</h3>
+  <ul class="policy-list">
+    <li>Each institution's data is physically isolated in its own PostgreSQL schema. Cross-tenant access is structurally impossible — not merely policy-enforced.</li>
+    <li>Student academic records (CGPA, 10th/12th marks, semester grades) are stored in a secured tenant schema, visible only to the institution's authorised administrators and the student themselves.</li>
+    <li>The platform does not share, sell, or process student data for any purpose outside the institution's explicit operational scope.</li>
+    <li>AUIP is architected for GDPR compliance: all personal data fields are identifiable, exportable, and deletable on request.</li>
+  </ul>
+
+  <h3>9.2 Acceptable Use</h3>
+  <ul class="policy-list">
+    <li>The platform is available exclusively to institutions approved by the Super Admin. Unapproved access attempts are blocked at the registration level (Turnstile) and the authentication level (RBAC).</li>
+    <li>Students may not register without an institutional invitation. Self-registration creates no account and no identity record.</li>
+    <li>The AI Governance Brain's recommendations are advisory only. No automated decisions are made without human review by a TPO or administrator.</li>
+    <li>Anti-cheat mechanisms (tab-switch detection, fullscreen enforcement) are disclosed to students before any mock test begins.</li>
+  </ul>
+
+  <h3>9.3 Security Responsibilities</h3>
+  <ul class="policy-list">
+    <li>Institutions are responsible for the accuracy of pre-seeded student data. AUIP validates format and deduplication but cannot verify ground-truth academic records.</li>
+    <li>Administrators must not share credentials. Each role (Super Admin, Institution Admin, Faculty, Student) has strictly scoped permissions with no privilege escalation path.</li>
+    <li>The platform maintains detailed <code>LoginSession</code> records. Suspicious sessions (IP change, device fingerprint mismatch) are automatically deactivated and reported.</li>
+    <li>Password reset tokens are single-use and time-limited (24-hour default). Unused tokens are invalidated when a new reset request is made.</li>
+  </ul>
+
+  <h3>9.4 Uptime &amp; SLA</h3>
+  <ul class="policy-list">
+    <li>Target uptime: 99.9% (excluding scheduled maintenance windows)</li>
+    <li>Redis-backed caching for all public API endpoints (5-min TTL). Cache invalidation is automatic on content updates.</li>
+    <li>WebSocket connections are managed by Django Channels with automatic reconnection on the frontend.</li>
+    <li>Database read replicas are planned for production deployment (Sprint 9+) to ensure read scalability during peak placement seasons.</li>
+  </ul>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ 10. CONCLUSION -->
+<section id="conclusion">
+  <div class="section-badge green">○ Section 10</div>
+  <h2 class="section-title">Conclusion</h2>
+  <p>AUIP is not a new face on an old workflow. It is a ground-up rethinking of how universities manage student identity, placement, and academic governance. By making identity <em>institution-provisioned</em>, security <em>structurally enforced</em> (not just policy-enforced), and decision-making <em>AI-assisted</em> (not AI-automated), AUIP provides a platform that is simultaneously more secure, more efficient, and more equitable than any existing system.</p>
+  <p>The core authentication and multi-tenancy infrastructure is complete and battle-tested. The platform is now actively building the student lifecycle, placement, and AI governance layers — all on a foundation designed to carry them reliably at institutional scale.</p>
+
+  <div class="callout purple">
+    <span class="callout-icon">🚀</span>
+    <span>AUIP is available for institutional pilot partnerships. Contact <strong>contact@auip.edu</strong> to schedule a technical demonstration or to begin the institution onboarding process.</span>
+  </div>
+</section>
+
+</div><!-- /wrap -->
+
+<footer>
+  <div class="wrap">
+    <p><strong>AUIP Foundation</strong> — Advanced Universal Intelligence Platform</p>
+    <p>Whitepaper v1.0 · February 2026 · Lead Architect: Parne Manohar Reddy</p>
+    <p>Contact: <a href="mailto:contact@auip.edu">contact@auip.edu</a></p>
+    <p style="margin-top:16px; font-size:11px;">© 2026 AUIP Foundation. This document is provided for informational purposes. All architectural details are accurate as of Sprint 2. Roadmap items are subject to change.</p>
+  </div>
+</footer>
+
+</body>
+</html>

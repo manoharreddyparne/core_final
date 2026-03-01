@@ -1,16 +1,9 @@
-import React, { useState } from "react";
+import React from "react";
 import { Link } from "react-router-dom";
 import { useLoginV2VM } from "../hooks/useLoginV2VM";
 import { useInstitutions } from "../hooks/useInstitutions";
-import { v2AuthApi } from "../api/v2AuthApi";
 import { InstitutionSelector, TurnstileWidget } from "../components";
-import {
-    GraduationCap,
-    User,
-    Lock,
-    ArrowRight,
-    Loader2
-} from "lucide-react";
+import { GraduationCap, User, Lock, ArrowRight, Loader2, ShieldCheck } from "lucide-react";
 
 export default function StudentLogin() {
     const {
@@ -26,7 +19,7 @@ export default function StudentLogin() {
         setTurnstileToken,
         onTurnstileExpire,
         turnstileSiteKey,
-        turnstileKey
+        turnstileKey,
     } = useLoginV2VM();
 
     const { institutions, isLoading: loadingInstitutions } = useInstitutions();
@@ -39,30 +32,45 @@ export default function StudentLogin() {
     const isFormValid = identifier && password && selectedInstitution && turnstileToken;
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-[#0a0a0b] p-4 text-white font-inter">
-            <div className="fixed top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
-                <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-primary/20 blur-[120px] rounded-full" />
-                <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-500/10 blur-[120px] rounded-full" />
+        <div
+            className="flex flex-col items-center justify-center min-h-screen p-4 font-inter transition-colors duration-300"
+            style={{ background: "var(--bg-base)", color: "var(--text-primary)" }}
+        >
+            {/* Ambient glows */}
+            <div className="fixed inset-0 overflow-hidden -z-10 pointer-events-none">
+                <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full blur-[120px]" style={{ background: "var(--primary-glow)" }} />
+                <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full blur-[120px]" style={{ background: "rgba(139,92,246,0.08)" }} />
             </div>
 
-            <div className="w-full max-w-md space-y-8 animate-in fade-in duration-1000">
-                <div className="text-center space-y-3">
+            <div className="w-full max-w-md space-y-8 animate-in fade-in duration-700">
+                {/* Header */}
+                <div className="text-center space-y-4">
                     <div className="flex justify-center">
-                        <div className="w-20 h-20 rounded-[2.5rem] bg-white/5 border border-white/10 flex items-center justify-center shadow-2xl backdrop-blur-xl">
-                            <GraduationCap className="w-10 h-10 text-primary" />
+                        <div
+                            className="w-20 h-20 rounded-[2.5rem] flex items-center justify-center shadow-2xl backdrop-blur-xl border"
+                            style={{ background: "var(--glass-bg)", borderColor: "var(--border)" }}
+                        >
+                            <GraduationCap className="w-10 h-10 text-blue-400" />
                         </div>
                     </div>
                     <div className="space-y-1">
                         <h1 className="text-4xl font-black tracking-tighter">
-                            Student <span className="text-primary italic">Portal</span>
+                            Student{" "}
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400 italic">
+                                Portal
+                            </span>
                         </h1>
-                        <p className="text-[10px] text-gray-500 uppercase tracking-[0.3em] font-black">
+                        <p className="text-[10px] uppercase tracking-[0.3em] font-black" style={{ color: "var(--text-muted)" }}>
                             Institutional Intelligence Gateway
                         </p>
                     </div>
                 </div>
 
-                <div className="glass p-8 rounded-[3rem] space-y-8 relative overflow-hidden backdrop-blur-3xl border border-white/5 shadow-2xl">
+                {/* Card */}
+                <div
+                    className="p-8 rounded-[3rem] space-y-8 relative overflow-hidden border"
+                    style={{ background: "var(--glass-bg)", backdropFilter: "blur(24px)", borderColor: "var(--border)" }}
+                >
                     <form onSubmit={onSubmit} className="space-y-6">
                         <div className="space-y-4">
                             <InstitutionSelector
@@ -72,31 +80,47 @@ export default function StudentLogin() {
                                 isLoading={loadingInstitutions}
                             />
 
+                            {/* Identifier */}
                             <div className="space-y-1 px-1">
-                                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-2 flex items-center gap-2">
-                                    <User className="w-3 h-3" />
-                                    Roll Number / Email
+                                <label className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2 px-2" style={{ color: "var(--text-muted)" }}>
+                                    <User className="w-3 h-3" /> Roll Number / Email
                                 </label>
                                 <input
                                     type="text"
                                     value={identifier}
                                     onChange={(e) => setIdentifier(e.target.value)}
-                                    className="w-full px-5 py-4 bg-white/5 border border-white/10 rounded-2xl text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium placeholder:text-gray-700 font-mono"
+                                    className="w-full px-5 py-4 rounded-2xl outline-none font-mono transition-all"
+                                    style={{
+                                        background: "var(--bg-input)",
+                                        border: "1px solid var(--border)",
+                                        color: "var(--text-primary)",
+                                        fontSize: "14px",
+                                    }}
+                                    onFocus={(e) => { e.currentTarget.style.borderColor = "var(--primary)"; e.currentTarget.style.boxShadow = "0 0 0 3px var(--primary-glow)"; }}
+                                    onBlur={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.boxShadow = "none"; }}
                                     placeholder="e.g. 2024CS001"
                                     required
                                 />
                             </div>
 
+                            {/* Password */}
                             <div className="space-y-1 px-1">
-                                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-2 flex items-center gap-2">
-                                    <Lock className="w-3 h-3" />
-                                    Security Password
+                                <label className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2 px-2" style={{ color: "var(--text-muted)" }}>
+                                    <Lock className="w-3 h-3" /> Password
                                 </label>
                                 <input
                                     type="password"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full px-5 py-4 bg-white/5 border border-white/10 rounded-2xl text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium placeholder:text-gray-700"
+                                    className="w-full px-5 py-4 rounded-2xl outline-none transition-all"
+                                    style={{
+                                        background: "var(--bg-input)",
+                                        border: "1px solid var(--border)",
+                                        color: "var(--text-primary)",
+                                        fontSize: "14px",
+                                    }}
+                                    onFocus={(e) => { e.currentTarget.style.borderColor = "var(--primary)"; e.currentTarget.style.boxShadow = "0 0 0 3px var(--primary-glow)"; }}
+                                    onBlur={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.boxShadow = "none"; }}
                                     placeholder="Enter your password"
                                     required
                                 />
@@ -113,42 +137,38 @@ export default function StudentLogin() {
                         <button
                             type="submit"
                             disabled={isLoading || !isFormValid}
-                            className="w-full py-5 premium-gradient text-white rounded-2xl font-black uppercase tracking-widest shadow-2xl shadow-primary/30 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:grayscale flex items-center justify-center gap-3"
+                            className="w-full py-5 text-white rounded-2xl font-black uppercase tracking-widest premium-gradient hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-40 disabled:grayscale flex items-center justify-center gap-3 shadow-2xl"
+                            style={{ boxShadow: "0 8px 32px var(--primary-glow)" }}
                         >
                             {isLoading ? (
-                                <>
-                                    <Loader2 className="w-5 h-5 animate-spin" />
-                                    Accessing Data...
-                                </>
+                                <><Loader2 className="w-5 h-5 animate-spin" /> Accessing Data...</>
                             ) : (
-                                <>
-                                    ENTER DASHBOARD
-                                    <ArrowRight className="w-5 h-5" />
-                                </>
+                                <>ENTER DASHBOARD <ArrowRight className="w-5 h-5" /></>
                             )}
                         </button>
                     </form>
 
-                    <div className="text-center pt-2 border-t border-white/5">
-                        <p className="text-[10px] text-gray-600 font-bold uppercase tracking-widest leading-relaxed">
-                            Secured by AUIP Zero-Trust Infrastructure
+                    <div className="text-center pt-2 border-t" style={{ borderColor: "var(--border)" }}>
+                        <p className="text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2" style={{ color: "var(--text-muted)" }}>
+                            <ShieldCheck className="w-3 h-3" /> Secured by AUIP Zero-Trust Infrastructure
                         </p>
                     </div>
                 </div>
 
+                {/* Footer links */}
                 <div className="flex justify-between items-center px-4">
                     <Link
                         to="/activate-request"
-                        className="text-[10px] font-black uppercase tracking-widest text-primary hover:scale-105 transition-all flex items-center gap-2"
+                        className="text-[10px] font-black uppercase tracking-widest text-blue-400 hover:scale-105 transition-all flex items-center gap-2"
                     >
-                        First Time? Activate
-                        <ArrowRight className="w-3 h-3" />
+                        First Time? Activate <ArrowRight className="w-3 h-3" />
                     </Link>
                     <Link
-                        to="/auth/faculty/login"
-                        className="text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-white transition-all"
+                        to="/auth/inst-admin/login"
+                        className="text-[10px] font-black uppercase tracking-widest transition-all hover:text-blue-400"
+                        style={{ color: "var(--text-muted)" }}
                     >
-                        Faculty Entrance →
+                        Faculty / Admin →
                     </Link>
                 </div>
             </div>

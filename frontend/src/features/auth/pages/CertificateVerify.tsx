@@ -118,24 +118,37 @@ export default function CertificateVerify() {
                     </div>
                 )}
 
-                {/* ── Error ── */}
+                {/* ── Error / Not Found ── */}
                 {!loading && error && (
-                    <div style={{ ...styles.card, borderColor: "#ef4444" }}>
-                        <div style={styles.statusBadge("#ef4444", "#450a0a")}>
-                            <span style={{ fontSize: 28 }}>🚫</span>
-                            <div>
-                                <div style={{ fontWeight: 700, color: "#ef4444", fontSize: 18 }}>
-                                    INVALID CERTIFICATE
-                                </div>
-                                <div style={{ color: "#94a3b8", fontSize: 13, marginTop: 4 }}>
-                                    {error}
+                    <div className="flex flex-col items-center justify-center py-12 animate-in slide-in-from-top-4 duration-500">
+                        <div className="w-full max-w-md bg-[#0a1628]/60 backdrop-blur-xl border border-red-500/20 p-10 text-center rounded-[3rem] space-y-8 shadow-[0_0_50px_rgba(239,68,68,0.1)]">
+                            <div className="flex justify-center">
+                                <div className="w-20 h-20 rounded-[2rem] bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500">
+                                    <span className="text-4xl">🚫</span>
                                 </div>
                             </div>
+                            <div>
+                                <h1 className="text-2xl font-black text-white uppercase tracking-tight">
+                                    Invalid <span className="text-red-500 italic">Certificate</span>
+                                </h1>
+                                <p className="text-gray-500 text-sm mt-3 leading-relaxed">
+                                    {error === "Failed to reach verification server."
+                                        ? "The AUIP trust node is currently unreachable. Please check your network connection or try again later."
+                                        : "This certificate identifier does not exist in our distributed governance ledger or may have been tampered with."}
+                                </p>
+                            </div>
+                            <div className="pt-4">
+                                <Link
+                                    to="/"
+                                    className="inline-block w-full py-4 bg-white/5 border border-white/10 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-white/10 transition-all"
+                                >
+                                    Return to AUIP Global
+                                </Link>
+                                <p className="text-[10px] text-gray-700 mt-6 font-medium uppercase tracking-[0.2em]">
+                                    Reference Trace: {certId?.slice(0, 8).toUpperCase()}
+                                </p>
+                            </div>
                         </div>
-                        <p style={{ color: "#475569", fontSize: 13, marginTop: 24, textAlign: "center" }}>
-                            This certificate ID does not exist or may have been tampered with.
-                            Contact <a href="mailto:support@auip.edu" style={{ color: "#ef4444" }}>support@auip.edu</a> if you believe this is an error.
-                        </p>
                     </div>
                 )}
 

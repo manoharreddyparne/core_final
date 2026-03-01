@@ -21,9 +21,11 @@
   --text-muted: #52525b;
 
   /* brand */
-  --primary: #3b82f6;
+  --primary: 217 91% 60%;
+  --primary-solid: #3b82f6;
   --primary-hover: #2563eb;
   --primary-glow: rgba(59, 130, 246, 0.20);
+  --primary-rgb: 59, 130, 246;
 
   /* borders */
   --border: rgba(255, 255, 255, 0.08);
@@ -62,9 +64,11 @@
   --text-muted: #94a3b8;
 
   /* brand */
-  --primary: #2563eb;
+  --primary: 221 83% 53%;
+  --primary-solid: #2563eb;
   --primary-hover: #1d4ed8;
   --primary-glow: rgba(37, 99, 235, 0.12);
+  --primary-rgb: 37, 99, 235;
 
   /* borders */
   --border: rgba(0, 0, 0, 0.08);

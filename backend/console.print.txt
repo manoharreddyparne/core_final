@@ -1,0 +1,860 @@
+Download the React DevTools for a better development experience: https://reactjs.org/link/react-devtools
+main.tsx:20 [AppLayout] ✅ Force logout listener registered
+main.tsx:20 [WS] connecting → ws://localhost:8000/ws/sessions/?token=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzcyMzc2MDM0LCJpYXQiOjE3NzIzNzQyMzQsImp0aSI6ImNlN2M2MGYwNmI2MjRkNDNhNGRlZWQyODE0YzI0MjE4IiwidXNlcl9pZCI6IjI3Iiwicm9sZSI6IlNVUEVSX0FETUlOIiwiZW1haWwiOiJwYXJuZW1hbm9oYXJyZWRkeTE5QGdtYWlsLmNvbSJ9.WSpB9G-2natmz7hH7viWlildldppiaD_zLLBVK8BOnyM9dJZa_6eBdnmFoTsgvyTfkx6T6opJuvUlHwkvosABOSLc9zqWUqCwOc6an3YLV84UwVu4u-EcaXiYQvj30QRMvkKXYAlgTf91XgJsey5pg4tYPfAxvAQrsWmpjDxgZpUgtO8fTN_F-f-MH6kpMAHnOQ6K0y0XyJdd7O4DiMEuj3p00mxRNSS5MOEz1bgEP3NpHHsR_fVoPrNt8dAZr7QLcTH1mBY3ahS-9glWu1VMOa7y_RTUOxCR_0RXYHcSTXDgJC0Syucf_VWrRVvccasgjLuGOaP9IBj5nMfyw9Mhw
+main.tsx:20 [AppLayout] ❌ Force logout listener removed
+main.tsx:20 [AppLayout] ✅ Force logout listener registered
+main.tsx:20 [WS] ✅ connected
+2main.tsx:20 [WS] connecting → ws://localhost:8000/ws/sessions/?token=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzcyMzc2MTcxLCJpYXQiOjE3NzIzNzQzNzEsImp0aSI6IjBiYjRmM2EyODMzMDRkOWI5ODhhY2I0NjAwMzgwMThlIiwidXNlcl9pZCI6IjI3Iiwicm9sZSI6IlNVUEVSX0FETUlOIiwiZW1haWwiOiJwYXJuZW1hbm9oYXJyZWRkeTE5QGdtYWlsLmNvbSJ9.Glw-Qpa-ckeHCDNTjSlvIUrAkhoHHvzeXquktxsjClQ3oer2YGHSf_Ki9CTjGaYj8Z_S6XSzF4Y7k3WrDLCWdjmJU8Q_eReiszHpNMEXYd_5A0MwfEaH0b16sK4HWL9OZpS3TBgd6l11Ag58NFiRcxZ-NmD1aEdbtjVqgEOt8_TVGefAIKu8xAcC63tL9ke7kCMB0OO_BqDqBBR_9DmRsUMOdBZ515s9bcgPO_X5jNvvtCUthqCzSEn9zcUkr3tv6FUPdip8NoXCExi8QfZguFNp2Uzhy3xJAGPR87N5oVFsJl2BCK_F1ZqEF7VaSHwU14R_eaXFVEuuoatV21qqxA
+2main.tsx:20 [WS] ✅ connected
+main.tsx:20 [WS] 📩 received: institution_update Object
+main.tsx:20 [WS] 🏢 Institution Update Received! Object
+main.tsx:20 [Institution-Live] Received real-time update: Object
+main.tsx:20 [WS] 📩 received: institution_update Object
+main.tsx:20 [WS] 🏢 Institution Update Received! Object
+main.tsx:20 [Institution-Live] Received real-time update: Object
+main.tsx:20 [WS] 📩 received: institution_update Object
+main.tsx:20 [WS] 🏢 Institution Update Received! Object
+main.tsx:20 [Institution-Live] Received real-time update: Object
+main.tsx:20 [WS] 📩 received: institution_update Object
+main.tsx:20 [WS] 🏢 Institution Update Received! Object
+main.tsx:20 [Institution-Live] Received real-time update: Object
+main.tsx:20 [WS] 📩 received: institution_update Object
+main.tsx:20 [WS] 🏢 Institution Update Received! Object
+main.tsx:20 [Institution-Live] Received real-time update: Object
+main.tsx:20 [WS] 📩 received: institution_update Object
+main.tsx:20 [WS] 🏢 Institution Update Received! Object
+main.tsx:20 [Institution-Live] Received real-time update: Object
+main.tsx:20 [WS] 📩 received: institution_update Object
+main.tsx:20 [WS] 🏢 Institution Update Received! Object
+main.tsx:20 [Institution-Live] Received real-time update: Object
+main.tsx:20 [WS] 📩 received: institution_update Object
+main.tsx:20 [WS] 🏢 Institution Update Received! Object
+main.tsx:20 [Institution-Live] Received real-time update: Object
+main.tsx:20 [WS] 📩 received: institution_update Object
+main.tsx:20 [WS] 🏢 Institution Update Received! Object
+main.tsx:20 [Institution-Live] Received real-time update: Object
+main.tsx:20 [WS] 📩 received: institution_update Object
+main.tsx:20 [WS] 🏢 Institution Update Received! Object
+main.tsx:20 [Institution-Live] Received real-time update: Object
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 8, message: 'Migrating auth.0004_alter_user_username_opts'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 8, message: 'Migrating auth.0004_alter_user_username_opts'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 8, message: 'Migrating auth.0004_alter_user_username_opts'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 8, message: 'Migrating auth.0004_alter_user_username_opts'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 10, message: 'Migrating auth.0005_alter_user_last_login_null'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 10, message: 'Migrating auth.0005_alter_user_last_login_null'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 11, message: 'Migrating auth.0006_require_contenttypes_0002'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 11, message: 'Migrating auth.0006_require_contenttypes_0002'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 13, message: 'Migrating auth.0007_alter_validators_add_error_messages'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 13, message: 'Migrating auth.0007_alter_validators_add_error_messages'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 10, message: 'Migrating auth.0005_alter_user_last_login_null'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 10, message: 'Migrating auth.0005_alter_user_last_login_null'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 11, message: 'Migrating auth.0006_require_contenttypes_0002'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 11, message: 'Migrating auth.0006_require_contenttypes_0002'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 13, message: 'Migrating auth.0007_alter_validators_add_error_messages'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 13, message: 'Migrating auth.0007_alter_validators_add_error_messages'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 14, message: 'Migrating auth.0008_alter_user_username_max_length'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 14, message: 'Migrating auth.0008_alter_user_username_max_length'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 14, message: 'Migrating auth.0008_alter_user_username_max_length'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 14, message: 'Migrating auth.0008_alter_user_username_max_length'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 16, message: 'Migrating auth.0009_alter_user_last_name_max_length'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 16, message: 'Migrating auth.0009_alter_user_last_name_max_length'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 16, message: 'Migrating auth.0009_alter_user_last_name_max_length'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 16, message: 'Migrating auth.0009_alter_user_last_name_max_length'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 17, message: 'Migrating auth.0010_alter_group_name_max_length'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 17, message: 'Migrating auth.0010_alter_group_name_max_length'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 17, message: 'Migrating auth.0010_alter_group_name_max_length'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 17, message: 'Migrating auth.0010_alter_group_name_max_length'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 19, message: 'Migrating auth.0011_update_proxy_permissions'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 19, message: 'Migrating auth.0011_update_proxy_permissions'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 19, message: 'Migrating auth.0011_update_proxy_permissions'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 19, message: 'Migrating auth.0011_update_proxy_permissions'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 20, message: 'Migrating auth.0012_alter_user_first_name_max_length'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 20, message: 'Migrating auth.0012_alter_user_first_name_max_length'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 20, message: 'Migrating auth.0012_alter_user_first_name_max_length'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 20, message: 'Migrating auth.0012_alter_user_first_name_max_length'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 21, message: 'Migrating identity.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 21, message: 'Migrating identity.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 21, message: 'Migrating identity.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 21, message: 'Migrating identity.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 23, message: 'Migrating academic.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 23, message: 'Migrating academic.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 23, message: 'Migrating academic.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 23, message: 'Migrating academic.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 24, message: 'Migrating academic.0002_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 24, message: 'Migrating academic.0002_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 24, message: 'Migrating academic.0002_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 24, message: 'Migrating academic.0002_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 26, message: 'Migrating academic.0003_full_academic_infrastructure'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 26, message: 'Migrating academic.0003_full_academic_infrastructure'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 26, message: 'Migrating academic.0003_full_academic_infrastructure'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 26, message: 'Migrating academic.0003_full_academic_infrastructure'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 27, message: 'Migrating account.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 27, message: 'Migrating account.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 27, message: 'Migrating account.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 27, message: 'Migrating account.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 29, message: 'Migrating account.0002_email_max_length'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 29, message: 'Migrating account.0002_email_max_length'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 29, message: 'Migrating account.0002_email_max_length'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 29, message: 'Migrating account.0002_email_max_length'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 30, message: 'Migrating account.0003_alter_emailaddress_create_unique_verified_email'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 30, message: 'Migrating account.0003_alter_emailaddress_create_unique_verified_email'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 30, message: 'Migrating account.0003_alter_emailaddress_create_unique_verified_email'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 30, message: 'Migrating account.0003_alter_emailaddress_create_unique_verified_email'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 32, message: 'Migrating account.0004_alter_emailaddress_drop_unique_email'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 32, message: 'Migrating account.0004_alter_emailaddress_drop_unique_email'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 32, message: 'Migrating account.0004_alter_emailaddress_drop_unique_email'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 32, message: 'Migrating account.0004_alter_emailaddress_drop_unique_email'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 33, message: 'Migrating account.0005_emailaddress_idx_upper_email'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 33, message: 'Migrating account.0005_emailaddress_idx_upper_email'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 33, message: 'Migrating account.0005_emailaddress_idx_upper_email'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 33, message: 'Migrating account.0005_emailaddress_idx_upper_email'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 35, message: 'Migrating account.0006_emailaddress_lower'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 35, message: 'Migrating account.0006_emailaddress_lower'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 35, message: 'Migrating account.0006_emailaddress_lower'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 35, message: 'Migrating account.0006_emailaddress_lower'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 36, message: 'Migrating account.0007_emailaddress_idx_email'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 36, message: 'Migrating account.0007_emailaddress_idx_email'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 36, message: 'Migrating account.0007_emailaddress_idx_email'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 36, message: 'Migrating account.0007_emailaddress_idx_email'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 38, message: 'Migrating account.0008_emailaddress_unique_primary_email_fixup'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 38, message: 'Migrating account.0008_emailaddress_unique_primary_email_fixup'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 38, message: 'Migrating account.0008_emailaddress_unique_primary_email_fixup'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 38, message: 'Migrating account.0008_emailaddress_unique_primary_email_fixup'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 39, message: 'Migrating account.0009_emailaddress_unique_primary_email'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 39, message: 'Migrating account.0009_emailaddress_unique_primary_email'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 39, message: 'Migrating account.0009_emailaddress_unique_primary_email'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 39, message: 'Migrating account.0009_emailaddress_unique_primary_email'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 40, message: 'Migrating admin.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 40, message: 'Migrating admin.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 40, message: 'Migrating admin.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 40, message: 'Migrating admin.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 42, message: 'Migrating admin.0002_logentry_remove_auto_add'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 42, message: 'Migrating admin.0002_logentry_remove_auto_add'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 42, message: 'Migrating admin.0002_logentry_remove_auto_add'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 42, message: 'Migrating admin.0002_logentry_remove_auto_add'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 43, message: 'Migrating admin.0003_logentry_add_action_flag_choices'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 43, message: 'Migrating admin.0003_logentry_add_action_flag_choices'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 43, message: 'Migrating admin.0003_logentry_add_action_flag_choices'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 43, message: 'Migrating admin.0003_logentry_add_action_flag_choices'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 45, message: 'Migrating quizzes.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 45, message: 'Migrating quizzes.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 45, message: 'Migrating quizzes.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 45, message: 'Migrating quizzes.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 46, message: 'Migrating anti_cheat.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 46, message: 'Migrating anti_cheat.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 46, message: 'Migrating anti_cheat.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 46, message: 'Migrating anti_cheat.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 48, message: 'Migrating anti_cheat.0002_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 48, message: 'Migrating anti_cheat.0002_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 48, message: 'Migrating anti_cheat.0002_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 48, message: 'Migrating anti_cheat.0002_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 49, message: 'Migrating attempts.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 49, message: 'Migrating attempts.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 49, message: 'Migrating attempts.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 49, message: 'Migrating attempts.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 51, message: 'Migrating attempts.0002_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 51, message: 'Migrating attempts.0002_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 51, message: 'Migrating attempts.0002_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 51, message: 'Migrating attempts.0002_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 52, message: 'Migrating auip_institution.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 52, message: 'Migrating auip_institution.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 52, message: 'Migrating auip_institution.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 52, message: 'Migrating auip_institution.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 54, message: 'Migrating auip_institution.0002_remove_authorizedaccount_user_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 54, message: 'Migrating auip_institution.0002_remove_authorizedaccount_user_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 54, message: 'Migrating auip_institution.0002_remove_authorizedaccount_user_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 54, message: 'Migrating auip_institution.0002_remove_authorizedaccount_user_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 55, message: 'Migrating auip_institution.0003_adminpreseededregistry_facultypreseededregistry_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 55, message: 'Migrating auip_institution.0003_adminpreseededregistry_facultypreseededregistry_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 55, message: 'Migrating auip_institution.0003_adminpreseededregistry_facultypreseededregistry_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 55, message: 'Migrating auip_institution.0003_adminpreseededregistry_facultypreseededregistry_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 57, message: 'Migrating auip_institution.0004_studentacademicregistry_admission_year_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 57, message: 'Migrating auip_institution.0004_studentacademicregistry_admission_year_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 57, message: 'Migrating auip_institution.0004_studentacademicregistry_admission_year_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 57, message: 'Migrating auip_institution.0004_studentacademicregistry_admission_year_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 58, message: 'Migrating auip_institution.0005_facultyacademicregistry_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 58, message: 'Migrating auip_institution.0005_facultyacademicregistry_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 58, message: 'Migrating auip_institution.0005_facultyacademicregistry_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 58, message: 'Migrating auip_institution.0005_facultyacademicregistry_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 59, message: 'Migrating auip_institution.0006_facultypreseededregistry_activation_token_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 59, message: 'Migrating auip_institution.0006_facultypreseededregistry_activation_token_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 59, message: 'Migrating auip_institution.0006_facultypreseededregistry_activation_token_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 59, message: 'Migrating auip_institution.0006_facultypreseededregistry_activation_token_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 61, message: 'Migrating auip_institution.0007_add_name_fields_to_authorized_accounts'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 61, message: 'Migrating auip_institution.0007_add_name_fields_to_authorized_accounts'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 61, message: 'Migrating auip_institution.0007_add_name_fields_to_authorized_accounts'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 61, message: 'Migrating auip_institution.0007_add_name_fields_to_authorized_accounts'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 62, message: 'Migrating auip_institution.0008_increase_token_length'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 62, message: 'Migrating auip_institution.0008_increase_token_length'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 62, message: 'Migrating auip_institution.0008_increase_token_length'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 62, message: 'Migrating auip_institution.0008_increase_token_length'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 64, message: 'Migrating auip_institution.0009_alter_facultyacademicregistry_department_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 64, message: 'Migrating auip_institution.0009_alter_facultyacademicregistry_department_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 64, message: 'Migrating auip_institution.0009_alter_facultyacademicregistry_department_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 64, message: 'Migrating auip_institution.0009_alter_facultyacademicregistry_department_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 65, message: 'Migrating auip_tenant.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 65, message: 'Migrating auip_tenant.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 65, message: 'Migrating auip_tenant.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 65, message: 'Migrating auip_tenant.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 67, message: 'Migrating auip_tenant.0002_client_is_available_client_is_ready'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 67, message: 'Migrating auip_tenant.0002_client_is_available_client_is_ready'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 67, message: 'Migrating auip_tenant.0002_client_is_available_client_is_ready'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 67, message: 'Migrating auip_tenant.0002_client_is_available_client_is_ready'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 68, message: 'Migrating auip_tenant.0003_remove_client_is_available_remove_client_is_ready'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 68, message: 'Migrating auip_tenant.0003_remove_client_is_available_remove_client_is_ready'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 68, message: 'Migrating auip_tenant.0003_remove_client_is_available_remove_client_is_ready'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 68, message: 'Migrating auip_tenant.0003_remove_client_is_available_remove_client_is_ready'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 70, message: 'Migrating authtoken.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 70, message: 'Migrating authtoken.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 70, message: 'Migrating authtoken.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 70, message: 'Migrating authtoken.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 71, message: 'Migrating authtoken.0002_auto_20160226_1747'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 71, message: 'Migrating authtoken.0002_auto_20160226_1747'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 71, message: 'Migrating authtoken.0002_auto_20160226_1747'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 71, message: 'Migrating authtoken.0002_auto_20160226_1747'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 73, message: 'Migrating authtoken.0003_tokenproxy'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 73, message: 'Migrating authtoken.0003_tokenproxy'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 73, message: 'Migrating authtoken.0003_tokenproxy'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 73, message: 'Migrating authtoken.0003_tokenproxy'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 74, message: 'Migrating authtoken.0004_alter_tokenproxy_options'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 74, message: 'Migrating authtoken.0004_alter_tokenproxy_options'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 74, message: 'Migrating authtoken.0004_alter_tokenproxy_options'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 74, message: 'Migrating authtoken.0004_alter_tokenproxy_options'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 76, message: 'Migrating django_celery_beat.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 76, message: 'Migrating django_celery_beat.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 76, message: 'Migrating django_celery_beat.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 76, message: 'Migrating django_celery_beat.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 77, message: 'Migrating django_celery_beat.0002_auto_20161118_0346'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 77, message: 'Migrating django_celery_beat.0002_auto_20161118_0346'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 77, message: 'Migrating django_celery_beat.0002_auto_20161118_0346'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 77, message: 'Migrating django_celery_beat.0002_auto_20161118_0346'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 78, message: 'Migrating django_celery_beat.0003_auto_20161209_0049'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 78, message: 'Migrating django_celery_beat.0003_auto_20161209_0049'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 78, message: 'Migrating django_celery_beat.0003_auto_20161209_0049'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 78, message: 'Migrating django_celery_beat.0003_auto_20161209_0049'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 80, message: 'Migrating django_celery_beat.0004_auto_20170221_0000'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 80, message: 'Migrating django_celery_beat.0004_auto_20170221_0000'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 80, message: 'Migrating django_celery_beat.0004_auto_20170221_0000'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 80, message: 'Migrating django_celery_beat.0004_auto_20170221_0000'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 81, message: 'Migrating django_celery_beat.0005_add_solarschedule_events_choices'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 81, message: 'Migrating django_celery_beat.0005_add_solarschedule_events_choices'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 81, message: 'Migrating django_celery_beat.0005_add_solarschedule_events_choices'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 81, message: 'Migrating django_celery_beat.0005_add_solarschedule_events_choices'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 83, message: 'Migrating django_celery_beat.0006_auto_20180322_0932'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 83, message: 'Migrating django_celery_beat.0006_auto_20180322_0932'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 83, message: 'Migrating django_celery_beat.0006_auto_20180322_0932'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 83, message: 'Migrating django_celery_beat.0006_auto_20180322_0932'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 84, message: 'Migrating django_celery_beat.0007_auto_20180521_0826'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 84, message: 'Migrating django_celery_beat.0007_auto_20180521_0826'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 84, message: 'Migrating django_celery_beat.0007_auto_20180521_0826'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 84, message: 'Migrating django_celery_beat.0007_auto_20180521_0826'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 86, message: 'Migrating django_celery_beat.0008_auto_20180914_1922'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 86, message: 'Migrating django_celery_beat.0008_auto_20180914_1922'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 86, message: 'Migrating django_celery_beat.0008_auto_20180914_1922'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 86, message: 'Migrating django_celery_beat.0008_auto_20180914_1922'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 87, message: 'Migrating django_celery_beat.0006_auto_20180210_1226'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 87, message: 'Migrating django_celery_beat.0006_auto_20180210_1226'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 87, message: 'Migrating django_celery_beat.0006_auto_20180210_1226'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 87, message: 'Migrating django_celery_beat.0006_auto_20180210_1226'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 89, message: 'Migrating django_celery_beat.0006_periodictask_priority'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 89, message: 'Migrating django_celery_beat.0006_periodictask_priority'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 89, message: 'Migrating django_celery_beat.0006_periodictask_priority'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 89, message: 'Migrating django_celery_beat.0006_periodictask_priority'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 90, message: 'Migrating django_celery_beat.0009_periodictask_headers'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 90, message: 'Migrating django_celery_beat.0009_periodictask_headers'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 90, message: 'Migrating django_celery_beat.0009_periodictask_headers'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 90, message: 'Migrating django_celery_beat.0009_periodictask_headers'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 92, message: 'Migrating django_celery_beat.0010_auto_20190429_0326'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 92, message: 'Migrating django_celery_beat.0010_auto_20190429_0326'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 92, message: 'Migrating django_celery_beat.0010_auto_20190429_0326'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 92, message: 'Migrating django_celery_beat.0010_auto_20190429_0326'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 93, message: 'Migrating django_celery_beat.0011_auto_20190508_0153'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 93, message: 'Migrating django_celery_beat.0011_auto_20190508_0153'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 93, message: 'Migrating django_celery_beat.0011_auto_20190508_0153'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 93, message: 'Migrating django_celery_beat.0011_auto_20190508_0153'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_beat.0012_periodictask_expire_seconds'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_beat.0012_periodictask_expire_seconds'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_beat.0012_periodictask_expire_seconds'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_beat.0012_periodictask_expire_seconds'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_beat.0013_auto_20200609_0727'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_beat.0013_auto_20200609_0727'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_beat.0013_auto_20200609_0727'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_beat.0013_auto_20200609_0727'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_beat.0014_remove_clockedschedule_enabled'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_beat.0014_remove_clockedschedule_enabled'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_beat.0014_remove_clockedschedule_enabled'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_beat.0014_remove_clockedschedule_enabled'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_beat.0015_edit_solarschedule_events_choices'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_beat.0015_edit_solarschedule_events_choices'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_beat.0015_edit_solarschedule_events_choices'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_beat.0015_edit_solarschedule_events_choices'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_beat.0016_alter_crontabschedule_timezone'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_beat.0016_alter_crontabschedule_timezone'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_beat.0016_alter_crontabschedule_timezone'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_beat.0016_alter_crontabschedule_timezone'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_beat.0017_alter_crontabschedule_month_of_year'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_beat.0017_alter_crontabschedule_month_of_year'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_beat.0017_alter_crontabschedule_month_of_year'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_beat.0017_alter_crontabschedule_month_of_year'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_beat.0018_improve_crontab_helptext'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_beat.0018_improve_crontab_helptext'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_beat.0018_improve_crontab_helptext'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_beat.0018_improve_crontab_helptext'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_beat.0019_alter_periodictasks_options'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_beat.0019_alter_periodictasks_options'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_beat.0019_alter_periodictasks_options'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_beat.0019_alter_periodictasks_options'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0002_add_task_name_args_kwargs'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0002_add_task_name_args_kwargs'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0002_add_task_name_args_kwargs'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0002_add_task_name_args_kwargs'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0003_auto_20181106_1101'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0003_auto_20181106_1101'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0003_auto_20181106_1101'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0003_auto_20181106_1101'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0004_auto_20190516_0412'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0004_auto_20190516_0412'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0004_auto_20190516_0412'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0004_auto_20190516_0412'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0005_taskresult_worker'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0005_taskresult_worker'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0005_taskresult_worker'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0005_taskresult_worker'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0006_taskresult_date_created'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0006_taskresult_date_created'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0006_taskresult_date_created'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0006_taskresult_date_created'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0007_remove_taskresult_hidden'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0007_remove_taskresult_hidden'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0007_remove_taskresult_hidden'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0007_remove_taskresult_hidden'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0008_chordcounter'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0008_chordcounter'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0008_chordcounter'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0008_chordcounter'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0009_groupresult'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0009_groupresult'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0009_groupresult'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0009_groupresult'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0010_remove_duplicate_indices'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0010_remove_duplicate_indices'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0010_remove_duplicate_indices'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0010_remove_duplicate_indices'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0011_taskresult_periodic_task_name'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0011_taskresult_periodic_task_name'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0011_taskresult_periodic_task_name'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating django_celery_results.0011_taskresult_periodic_task_name'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating governance.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating governance.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating governance.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating governance.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating governance.0002_governancepolicy_alter_newsletter_unique_together_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating governance.0002_governancepolicy_alter_newsletter_unique_together_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating governance.0002_governancepolicy_alter_newsletter_unique_together_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating governance.0002_governancepolicy_alter_newsletter_unique_together_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating governance.0003_governancebrainstate_mediaattachment_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating governance.0003_governancebrainstate_mediaattachment_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating governance.0003_governancebrainstate_mediaattachment_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating governance.0003_governancebrainstate_mediaattachment_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating governance.0004_remove_blog_media_url_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating governance.0004_remove_blog_media_url_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating governance.0004_remove_blog_media_url_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating governance.0004_remove_blog_media_url_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0002_institution_alter_user_role_corestudent_institution_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0002_institution_alter_user_role_corestudent_institution_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0002_institution_alter_user_role_corestudent_institution_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0002_institution_alter_user_role_corestudent_institution_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0003_user_stu_ref'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0003_user_stu_ref'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0003_user_stu_ref'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0003_user_stu_ref'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0004_institution_contact_number_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0004_institution_contact_number_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0004_institution_contact_number_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0004_institution_contact_number_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0005_remove_corestudent_idx_core_student_batch_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0005_remove_corestudent_idx_core_student_batch_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0005_remove_corestudent_idx_core_student_batch_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0005_remove_corestudent_idx_core_student_batch_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0006_loginsession_last_secure_check'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0006_loginsession_last_secure_check'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0006_loginsession_last_secure_check'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0006_loginsession_last_secure_check'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0007_fix_remembered_device_uniqueness'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0007_fix_remembered_device_uniqueness'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0007_fix_remembered_device_uniqueness'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0007_fix_remembered_device_uniqueness'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0008_loginsession_tenant_email_loginsession_tenant_schema_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0008_loginsession_tenant_email_loginsession_tenant_schema_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0008_loginsession_tenant_email_loginsession_tenant_schema_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0008_loginsession_tenant_email_loginsession_tenant_schema_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0009_add_trust_cookie_hash_to_remembered_device'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0009_add_trust_cookie_hash_to_remembered_device'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0009_add_trust_cookie_hash_to_remembered_device'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0009_add_trust_cookie_hash_to_remembered_device'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0010_add_trusted_until_to_remembered_device'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0010_add_trusted_until_to_remembered_device'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0010_add_trusted_until_to_remembered_device'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0010_add_trusted_until_to_remembered_device'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0011_loginsession_role'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0011_loginsession_role'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0011_loginsession_role'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0011_loginsession_role'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0012_loginsession_previous_jti_loginsession_rotated_at'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0012_loginsession_previous_jti_loginsession_rotated_at'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0012_loginsession_previous_jti_loginsession_rotated_at'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0012_loginsession_previous_jti_loginsession_rotated_at'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0013_institutioninterest'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0013_institutioninterest'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0013_institutioninterest'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0013_institutioninterest'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0014_fix_token_length_and_contact_email_conflict'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0014_fix_token_length_and_contact_email_conflict'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0014_fix_token_length_and_contact_email_conflict'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0014_fix_token_length_and_contact_email_conflict'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0015_remembereddevice_tenant_email_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0015_remembereddevice_tenant_email_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0015_remembereddevice_tenant_email_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0015_remembereddevice_tenant_email_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0016_alter_remembereddevice_unique_together_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0016_alter_remembereddevice_unique_together_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0016_alter_remembereddevice_unique_together_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0016_alter_remembereddevice_unique_together_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0017_institution_certificate_id_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0017_institution_certificate_id_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0017_institution_certificate_id_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0017_institution_certificate_id_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0018_institution_certificate_expires_at_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0018_institution_certificate_expires_at_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0018_institution_certificate_expires_at_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0018_institution_certificate_expires_at_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0019_add_activation_cert_fields'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0019_add_activation_cert_fields'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0019_add_activation_cert_fields'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating identity.0019_add_activation_cert_fields'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating intelligence.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating intelligence.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating intelligence.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating intelligence.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating notifications.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating notifications.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating notifications.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating notifications.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating placement.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating placement.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating placement.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating placement.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating placement.0002_placementprocessstage'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating placement.0002_placementprocessstage'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating placement.0002_placementprocessstage'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating placement.0002_placementprocessstage'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating placement.0003_placementdrive_allowed_active_backlogs_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating placement.0003_placementdrive_allowed_active_backlogs_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating placement.0003_placementdrive_allowed_active_backlogs_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating placement.0003_placementdrive_allowed_active_backlogs_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating resumes.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating resumes.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating resumes.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating resumes.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating sessions.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating sessions.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating sessions.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating sessions.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating site_config.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating site_config.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating site_config.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating site_config.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating site_config.0002_landingcontent_banner_enabled_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating site_config.0002_landingcontent_banner_enabled_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating site_config.0002_landingcontent_banner_enabled_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating site_config.0002_landingcontent_banner_enabled_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating site_config.0003_teammember_landingcontent_about_image_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating site_config.0003_teammember_landingcontent_about_image_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating site_config.0003_teammember_landingcontent_about_image_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating site_config.0003_teammember_landingcontent_about_image_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating sites.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating sites.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating sites.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating sites.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating sites.0002_alter_domain_unique'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating sites.0002_alter_domain_unique'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating sites.0002_alter_domain_unique'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating sites.0002_alter_domain_unique'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating social.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating social.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating social.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating social.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating social.0002_remove_socialpost_image_url_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating social.0002_remove_socialpost_image_url_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating social.0002_remove_socialpost_image_url_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating social.0002_remove_socialpost_image_url_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating social.0003_remove_chatmessage_attachment_url_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating social.0003_remove_chatmessage_attachment_url_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating social.0003_remove_chatmessage_attachment_url_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating social.0003_remove_chatmessage_attachment_url_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating social.0004_rename_read_chatmessage_is_delivered_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating social.0004_rename_read_chatmessage_is_delivered_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating social.0004_rename_read_chatmessage_is_delivered_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating social.0004_rename_read_chatmessage_is_delivered_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating socialaccount.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating socialaccount.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating socialaccount.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating socialaccount.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating socialaccount.0002_token_max_lengths'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating socialaccount.0002_token_max_lengths'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating socialaccount.0002_token_max_lengths'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating socialaccount.0002_token_max_lengths'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating socialaccount.0003_extra_data_default_dict'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating socialaccount.0003_extra_data_default_dict'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating socialaccount.0003_extra_data_default_dict'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating socialaccount.0003_extra_data_default_dict'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating socialaccount.0004_app_provider_id_settings'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating socialaccount.0004_app_provider_id_settings'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating socialaccount.0004_app_provider_id_settings'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating socialaccount.0004_app_provider_id_settings'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating socialaccount.0005_socialtoken_nullable_app'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating socialaccount.0005_socialtoken_nullable_app'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating socialaccount.0005_socialtoken_nullable_app'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating socialaccount.0005_socialtoken_nullable_app'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating socialaccount.0006_alter_socialaccount_extra_data'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating socialaccount.0006_alter_socialaccount_extra_data'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating socialaccount.0006_alter_socialaccount_extra_data'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating socialaccount.0006_alter_socialaccount_extra_data'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0001_initial'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0001_initial'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0002_outstandingtoken_jti_hex'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0002_outstandingtoken_jti_hex'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0002_outstandingtoken_jti_hex'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0002_outstandingtoken_jti_hex'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0003_auto_20171017_2007'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0003_auto_20171017_2007'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0003_auto_20171017_2007'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0003_auto_20171017_2007'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0004_auto_20171017_2013'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0004_auto_20171017_2013'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0004_auto_20171017_2013'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0004_auto_20171017_2013'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0005_remove_outstandingtoken_jti'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0005_remove_outstandingtoken_jti'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0005_remove_outstandingtoken_jti'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0005_remove_outstandingtoken_jti'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0006_auto_20171017_2113'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0006_auto_20171017_2113'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0006_auto_20171017_2113'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0006_auto_20171017_2113'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0007_auto_20171017_2214'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0007_auto_20171017_2214'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0007_auto_20171017_2214'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0007_auto_20171017_2214'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0008_migrate_to_bigautofield'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0008_migrate_to_bigautofield'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0008_migrate_to_bigautofield'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0008_migrate_to_bigautofield'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0010_fix_migrate_to_bigautofield'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0010_fix_migrate_to_bigautofield'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0010_fix_migrate_to_bigautofield'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0010_fix_migrate_to_bigautofield'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0011_linearizes_history'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0011_linearizes_history'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0011_linearizes_history'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0011_linearizes_history'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0012_alter_outstandingtoken_user'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0012_alter_outstandingtoken_user'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0012_alter_outstandingtoken_user'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0012_alter_outstandingtoken_user'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0013_alter_blacklistedtoken_options_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0013_alter_blacklistedtoken_options_and_more'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0013_alter_blacklistedtoken_options_and_more'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 95, message: 'Migrating token_blacklist.0013_alter_blacklistedtoken_options_and_more'}message: "Migrating token_blacklist.0013_alter_blacklistedtoken_options_and_more"progress: 95schema_name: "inst_malla_reddy_university"type: "PROVISION_PROGRESS"[[Prototype]]: Object
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 100, message: 'Schema Migration Complete'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 100, message: 'Schema Migration Complete'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 100, message: 'Schema Migration Complete'}
+main.tsx:20 [Institution-Live] Received real-time update: {type: 'PROVISION_PROGRESS', schema_name: 'inst_malla_reddy_university', progress: 100, message: 'Schema Migration Complete'}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {id: 59, name: 'Malla Reddy University', slug: 'malla-reddy-university', status: 'APPROVED', action_type: 'update', …}
+main.tsx:20 [Institution-Live] Received real-time update: {id: 59, name: 'Malla Reddy University', slug: 'malla-reddy-university', status: 'APPROVED', action_type: 'update', …}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {id: 59, name: 'Malla Reddy University', slug: 'malla-reddy-university', status: 'APPROVED', action_type: 'update', …}
+main.tsx:20 [Institution-Live] Received real-time update: {id: 59, name: 'Malla Reddy University', slug: 'malla-reddy-university', status: 'APPROVED', action_type: 'update', …}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {id: 59, name: 'Malla Reddy University', slug: 'malla-reddy-university', status: 'APPROVED', action_type: 'update', …}
+main.tsx:20 [Institution-Live] Received real-time update: {id: 59, name: 'Malla Reddy University', slug: 'malla-reddy-university', status: 'APPROVED', action_type: 'update', …}
+main.tsx:20 [WS] 📩 received: institution_update {action: 'institution_update', data: {…}}
+main.tsx:20 [WS] 🏢 Institution Update Received! {id: 59, name: 'Malla Reddy University', slug: 'malla-reddy-university', status: 'APPROVED', action_type: 'update', …}
+main.tsx:20 [Institution-Live] Received real-time update: {id: 59, name: 'Malla Reddy University', slug: 'malla-reddy-university', status: 'APPROVED', action_type: 'update', …}

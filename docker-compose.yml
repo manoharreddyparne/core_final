@@ -80,6 +80,54 @@ services:
   #   networks:
   #     - auip-network
 
+  # Celery Worker (async tasks: cert generation, emails)
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: auip-celery-worker
+    command: sh -c "celery -A auip_core worker --loglevel=info --concurrency=2 -Q default,certificates,emails"
+    volumes:
+      - ./backend:/app
+      - backend_media:/app/media
+    env_file:
+      - ./backend/.env
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_URL=redis://redis:6379/0
+      - DB_HOST=aws-1-ap-southeast-1.pooler.supabase.com
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: always
+    networks:
+      - auip-network
+
+  # Celery Beat (periodic scheduler: daily expiry checks)
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: auip-celery-beat
+    command: sh -c "celery -A auip_core beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler"
+    volumes:
+      - ./backend:/app
+      - backend_media:/app/media
+    env_file:
+      - ./backend/.env
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_URL=redis://redis:6379/0
+      - DB_HOST=aws-1-ap-southeast-1.pooler.supabase.com
+    depends_on:
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_started
+    restart: always
+    networks:
+      - auip-network
+
   # Frontend (React)
   frontend:
     build:

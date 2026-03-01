@@ -89,7 +89,7 @@ class AIIntelligenceViewSet(viewsets.ViewSet):
                     # Legacy Log (Student only)
                     if student:
                         LLMInteraction.objects.create(
-                            student=student,
+                            student_id=student.id,
                             prompt=query_text,
                             response=ai_response
                         )
@@ -99,7 +99,7 @@ class AIIntelligenceViewSet(viewsets.ViewSet):
                             conversation = AIChatConversation.objects.create(
                                 user_id=u_id,
                                 user_role=u_role,
-                                student=student,
+                                student_id=student.id,
                                 title=query_text[:60],
                                 context_type=context_type
                             )
@@ -184,7 +184,7 @@ class AIIntelligenceViewSet(viewsets.ViewSet):
             student = getattr(request.user, 'academic_ref', None)
             if not student: return success_response("No history", data=[])
             
-            history_qs = LLMInteraction.objects.filter(student=student).order_by('-created_at')[:30]
+            history_qs = LLMInteraction.objects.filter(student_id=student.id).order_by('-created_at')[:30]
             messages = []
             for h in reversed(list(history_qs)):
                 messages.append({'role': 'user', 'text': h.prompt})
@@ -204,7 +204,7 @@ class ResumeInsightViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         if hasattr(user, 'role') and user.role == 'STUDENT':
-            return StudentResumeInsight.objects.filter(student=user.academic_ref)
+            return StudentResumeInsight.objects.filter(student_id=user.academic_ref.id)
         return StudentResumeInsight.objects.all()
 
 class PlacementTrendViewSet(viewsets.ReadOnlyModelViewSet):
@@ -237,7 +237,7 @@ class StudentDashboardViewSet(viewsets.ViewSet):
 
         # 2. AI Guidance Activity
         from apps.intelligence.models import LLMInteraction
-        recent_ai = LLMInteraction.objects.filter(student=student).order_by('-created_at')[:3]
+        recent_ai = LLMInteraction.objects.filter(student_id=student.id).order_by('-created_at')[:3]
 
         # 3. Governance Context
         governance = {

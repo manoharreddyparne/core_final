@@ -9,6 +9,7 @@ import {
 import { toast } from "react-hot-toast";
 import { getAccessToken } from "../../auth/utils/tokenStorage";
 import { extractApiError } from "../../auth/utils/extractApiError";
+import { logger } from "../../../shared/utils/logger";
 
 export const InstitutionAdmin = () => {
     const [institutions, setInstitutions] = useState<any[]>([]);
@@ -55,9 +56,9 @@ export const InstitutionAdmin = () => {
             setIsCreateModalOpen(false);
             setNewInst({ name: "", slug: "", domain: "", contact_email: "", contact_number: "", address: "", student_count_estimate: "" });
         } catch (err: any) {
-            console.error("[Manual-Reg] Error caught:", err);
+            logger.error("[Manual-Reg] Error caught:", err);
             const errMsg = extractApiError(err, "Failed to onboard institution.");
-            console.log("[Manual-Reg] Toasting error message:", errMsg);
+            logger.log("[Manual-Reg] Toasting error message:", errMsg);
             toast.error(errMsg, { duration: 6000, id: "reg-error" });
         } finally {
             setIsActionLoading(false);
@@ -71,7 +72,7 @@ export const InstitutionAdmin = () => {
             const data = Array.isArray(res.data) ? res.data : res.data?.results || [];
             setInstitutions(data);
         } catch (err) {
-            console.error("Failed to fetch institutions", err);
+            logger.error("Failed to fetch institutions", err);
             setInstitutions([]); // Ensure it's always an array
         } finally {
             setIsLoading(false);
@@ -104,7 +105,7 @@ export const InstitutionAdmin = () => {
         // 🚀 REAL-TIME UPDATES: Listen for WebSocket events from useSessionSocket
         const handleWsUpdate = (event: any) => {
             const data = event.detail;
-            console.log("[Institution-Live] Received real-time update:", data);
+            logger.log("[Institution-Live] Received real-time update:", data);
 
             if (data?.type === "PROVISION_PROGRESS") {
                 const progress = data.progress;
@@ -118,6 +119,17 @@ export const InstitutionAdmin = () => {
                     }
                 }
                 setApprovePhaseIdx(Math.min(newPhase, approvePhases.length - 1));
+
+                if (progress >= 100) {
+                    setApproveComplete(true);
+                    toast.success("✅ Environment LIVE — Isolation Kernel Ready", { id: "provisioning-start", duration: 5000 });
+                    fetchInstitutions();
+                    // Close modal after a short delay to show success state
+                    setTimeout(() => {
+                        setIsQuantumProcessing(false);
+                        setSelectedInst(null);
+                    }, 2500);
+                }
             } else {
                 fetchInstitutions();
             }
@@ -173,27 +185,27 @@ export const InstitutionAdmin = () => {
             if (action === "approve") {
                 if (isRegrant) {
                     toast.success(`Access restored for ${selectedInst?.name}. Their environment is now active again.`);
+                    await fetchInstitutions();
+                    setSelectedInst(null);
                 } else {
-                    // Snap bar to 100% and show success state instantly because the server has finished!
-                    setApproveComplete(true);
-                    setApproveProgress(100);
-                    setApprovePhaseIdx(approvePhases.length - 1);
-                    toast.success(`✅ ${slug} is now LIVE — tenant environment provisioned!`, { duration: 6000 });
-                    await new Promise(r => setTimeout(r, 1800)); // let success state breathe
+                    // We DO NOT set complete here anymore. 
+                    // WE wait for the WebSocket to tell us it's 100%.
+                    toast.success(`Provisioning initialized for ${slug}. Building isolated environment...`, { id: "provisioning-start" });
                 }
             } else {
                 const actionLabel = action === "reject" ? "rejected" : action === "mark_review" ? "flagged for review" : action;
                 toast.success(`Institution ${actionLabel} successfully.`);
+                await fetchInstitutions();
+                setSelectedInst(null);
             }
-            await fetchInstitutions();
-            setSelectedInst(null);
         } catch (err: any) {
-            console.error(`Failed to perform action ${action}`, err);
+            logger.error(`Failed to perform action ${action}`, err);
             toast.error(extractApiError(err, `Failed to ${action} institution.`));
         } finally {
             setIsActionLoading(false);
             setActiveAction(null);
-            if (action === "approve") {
+            // Only stop "Quantum Processing" if it wasn't an approval (which is now async)
+            if (action !== "approve") {
                 setTimeout(() => setIsQuantumProcessing(false), 400);
             }
         }
@@ -747,8 +759,12 @@ export const InstitutionAdmin = () => {
                                 <span className={`text-xl font-black tabular-nums ${approveComplete ? "text-emerald-400" : "text-primary"}`}>{Math.round(approveProgress)}%</span>
                                 <div className="w-32 h-1.5 bg-white/5 rounded-full overflow-hidden mt-1 border border-white/5">
                                     <div
-                                        className={`h-full transition-all duration-500 ease-out ${approveComplete ? "!bg-emerald-500" : "!bg-primary"}`}
-                                        style={{ width: `${approveProgress}%` }}
+                                        className={`h-full transition-all duration-700 ease-out ${approveComplete ? "bg-emerald-500" : "bg-primary"}`}
+                                        style={{
+                                            width: `${approveProgress}%`,
+                                            backgroundColor: approveComplete ? undefined : 'var(--primary-solid)',
+                                            boxShadow: approveComplete ? '0 0 10px rgba(16, 185, 129, 0.3)' : '0 0 10px rgba(59, 130, 246, 0.3)'
+                                        }}
                                     />
                                 </div>
                             </div>
@@ -796,8 +812,11 @@ export const InstitutionAdmin = () => {
                                                 {(isActive || isDone) && (
                                                     <div className="shrink-0 w-24 h-1 bg-black/40 rounded-full overflow-hidden border border-white/5">
                                                         <div
-                                                            className={`h-full transition-all duration-300 ${isDone ? "bg-emerald-500" : "bg-primary"}`}
-                                                            style={{ width: isDone ? "100%" : `${currentPhaseWidth}%` }}
+                                                            className={`h-full transition-all duration-500 ease-out ${isDone ? "bg-emerald-500" : "bg-primary"}`}
+                                                            style={{
+                                                                width: isDone ? "100%" : `${currentPhaseWidth}%`,
+                                                                backgroundColor: isDone ? undefined : 'var(--primary-solid)'
+                                                            }}
                                                         />
                                                     </div>
                                                 )}

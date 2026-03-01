@@ -8,12 +8,12 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-blue-600 text-white hover:bg-blue-700 focus-visible:ring-blue-500",
+        default: "bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)] focus-visible:ring-[var(--primary)]",
         outline:
-          "border border-gray-300 bg-transparent hover:bg-gray-100 text-gray-700",
+          "border border-[var(--border)] bg-transparent hover:bg-[var(--bg-card)] text-[var(--text-primary)]",
         destructive:
           "bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-500",
-        ghost: "bg-transparent hover:bg-white/10 text-gray-400 hover:text-white",
+        ghost: "bg-transparent hover:bg-[var(--bg-card)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
       },
       size: {
         default: "h-10 px-4 py-2",

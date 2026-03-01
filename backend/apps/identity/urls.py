@@ -112,8 +112,14 @@ router.register(r"superadmin/institutions", InstitutionViewSet, basename="instit
 # -------------------------------
 # URLPATTERNS
 # -------------------------------
+from apps.identity.views.public.certificate_views import CertificateVerifyView
+
 urlpatterns = [
-    # JWT AUTH
+    # ── PUBLIC & SHARED — Certificate Verification ──
+    # Legacy: /public/certificates/<uuid>/verify/?type=approval|activation
+    path('public/certificates/<uuid:certificate_id>/verify/', CertificateVerifyView.as_view(), name='verify_certificate'),
+    # New path form: /public/certificates/<type>/<uuid>/verify/ (used by QR codes in PDFs)
+    path('public/certificates/<str:cert_type>/<uuid:certificate_id>/verify/', CertificateVerifyView.as_view(), name='verify_certificate_typed'),
     # NOTE: /login/ (V1) is deprecated in favor of /auth/v2/student/login/
     path("logout/", LogoutView.as_view(), name="auth_logout"),
     path("logout-all/", LogoutAllView.as_view(), name="auth_logout_all"),

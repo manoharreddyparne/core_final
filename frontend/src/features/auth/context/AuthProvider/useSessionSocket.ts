@@ -12,6 +12,7 @@ import {
 
 import { hydratePassport } from "../../api/passportApi";
 import type { User, Session } from "../../api/types";
+import { logger } from "../../../../shared/utils/logger";
 
 export type SessionEvent =
   | "force_logout"
@@ -50,7 +51,7 @@ export const useSessionSocket = (user: User | null, isReady: boolean = true) => 
       const res = await apiClient.get("sessions/");
       setSessions(res.data.data || []);
     } catch (err) {
-      console.error("[Sessions] Failed to load", err);
+      logger.error("[Sessions] Failed to load", err);
     } finally {
       setLoading(false);
     }
@@ -91,12 +92,12 @@ export const useSessionSocket = (user: User | null, isReady: boolean = true) => 
       import.meta.env.VITE_BACKEND_WS_URL || "ws://localhost:8000/ws/sessions/";
     const wsUrl = `${wsBase}?token=${token}`;
 
-    console.log("[WS] connecting →", wsUrl);
+    logger.log("[WS] connecting →", wsUrl);
     const ws = new WebSocket(wsUrl);
     socketRef.current = ws;
 
     ws.onopen = () => {
-      console.log("[WS] ✅ connected");
+      logger.log("[WS] ✅ connected");
       setConnected(true);
       // Refresh list on connect to be sure
       loadSessions();
@@ -117,7 +118,7 @@ export const useSessionSocket = (user: User | null, isReady: boolean = true) => 
 
       // Backend sends {action: "force_logout", session_id: 123}
       const action: SessionEvent = data?.action || data?.event;
-      console.log("[WS] 📩 received:", action, data);
+      logger.log("[WS] 📩 received:", action, data);
 
       switch (action) {
         case "token_rotated":
@@ -126,12 +127,12 @@ export const useSessionSocket = (user: User | null, isReady: boolean = true) => 
           // 🔁 Re-bootstrap + Refresh List
           // ✅ GUARD: Skip if this tab is already performing a rotation/sync
           if (isHydrating()) {
-            console.debug("[WS] 🛡️ Rotation event ignored: hydration in progress.");
+            logger.log("[WS] 🛡️ Rotation event ignored: hydration in progress.");
             loadSessions();
             return;
           }
 
-          console.debug("[WS] 🔄 Rotation event received: re-hydrating session");
+          logger.log("[WS] 🔄 Rotation event received: re-hydrating session");
           await hydratePassport().then((res) => {
             if (res?.access) setAccessToken(res.access);
           });
@@ -143,19 +144,19 @@ export const useSessionSocket = (user: User | null, isReady: boolean = true) => 
           const sessionId = data?.session_id;
           const jti = data?.jti;
 
-          console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-          console.log("[WS] ⚠️  FORCE LOGOUT EVENT RECEIVED");
-          console.log("  📋 Session ID:", sessionId);
-          console.log("  🔑 JTI:", jti);
-          console.log("  📦 Full data:", data);
-          console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+          logger.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+          logger.log("[WS] ⚠️  FORCE LOGOUT EVENT RECEIVED");
+          logger.log("  📋 Session ID:", sessionId);
+          logger.log("  🔑 JTI:", jti);
+          logger.log("  📦 Full data:", data);
+          logger.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
           // Dispatch event to trigger modal
           const customEvent = new CustomEvent('force_logout', {
             detail: { sessionId, jti, reason: data?.reason }
           });
           window.dispatchEvent(customEvent);
-          console.log("[WS] ✅ Dispatched 'force_logout' event to window | reason:", data?.reason);
+          logger.log("[WS] ✅ Dispatched 'force_logout' event to window | reason:", data?.reason);
 
           // 🔄 Refresh internal session list so the UI updates
           loadSessions();
@@ -163,7 +164,7 @@ export const useSessionSocket = (user: User | null, isReady: boolean = true) => 
         }
 
         case "institution_update": {
-          console.log("[WS] 🏢 Institution Update Received!", data.data);
+          logger.log("[WS] 🏢 Institution Update Received!", data.data);
           // Dispatch global event so InstitutionAdmin.tsx can refresh
           const customEvent = new CustomEvent('institution-updated', {
             detail: data.data
@@ -173,7 +174,7 @@ export const useSessionSocket = (user: User | null, isReady: boolean = true) => 
         }
 
         case "new_notification": {
-          console.log("[WS] 🔔 New Notification Received!", data);
+          logger.log("[WS] 🔔 New Notification Received!", data);
           const customEvent = new CustomEvent('new_notification', {
             detail: data
           });

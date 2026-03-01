@@ -8,7 +8,7 @@ import { useAuth } from "../context/AuthProvider/AuthProvider";
 
 interface Props {
   children: ReactNode;
-  allowedRoles?: ("student" | "admin" | "inst_admin" | "institution_admin" | "super_admin" | "faculty")[];
+  allowedRoles?: ("student" | "admin" | "inst_admin" | "institution_admin" | "super_admin" | "faculty" | "teacher")[];
 }
 
 /**
@@ -53,9 +53,13 @@ const ProtectedRoute = ({ children, allowedRoles }: Props) => {
     allowedRoles &&
     !allowedRoles.some((allowed) => {
       const userRole = user.role?.toLowerCase();
-      // Normalize institution_admin <-> inst_admin
-      if (allowed === "inst_admin" || allowed === "institution_admin") {
-        return userRole === "inst_admin" || userRole === "institution_admin";
+      // Normalize institution_admin <-> inst_admin <-> admin
+      if (allowed === "inst_admin" || allowed === "institution_admin" || allowed === "admin") {
+        return userRole === "inst_admin" || userRole === "institution_admin" || userRole === "admin";
+      }
+      // Normalize faculty <-> teacher
+      if (allowed === "faculty" || allowed === "teacher") {
+        return userRole === "faculty" || userRole === "teacher";
       }
       return userRole === allowed;
     })
@@ -64,9 +68,9 @@ const ProtectedRoute = ({ children, allowedRoles }: Props) => {
     const role = user.role?.toLowerCase();
     const dashboard =
       role === "student" ? "/student-dashboard" :
-        (role === "inst_admin" || role === "institution_admin") ? "/institution/dashboard" :
+        (role === "inst_admin" || role === "institution_admin" || role === "admin") ? "/institution/dashboard" :
           role === "super_admin" ? "/superadmin/dashboard" :
-            role === "faculty" ? "/faculty-dashboard" : "/";
+            ((role as any) === "faculty" || (role as any) === "teacher") ? "/faculty-dashboard" : "/";
 
     return <Navigate to={dashboard} replace />;
   }

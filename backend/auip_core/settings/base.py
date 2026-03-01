@@ -42,6 +42,11 @@ SHARED_APPS = (
     # Core Shared Services
     "apps.identity", # SuperAdmin & Global Users live here
     "apps.analytics", # Global Analytics
+    "apps.site_config",  # ✅ CMS — Landing page content managed by Super Admin
+    "apps.intelligence", # ✅ AI Governance & Global Chat
+    # Celery Task Infrastructure
+    "django_celery_beat",    # Periodic task schedules stored in DB
+    "django_celery_results", # Task result backend (queryable via admin)
 )
 
 TENANT_APPS = (
@@ -104,6 +109,7 @@ AUTHENTICATION_BACKENDS = (
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware", # Move to top
     "django_tenants.middleware.main.TenantMainMiddleware",
+    "apps.identity.middleware.CertificateValidityMiddleware",
     "apps.identity.middleware_csp.CSPMiddleware", 
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -449,3 +455,24 @@ LLM_MODEL = config("LLM_MODEL", default="llama3")
 LLM_API_KEY = config("LLM_API_KEY", default="ollama") # Often 'ollama' or 'lm-studio'
 GEMINI_API_KEY = config("GEMINI_API_KEY", default="your_gemini_api_key_here")
 GROQ_API_KEY = config("GROQ_API_KEY", default=None)
+
+# ─────────────────────────────────────────────────────────────
+# CELERY CONFIGURATION
+# Broker & Result Backend: Redis (same as Channels)
+# Prod switch: change REDIS_URL in .env → no code changes needed
+# ─────────────────────────────────────────────────────────────
+CELERY_BROKER_URL = config("REDIS_URL", default="redis://127.0.0.1:6379/0")
+CELERY_RESULT_BACKEND = "django-db"          # stored in DB, queryable via admin
+CELERY_CACHE_BACKEND  = "django-cache"        # fallback cache backend
+CELERY_RESULT_EXTENDED = True                 # store args, kwargs, traceback in result
+CELERY_TASK_SERIALIZER   = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_ACCEPT_CONTENT    = ["json"]
+CELERY_TIMEZONE          = "UTC"
+CELERY_ENABLE_UTC        = True
+CELERY_TASK_ACKS_LATE          = True  # only ack after task completes (retry-safe)
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1  # one task/slot — fair for heavy RSA key generation
+CELERY_TASK_TRACK_STARTED = True
+
+# Beat uses DB scheduler so schedules survive restarts
+CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"

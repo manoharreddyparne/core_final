@@ -90,7 +90,7 @@ const processQueue = (error: any, token: string | null = null) => {
 import { AxiosInstance } from "axios";
 
 // ✅ Shared Interceptor Logic
-const attachInterceptors = (client: AxiosInstance) => {
+export const attachInterceptors = (client: AxiosInstance) => {
   // Request Interceptor
   client.interceptors.request.use(
     (config) => {

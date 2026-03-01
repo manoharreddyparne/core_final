@@ -246,10 +246,14 @@ export const useLoginV2VM = () => {
                     toast.success("Device recognized. Login successful!");
 
                     const role = (userData.role || "").toUpperCase();
-                    if (role === 'FACULTY') {
+                    if (role === 'FACULTY' || role === 'TEACHER') {
                         navigate("/faculty-dashboard");
-                    } else if (role === 'INSTITUTION_ADMIN' || role === 'ADMIN') {
+                    } else if (role === 'INSTITUTION_ADMIN' || role === 'ADMIN' || role === 'INST_ADMIN') {
                         navigate("/institution/dashboard");
+                    } else if (role === 'SUPER_ADMIN') {
+                        navigate("/superadmin/dashboard");
+                    } else if (role === 'STUDENT') {
+                        navigate("/student-dashboard");
                     } else {
                         navigate("/");
                     }
@@ -328,16 +332,22 @@ export const useLoginV2VM = () => {
 
                 if (userData) {
                     setUser(userData);
-                    const role = (userData.role || "").toUpperCase();
-                    if (role === 'SUPER_ADMIN') {
-                        toast.success("Super Admin authenticated.");
-                        navigate("/superadmin/dashboard");
-                    } else if (role === 'INSTITUTION_ADMIN') {
+                    const roleNorm = (userData.role || "").toUpperCase();
+                    if (roleNorm === 'FACULTY' || roleNorm === 'TEACHER') {
+                        toast.success("Educator authenticated.");
+                        navigate("/faculty-dashboard");
+                    } else if (roleNorm === 'INSTITUTION_ADMIN' || roleNorm === 'ADMIN' || roleNorm === 'INST_ADMIN') {
                         toast.success("Institutional Admin authenticated.");
                         navigate("/institution/dashboard");
+                    } else if (roleNorm === 'SUPER_ADMIN') {
+                        toast.success("Super Admin authenticated.");
+                        navigate("/superadmin/dashboard");
+                    } else if (roleNorm === 'STUDENT') {
+                        toast.success("Student authenticated.");
+                        navigate("/student-dashboard");
                     } else {
                         toast.success("Authentication successful.");
-                        navigate("/institution/dashboard");
+                        navigate("/");
                     }
                 } else {
                     toast.error("Session sync failed. Please try again.");
@@ -419,10 +429,14 @@ export const useLoginV2VM = () => {
                     toast.success("MFA verified! Redirecting...");
 
                     const role = (userData.role || "").toUpperCase();
-                    if (role === 'FACULTY') {
+                    if (role === 'FACULTY' || role === 'TEACHER') {
                         navigate("/faculty-dashboard");
-                    } else if (role === 'INSTITUTION_ADMIN' || role === 'ADMIN') {
+                    } else if (role === 'INSTITUTION_ADMIN' || role === 'ADMIN' || role === 'INST_ADMIN') {
                         navigate("/institution/dashboard");
+                    } else if (role === 'SUPER_ADMIN') {
+                        navigate("/superadmin/dashboard");
+                    } else if (role === 'STUDENT') {
+                        navigate("/student-dashboard");
                     } else {
                         navigate("/");
                     }
@@ -462,15 +476,17 @@ export const useLoginV2VM = () => {
                 if (userData) {
                     setUser(userData);
                     toast.success("2FA Verified. Access Granted.");
-                    const role = userData.role?.toUpperCase();
+                    const roleNorm = userData.role?.toUpperCase();
 
-                    let target = "/student-dashboard";
-                    if (role === 'SUPER_ADMIN') {
+                    let target = "/";
+                    if (roleNorm === 'SUPER_ADMIN') {
                         target = "/superadmin/dashboard";
-                    } else if (role === 'INSTITUTION_ADMIN' || role === 'ADMIN') {
+                    } else if (roleNorm === 'INSTITUTION_ADMIN' || roleNorm === 'ADMIN' || roleNorm === 'INST_ADMIN') {
                         target = "/institution/dashboard";
-                    } else if (role === 'FACULTY') {
+                    } else if (roleNorm === 'FACULTY' || roleNorm === 'TEACHER') {
                         target = "/faculty-dashboard";
+                    } else if (roleNorm === 'STUDENT') {
+                        target = "/student-dashboard";
                     }
 
                     // Using a small timeout to ensure state settles

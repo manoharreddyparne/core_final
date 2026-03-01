@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
+import { ThemeToggle } from "../../../shared/components/ThemeToggle";
 import {
     LayoutDashboard,
     User,
@@ -24,7 +25,10 @@ import {
     HelpCircle,
     MessageCircle,
     Bell,
-    Target
+    Target,
+    BarChart3,
+    Cpu,
+    FlaskConical
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 
@@ -92,7 +96,7 @@ export const AppLayout = () => {
     // 🛡️ LOADING GATE: Don't render ANYTHING until we know the auth status
     if (bootstrapping && !bootstrapped) {
         return (
-            <div className="fixed inset-0 bg-[#0b1120] flex flex-col items-center justify-center z-[100] gap-8">
+            <div className="fixed inset-0 bg-[var(--bg-base)] flex flex-col items-center justify-center z-[100] gap-8">
                 <div className="relative">
                     <div className="w-24 h-24 border-t-4 border-b-4 border-primary/30 rounded-full animate-spin" />
                     <div className="absolute inset-0 flex items-center justify-center">
@@ -100,8 +104,8 @@ export const AppLayout = () => {
                     </div>
                 </div>
                 <div className="space-y-2 text-center">
-                    <h2 className="text-2xl font-black text-white tracking-widest uppercase">AUIP <span className="text-primary italic font-black">Secure</span></h2>
-                    <p className="text-[10px] text-gray-500 font-black uppercase tracking-[0.3em]">Initializing Encrypted Session...</p>
+                    <h2 className="text-2xl font-black text-[var(--text-primary)] tracking-widest uppercase">AUIP <span className="text-primary italic font-black">Secure</span></h2>
+                    <p className="text-[10px] text-[var(--text-secondary)] font-black uppercase tracking-[0.3em]">Initializing Encrypted Session...</p>
                 </div>
             </div>
         );
@@ -190,23 +194,39 @@ export const AppLayout = () => {
             to: "/institution/dashboard",
             label: "Dashboard",
             icon: LayoutDashboard,
-            roles: ["institution_admin", "super_admin", "admin"],
+            roles: ["institution_admin", "admin"],
             hideInGlobal: true
         },
         {
             to: "/institution/students",
             label: "Student Base",
             icon: User,
-            roles: ["institution_admin", "super_admin", "admin"],
+            roles: ["institution_admin", "admin"],
             hideInGlobal: true
         },
         {
             to: "/institution/placements",
             label: "Placements & JD AI",
             icon: Target,
-            roles: ["institution_admin", "super_admin", "admin"],
+            roles: ["institution_admin", "admin"],
             hideInGlobal: true
         },
+        {
+            to: "/institution/brain",
+            label: "Governance Brain",
+            icon: Brain,
+            roles: ["institution_admin", "admin", "faculty"],
+            hideInGlobal: true
+        },
+        {
+            to: "/institution/analytics",
+            label: "TPO Analytics",
+            icon: BarChart3,
+            roles: ["institution_admin", "admin"],
+            hideInGlobal: true
+        },
+        // STUDENT ONLY
+        { to: "/mock-tests", label: "Mock Tests", icon: FlaskConical, roles: ["student", "faculty"] },
         // SOCIAL & CONNECT (CROSS-ROLE)
         { to: "/professional-hub", label: "Professional Hub", icon: Globe, roles: ["student", "faculty", "institution_admin", "admin"] },
         { to: "/discovery", label: "Search Network", icon: Search, roles: ["student", "faculty", "institution_admin", "admin"] },
@@ -216,7 +236,7 @@ export const AppLayout = () => {
             to: "/institution/faculty",
             label: "Academic Faculty",
             icon: Users,
-            roles: ["institution_admin", "super_admin"],
+            roles: ["institution_admin"],
             hideInGlobal: true
         },
 
@@ -232,8 +252,13 @@ export const AppLayout = () => {
     const filteredNav = navItems.filter(item => {
         const userRole = user?.role?.toLowerCase();
         const roleMatch = item.roles.includes("all") || (userRole && item.roles.some(allowed => {
-            if (allowed === "inst_admin" || allowed === "institution_admin") {
-                return userRole === "inst_admin" || userRole === "institution_admin";
+            // Normalize institution_admin <-> inst_admin <-> admin
+            if (allowed === "inst_admin" || allowed === "institution_admin" || allowed === "admin") {
+                return userRole === "inst_admin" || userRole === "institution_admin" || userRole === "admin";
+            }
+            // Normalize faculty <-> teacher
+            if (allowed === "faculty" || allowed === "teacher") {
+                return userRole === "faculty" || userRole === "teacher";
             }
             return userRole === allowed;
         }));
@@ -481,10 +506,10 @@ export const AppLayout = () => {
     }, [user]);
 
     return (
-        <div className="h-screen bg-[#0b1120] text-foreground flex flex-col md:flex-row font-sans overflow-hidden">
+        <div className="h-screen bg-[var(--bg-base)] text-foreground flex flex-col md:flex-row font-sans overflow-hidden">
             {/* Mobile Header */}
             <div className="md:hidden bg-background border-b border-border p-4 flex items-center justify-between sticky top-0 z-20">
-                <div className="font-bold text-lg text-primary">AUIP <span className="text-white italic">Platform</span></div>
+                <div className="font-bold text-lg text-primary">AUIP <span className="text-[var(--text-primary)] italic">Platform</span></div>
                 <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
                     {isMobileMenuOpen ? <X /> : <Menu />}
                 </button>
@@ -492,17 +517,17 @@ export const AppLayout = () => {
 
             {/* Sidebar */}
             <aside className={`
-                fixed inset-y-0 left-0 z-30 bg-black/40 backdrop-blur-2xl border-r border-white/5 transform transition-all duration-300 ease-in-out md:translate-x-0 md:static md:h-screen flex flex-col
+                fixed inset-y-0 left-0 z-30 bg-[var(--bg-elevated)] backdrop-blur-2xl border-r border-[var(--border)] transform transition-all duration-300 ease-in-out md:translate-x-0 md:static md:h-screen flex flex-col
                 ${isMobileMenuOpen ? "translate-x-0 w-64 shadow-2xl" : "-translate-x-full md:translate-x-0"}
                 ${isSidebarCollapsed ? "md:w-20" : "md:w-80"}
             `}>
 
                 {/* Brand + Collapse Toggle */}
-                <div className={`p-6 border-b border-white/5 hidden md:flex items-center ${isSidebarCollapsed ? "justify-center" : "justify-between"}`}>
-                    {!isSidebarCollapsed && <h2 className="text-2xl font-black tracking-tighter text-white">AUIP <span className="text-primary italic">Platform</span></h2>}
+                <div className={`p-6 border-b border-[var(--border)] hidden md:flex items-center ${isSidebarCollapsed ? "justify-center" : "justify-between"}`}>
+                    {!isSidebarCollapsed && <h2 className="text-2xl font-black tracking-tighter text-[var(--text-primary)]">AUIP <span className="text-primary italic">Platform</span></h2>}
                     <button
                         onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                        className="text-gray-400 hover:text-blue-600 transition-colors"
+                        className="text-[var(--text-secondary)] hover:text-blue-600 transition-colors"
                         title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
                     >
                         {isSidebarCollapsed ? <PanelLeftOpen className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
@@ -510,13 +535,13 @@ export const AppLayout = () => {
                 </div>
 
                 {/* User Info */}
-                <div className={`p-6 mt-4 flex items-center gap-3 bg-white/5 mx-4 rounded-3xl ${isSidebarCollapsed ? "justify-center px-0" : ""}`}>
-                    <div className="shrink-0 w-10 h-10 rounded-2xl premium-gradient flex items-center justify-center text-white font-bold cursor-default" title={user?.username}>
+                <div className={`p-6 mt-4 flex items-center gap-3 bg-[var(--bg-card)] mx-4 rounded-3xl ${isSidebarCollapsed ? "justify-center px-0" : ""}`}>
+                    <div className="shrink-0 w-10 h-10 rounded-2xl premium-gradient flex items-center justify-center text-[var(--text-primary)] font-bold cursor-default" title={user?.username}>
                         {user?.username?.charAt(0).toUpperCase()}
                     </div>
                     {!isSidebarCollapsed && (
                         <div className="overflow-hidden">
-                            <p className="font-bold text-sm text-white truncate">{user?.username}</p>
+                            <p className="font-bold text-sm text-[var(--text-primary)] truncate">{user?.username}</p>
                             <p className="text-[10px] text-primary uppercase font-black tracking-widest">{user?.role}</p>
                         </div>
                     )}
@@ -533,8 +558,8 @@ export const AppLayout = () => {
                             className={({ isActive }) =>
                                 `flex items-center gap-3 px-4 py-3 rounded-2xl transition-all font-bold mb-2
                                 ${isActive
-                                    ? "bg-primary text-white shadow-xl shadow-primary/20"
-                                    : "text-gray-400 hover:bg-white/5 hover:text-white"
+                                    ? "bg-primary text-[var(--text-primary)] shadow-xl shadow-primary/20"
+                                    : "text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)]"
                                 }
                                 ${isSidebarCollapsed ? "justify-center" : ""}
                                 `
@@ -546,11 +571,11 @@ export const AppLayout = () => {
                     ))}
 
                     {/* Settings Group */}
-                    <div className="mt-2 pt-2 border-t border-gray-100">
+                    <div className="mt-2 pt-2 border-t border-[var(--border)]">
                         {isSidebarCollapsed ? (
                             <NavLink
                                 to="/settings"
-                                className={({ isActive }) => `flex items-center justify-center p-3 rounded-lg transition-all ${isActive ? "bg-blue-50 text-blue-600" : "text-gray-500 hover:bg-gray-50"}`}
+                                className={({ isActive }) => `flex items-center justify-center p-3 rounded-lg transition-all ${isActive ? "bg-blue-50 text-blue-600" : "text-[var(--text-secondary)] hover:bg-[var(--bg-card)]"}`}
                                 title="Settings"
                             >
                                 <Settings className="w-5 h-5" />
@@ -559,7 +584,7 @@ export const AppLayout = () => {
                             <>
                                 <button
                                     onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-                                    className="flex w-full items-center justify-between px-3 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-all font-medium"
+                                    className="flex w-full items-center justify-between px-3 py-3 text-[var(--text-primary)] hover:bg-[var(--bg-card)] rounded-lg transition-all font-medium"
                                 >
                                     <div className="flex items-center gap-3">
                                         <Settings className="w-5 h-5" />
@@ -569,7 +594,7 @@ export const AppLayout = () => {
                                 </button>
 
                                 {isSettingsOpen && (
-                                    <div className="ml-4 pl-3 border-l-2 border-gray-100 mt-1 space-y-1">
+                                    <div className="ml-4 pl-3 border-l-2 border-[var(--border)] mt-1 space-y-1">
                                         {settingsSubItems.map(sub => (
                                             <NavLink
                                                 key={sub.to}
@@ -578,7 +603,7 @@ export const AppLayout = () => {
                                                     `flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-all
                                                     ${isActive
                                                         ? "text-blue-600 bg-blue-50/50 font-medium"
-                                                        : "text-gray-500 hover:text-gray-800 hover:bg-gray-50"
+                                                        : "text-[var(--text-secondary)] hover:text-gray-800 hover:bg-[var(--bg-card)]"
                                                     }`
                                                 }
                                                 onClick={() => setIsMobileMenuOpen(false)}
@@ -595,10 +620,15 @@ export const AppLayout = () => {
                 </nav>
 
                 {/* Footer Actions */}
-                <div className="p-4 border-t border-gray-200 bg-gray-50 space-y-2">
+                <div className="p-4 border-t border-[var(--border)] bg-[var(--bg-elevated)] space-y-2">
+                    <div className={`flex items-center ${isSidebarCollapsed ? "justify-center" : "justify-between"} mb-2 px-1`}>
+                        {!isSidebarCollapsed && <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">Appearance</span>}
+                        <ThemeToggle />
+                    </div>
+
                     <Button
                         variant="outline"
-                        className={`w-full gap-2 border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800 ${isSidebarCollapsed ? "px-0 justify-center" : "justify-start"}`}
+                        className={`w-full gap-2 transition-all duration-300 ${isSidebarCollapsed ? "px-0 justify-center" : "justify-start"}`}
                         onClick={handleSecureDevice}
                         title="Secure My Device"
                     >
@@ -608,7 +638,7 @@ export const AppLayout = () => {
 
                     <button
                         onClick={() => setConfirmLogoutModal(true)}
-                        className={`w-full flex items-center gap-2 px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-all font-medium ${isSidebarCollapsed ? "justify-center" : ""}`}
+                        className={`w-full flex items-center gap-2 px-3 py-2 text-red-500 hover:bg-red-500/10 rounded-lg transition-all font-medium ${isSidebarCollapsed ? "justify-center" : ""}`}
                         title="Sign Out"
                     >
                         <LogOut className="w-5 h-5 shrink-0" />
@@ -635,7 +665,7 @@ export const AppLayout = () => {
                             <div className="relative">
                                 <button
                                     onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-                                    className={`relative w-9 h-9 rounded-xl glass border-white/5 flex items-center justify-center transition-colors ${isNotificationsOpen ? 'text-primary bg-white/10' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
+                                    className={`relative w-9 h-9 rounded-xl glass border-[var(--border)] flex items-center justify-center transition-colors ${isNotificationsOpen ? 'text-primary bg-white/10' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-white/10'}`}
                                 >
                                     <Bell className="w-4 h-4" />
                                     {unreadNotifs > 0 && (
@@ -649,7 +679,7 @@ export const AppLayout = () => {
                             </div>
                             <button
                                 onClick={() => setIsSearchOpen(true)}
-                                className="glass px-3 py-2 rounded-xl border-white/5 flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+                                className="glass px-3 py-2 rounded-xl border-[var(--border)] flex items-center gap-2 text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-white/10 transition-all"
                             >
                                 <Search className="w-4 h-4" />
                                 <span className="hidden sm:inline">Cmd+K</span>
@@ -663,12 +693,12 @@ export const AppLayout = () => {
                     /* Normal routes: regular max-width scrollable content */
                     <div className="max-w-7xl mx-auto animate-in fade-in duration-300 w-full">
                         <div className="mb-6 flex items-center justify-between">
-                            <div className="md:invisible font-bold text-gray-500 uppercase tracking-widest text-[10px]">Portal Access</div>
+                            <div className="md:invisible font-bold text-[var(--text-secondary)] uppercase tracking-widest text-[10px]">Portal Access</div>
                             <div className="flex items-center gap-4">
                                 <div className="relative">
                                     <button
                                         onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-                                        className={`relative w-10 h-10 rounded-2xl glass border-white/5 flex items-center justify-center transition-colors ${isNotificationsOpen ? 'text-primary bg-white/10' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
+                                        className={`relative w-10 h-10 rounded-2xl glass border-[var(--border)] flex items-center justify-center transition-colors ${isNotificationsOpen ? 'text-primary bg-white/10' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-white/10'}`}
                                     >
                                         <Bell className="w-5 h-5" />
                                         {unreadNotifs > 0 && (
@@ -682,10 +712,10 @@ export const AppLayout = () => {
                                 </div>
                                 <button
                                     onClick={() => setIsSearchOpen(true)}
-                                    className="glass px-4 py-2 rounded-2xl border-white/5 flex items-center gap-3 text-xs font-bold text-gray-400 hover:text-white hover:bg-white/10 transition-all group"
+                                    className="glass px-4 py-2 rounded-2xl border-[var(--border)] flex items-center gap-3 text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-white/10 transition-all group"
                                 >
                                     <Search className="w-4 h-4 group-hover:text-primary transition-colors" />
-                                    <span className="hidden sm:inline">Type <span className="text-white hover:text-primary">Cmd+K</span> to search everything...</span>
+                                    <span className="hidden sm:inline">Type <span className="text-[var(--text-primary)] hover:text-primary">Cmd+K</span> to search everything...</span>
                                     <span className="sm:hidden">Search...</span>
                                 </button>
                             </div>
@@ -724,18 +754,18 @@ export const AppLayout = () => {
             {/* Logout Confirmation Modal */}
             {confirmLogoutModal && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="glass bg-[#0b1120] p-8 rounded-[3rem] max-w-sm w-full shadow-2xl space-y-6">
+                    <div className="glass bg-[var(--bg-base)] p-8 rounded-[3rem] max-w-sm w-full shadow-2xl space-y-6">
                         <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
                             <LogOut className="w-8 h-8 text-red-500" />
                         </div>
-                        <h2 className="text-2xl font-black text-center text-white">Sign Out?</h2>
-                        <p className="text-gray-400 text-center text-sm font-medium">
+                        <h2 className="text-2xl font-black text-center text-[var(--text-primary)]">Sign Out?</h2>
+                        <p className="text-[var(--text-secondary)] text-center text-sm font-medium">
                             Are you sure you want to log out and terminate your current encrypted session securely?
                         </p>
                         <div className="flex gap-4 pt-4">
                             <button
                                 onClick={() => setConfirmLogoutModal(false)}
-                                className="flex-1 px-4 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl font-bold transition-colors"
+                                className="flex-1 px-4 py-3 bg-[var(--bg-card)] hover:bg-white/10 text-[var(--text-primary)] rounded-xl font-bold transition-colors"
                             >
                                 Cancel
                             </button>
@@ -744,7 +774,7 @@ export const AppLayout = () => {
                                     setConfirmLogoutModal(false);
                                     logout();
                                 }}
-                                className="flex-1 px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold transition-colors shadow-lg shadow-red-500/20"
+                                className="flex-1 px-4 py-3 bg-red-500 hover:bg-red-600 text-[var(--text-primary)] rounded-xl font-bold transition-colors shadow-lg shadow-red-500/20"
                             >
                                 Sign Out
                             </button>

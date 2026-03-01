@@ -202,8 +202,10 @@ class AdminTokenObtainPairView(TokenObtainPairView):
 
         # BURN JIT TICKET ON SUCCESS
         if user.role == User.Roles.SUPER_ADMIN:
-            jit_ticket = request.data.get("jit_ticket")
+            jit_ticket = request.data.get("jit_ticket") or request.data.get("ticket")
             institution_id = request.data.get("institution_id")
+            
+            logger.info(f"[SEC-GATE] Super Admin post-login JIT check: jit_ticket={bool(jit_ticket)}, inst_id={institution_id}")
             if not institution_id and jit_ticket:
                 burn_jit_admin_ticket(jit_ticket)
                 logger.info(f"[SEC-GATE] SuperAdmin JIT ticket burned user={user.id}")

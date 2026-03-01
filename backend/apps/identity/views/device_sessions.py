@@ -129,30 +129,33 @@ class SessionLogoutAllView(APIView):
     def delete(self, request, *args, **kwargs) -> Any:
         user: User = request.user
         exclude_current = request.query_params.get("exclude_current", "false").lower() == "true"
-        
-        current_session_jti = None
-        if exclude_current:
-            try:
-                # Extract JTI from the current access token (SafeJWTAuthentication sets this)
-                current_session_jti = getattr(request.auth, 'get', lambda x, y: None)('jti', None)
-            except Exception:
-                pass
+        current_session_jti = getattr(request, 'access_jti', None)
+        if exclude_current and not current_session_jti:
+             # Fallback attempt if access_jti wasn't attached
+             current_session_jti = getattr(request.auth, 'get', lambda x, y: None)('jti', None)
 
         try:
             # Extract schema from token if it exists (for multi-tenant sessions)
             schema = getattr(request.auth, 'get', lambda x, y: None)('schema', None)
             
-            logout_all_sessions_secure(user, exclude_jti=current_session_jti, schema=schema)
-            msg = "Logged out of other devices" if exclude_current else "All sessions logged out successfully"
+            logger.info(f"[LOGOUT-ALL] User {user.email} (exclude={exclude_current}, jti={current_session_jti}, schema={schema})")
+            
+            count = logout_all_sessions_secure(user, exclude_jti=current_session_jti, schema=schema)
+            
+            msg = f"Logged out of {count} other devices" if exclude_current else "All sessions logged out successfully"
             resp = success_response(msg)
+            
             if not exclude_current:
                 # Extract role to clear specific cookie
-                role = getattr(user, 'role', None) or getattr(request.auth, 'get', lambda x, y: None)('role', None)
+                role = getattr(user, 'role', None) 
+                if not role:
+                    role = getattr(request.auth, 'get', lambda x, y: None)('role', None)
                 clear_session_cookies(resp, role=role)
+                
             return resp
-        except Exception:
-            logger.exception("Failed to logout all sessions")
-            return success_response("Failed to logout all sessions", code=500)
+        except Exception as e:
+            logger.exception(f"Failed to logout all sessions for {user.email}")
+            return error_response(f"Failed to logout sessions: {str(e)}", code=500)
 
     def post(self, request, *args, **kwargs) -> Any:
         """Compatibility for POST-based logout"""

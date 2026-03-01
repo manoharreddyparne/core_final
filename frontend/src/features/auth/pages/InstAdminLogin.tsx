@@ -83,11 +83,14 @@ export default function InstAdminLogin() {
     const isFormValid = !!(identifier && password && selectedInstitution && turnstileToken);
 
     return (
-        <div className="flex items-center justify-center min-h-screen bg-[#fcfcfd] dark:bg-[#0a0a0b] p-4 font-inter">
+        <div
+            className="flex items-center justify-center min-h-screen p-4 font-inter transition-colors duration-300"
+            style={{ background: "var(--bg-base)", color: "var(--text-primary)" }}
+        >
             {/* Background Accent */}
             <div className="fixed inset-0 overflow-hidden pointer-events-none -z-10">
-                <div className="absolute top-[-20%] right-[-10%] w-[60%] h-[60%] bg-blue-500/5 blur-[120px] rounded-full" />
-                <div className="absolute bottom-[-20%] left-[-10%] w-[60%] h-[60%] bg-indigo-500/5 blur-[120px] rounded-full" />
+                <div className="absolute top-[-20%] right-[-10%] w-[60%] h-[60%] rounded-full blur-[120px]" style={{ background: "var(--primary-glow)" }} />
+                <div className="absolute bottom-[-20%] left-[-10%] w-[60%] h-[60%] rounded-full blur-[120px]" style={{ background: "rgba(139,92,246,0.08)" }} />
             </div>
 
             <div className="w-full max-w-xl space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-1000">

@@ -54,3 +54,10 @@ httpagentparser==1.9.5
 google-generativeai==0.8.3
 openai==1.55.0
 PyPDF2==3.0.1
+cryptography>=42.0.0
+endesive>=2.12.0
+qrcode[pil]>=7.4.2
+# ── Celery (async task queue + periodic beat scheduler) ──
+celery==5.4.0
+django-celery-beat==2.7.0
+django-celery-results==2.5.1
