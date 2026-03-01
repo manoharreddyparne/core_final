@@ -15,7 +15,7 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-# secure_exam/urls.py
+
 from django.contrib import admin
 from django.urls import path, include
 
@@ -61,4 +61,17 @@ urlpatterns = [
 
     # Resume Builder Hub (Isolated)
     path('api/resumes/', include('apps.resumes.urls')),
+
+    # Site Config / CMS (Public — Landing page content)
+    path('api/users/public/', include('apps.site_config.urls')),
 ]
+
+# -----------------------------
+# STATIC & MEDIA (Development Only)
+# -----------------------------
+from django.conf import settings
+from django.conf.urls.static import static
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

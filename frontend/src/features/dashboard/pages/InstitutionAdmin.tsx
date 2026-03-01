@@ -746,7 +746,10 @@ export const InstitutionAdmin = () => {
                             <div className="flex flex-col items-end">
                                 <span className={`text-xl font-black tabular-nums ${approveComplete ? "text-emerald-400" : "text-primary"}`}>{Math.round(approveProgress)}%</span>
                                 <div className="w-32 h-1.5 bg-white/5 rounded-full overflow-hidden mt-1 border border-white/5">
-                                    <div className={`h-full transition-all duration-500 ${approveComplete ? "bg-emerald-500" : "bg-primary"}`} style={{ width: `${approveProgress}%` }} />
+                                    <div
+                                        className={`h-full transition-all duration-500 ease-out ${approveComplete ? "!bg-emerald-500" : "!bg-primary"}`}
+                                        style={{ width: `${approveProgress}%` }}
+                                    />
                                 </div>
                             </div>
                         </div>
@@ -761,6 +764,12 @@ export const InstitutionAdmin = () => {
                                     {approvePhases.map((phase, i) => {
                                         const isDone = i < approvePhaseIdx || approveComplete;
                                         const isActive = i === approvePhaseIdx && !approveComplete;
+
+                                        // Calculate sub-progress for current active phase
+                                        const phaseStart = i === 0 ? 0 : approvePhases[i - 1].target;
+                                        const phaseEnd = phase.target;
+                                        const currentPhaseWidth = Math.min(100, Math.max(0, ((approveProgress - phaseStart) / (phaseEnd - phaseStart)) * 100));
+
                                         return (
                                             <div key={i} className={`flex items-center gap-4 px-5 py-3.5 rounded-2xl transition-all duration-500 border ${isActive ? "bg-primary/10 border-primary/30 shadow-[0_0_20px_rgba(var(--primary-rgb),0.05)]" :
                                                 isDone ? "bg-emerald-500/5 border-emerald-500/10 opacity-70" :
@@ -778,10 +787,18 @@ export const InstitutionAdmin = () => {
                                                     <p className={`text-[11px] font-black uppercase tracking-wider transition-colors duration-500 ${isDone ? "text-emerald-400" : isActive ? "text-white" : "text-gray-600"}`}>
                                                         {phase.icon} {phase.label}
                                                     </p>
+                                                    {isActive && (
+                                                        <div className="text-[8px] text-primary/60 font-mono mt-0.5 animate-pulse">
+                                                            Processing sub-routine... {Math.round(currentPhaseWidth)}%
+                                                        </div>
+                                                    )}
                                                 </div>
-                                                {isActive && (
-                                                    <div className="shrink-0 w-16 h-1.5 bg-black/40 rounded-full overflow-hidden border border-white/5">
-                                                        <div className="h-full bg-primary rounded-full animate-progress-buffer" />
+                                                {(isActive || isDone) && (
+                                                    <div className="shrink-0 w-24 h-1 bg-black/40 rounded-full overflow-hidden border border-white/5">
+                                                        <div
+                                                            className={`h-full transition-all duration-300 ${isDone ? "bg-emerald-500" : "bg-primary"}`}
+                                                            style={{ width: isDone ? "100%" : `${currentPhaseWidth}%` }}
+                                                        />
                                                     </div>
                                                 )}
                                             </div>

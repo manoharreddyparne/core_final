@@ -24,7 +24,7 @@ class WSProgressStream(StringIO):
         super().__init__(*args, **kwargs)
         self.schema_name = schema_name
         self._channel_layer = get_channel_layer()
-        self._total_migrations = 65  # Approximate total for AUIP
+        self._total_migrations = 100  # Updated estimate for AUIP v2.x
         self._current_migration = 0
     
     def write(self, s):
