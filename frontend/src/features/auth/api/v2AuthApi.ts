@@ -40,6 +40,7 @@ export interface FacultyMFAPayload {
     email: string;
     otp: string;
     remember_device?: boolean;
+    role?: string; // ✅ Context disambiguation
 }
 
 export interface PublicConfig {

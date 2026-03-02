@@ -1,7 +1,8 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from apps.auip_institution.views.tenant_auth_views import InstAdminTokenObtainPairView
-from apps.auip_institution.views.student_views import RegisteredStudentViewSet, TenantBulkStudentUploadView
+from apps.auip_institution.views.student_views import RegisteredStudentViewSet
+from apps.auip_institution.views.bulk_upload_views import TenantBulkStudentUploadView
 from apps.auip_institution.views.faculty_views import RegisteredFacultyViewSet, TenantBulkFacultyUploadView
 
 router = DefaultRouter()

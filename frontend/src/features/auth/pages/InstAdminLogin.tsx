@@ -67,7 +67,7 @@ export default function InstAdminLogin() {
         // If the form is submitted, these conditions must be met.
 
         if (otpRequired) {
-            handleVerifyMFA();
+            handleVerifyMFA(authType === "inst_admin" ? "INSTITUTION_ADMIN" : "FACULTY");
             return;
         }
 
@@ -112,23 +112,27 @@ export default function InstAdminLogin() {
                 {/* Main Card */}
                 <div className="bg-white dark:bg-white/[0.02] border border-black/5 dark:border-white/10 rounded-[3rem] p-4 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] backdrop-blur-3xl overflow-hidden relative">
 
-                    {/* Role Toggle */}
-                    <div className="flex p-2 bg-slate-100 dark:bg-white/5 rounded-[2.5rem] mb-8 relative">
-                        <button
-                            onClick={() => handleToggle("inst_admin")}
-                            className={`flex-1 flex items-center justify-center gap-3 py-4 rounded-[2rem] text-xs font-black uppercase tracking-widest transition-all z-10 ${authType === "inst_admin" ? "bg-white dark:bg-primary text-slate-900 dark:text-white shadow-lg" : "text-slate-500 dark:text-gray-500 hover:text-slate-700 dark:hover:text-gray-300"}`}
-                        >
-                            <ShieldCheck className="w-4 h-4" />
-                            Admin
-                        </button>
-                        <button
-                            onClick={() => handleToggle("educator")}
-                            className={`flex-1 flex items-center justify-center gap-3 py-4 rounded-[2rem] text-xs font-black uppercase tracking-widest transition-all z-10 ${authType === "educator" ? "bg-white dark:bg-primary text-slate-900 dark:text-white shadow-lg" : "text-slate-500 dark:text-gray-500 hover:text-slate-700 dark:hover:text-gray-300"}`}
-                        >
-                            <Users className="w-4 h-4" />
-                            Educator / SPOC
-                        </button>
-                    </div>
+                    {/* Role Toggle — Hidden during MFA for focused flow */}
+                    {!otpRequired && (
+                        <div className="flex p-2 bg-slate-100 dark:bg-white/5 rounded-[2.5rem] mb-8 relative">
+                            <button
+                                type="button"
+                                onClick={() => handleToggle("inst_admin")}
+                                className={`flex-1 flex items-center justify-center gap-3 py-4 rounded-[2rem] text-xs font-black uppercase tracking-widest transition-all z-10 ${authType === "inst_admin" ? "bg-white dark:bg-primary text-slate-900 dark:text-white shadow-lg" : "text-slate-500 dark:text-gray-500 hover:text-slate-700 dark:hover:text-gray-300"}`}
+                            >
+                                <ShieldCheck className="w-4 h-4" />
+                                Admin
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => handleToggle("educator")}
+                                className={`flex-1 flex items-center justify-center gap-3 py-4 rounded-[2rem] text-xs font-black uppercase tracking-widest transition-all z-10 ${authType === "educator" ? "bg-white dark:bg-primary text-slate-900 dark:text-white shadow-lg" : "text-slate-500 dark:text-gray-500 hover:text-slate-700 dark:hover:text-gray-300"}`}
+                            >
+                                <Users className="w-4 h-4" />
+                                Educator / SPOC
+                            </button>
+                        </div>
+                    )}
 
                     <div className="px-6 pb-8 space-y-8">
                         {!otpRequired ? (
@@ -211,62 +215,87 @@ export default function InstAdminLogin() {
                                 </button>
                             </form>
                         ) : (
-                            <form onSubmit={(e) => { e.preventDefault(); handleVerifyMFA(); }} className="space-y-8 animate-in zoom-in-95 duration-500">
-                                <div className="text-center space-y-4">
-                                    <div className="inline-flex items-center gap-2 px-6 py-2 bg-primary/10 border border-primary/20 rounded-full text-primary text-[10px] font-black uppercase tracking-widest">
-                                        <KeyRound className="w-3 h-3" />
-                                        MFA Required
-                                    </div>
-                                    <p className="text-slate-500 dark:text-gray-500 text-xs font-medium">
-                                        Security code sent to <span className="text-slate-900 dark:text-white font-mono">{emailHint || identifier}</span>
-                                    </p>
-                                </div>
-
-                                <div className="space-y-1 px-4 text-center">
-                                    <input
-                                        type="text"
-                                        value={otp}
-                                        onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                                        className="w-full bg-transparent border-b-4 border-slate-200 dark:border-white/10 focus:border-primary px-4 py-6 text-5xl text-center font-black tracking-[0.5em] outline-none transition-all placeholder:text-slate-100 dark:placeholder:text-gray-900 text-slate-900 dark:text-white"
-                                        placeholder="000000"
-                                        maxLength={6}
-                                        autoFocus
-                                        required
-                                    />
-                                </div>
-
-                                <div className="flex items-center justify-center gap-3 px-2">
-                                    <label className="relative flex items-center cursor-pointer group">
-                                        <input
-                                            type="checkbox"
-                                            className="sr-only peer"
-                                            checked={rememberDevice}
-                                            onChange={(e) => setRememberDevice(e.target.checked)}
-                                        />
-                                        <div className="w-5 h-5 bg-white/10 border border-white/10 rounded-lg peer-checked:bg-primary peer-checked:border-primary transition-all flex items-center justify-center">
-                                            <div className="w-1.5 h-3 border-r-2 border-b-2 border-white rotate-45 mb-0.5 opacity-0 peer-checked:opacity-100 transition-opacity" />
+                            <form onSubmit={(e) => { e.preventDefault(); handleVerifyMFA(authType === "inst_admin" ? "INSTITUTION_ADMIN" : "FACULTY"); }} className="space-y-10 animate-in zoom-in-95 duration-500">
+                                <div className="text-center space-y-6">
+                                    <div className="flex justify-center">
+                                        <div className="w-20 h-20 bg-primary/10 rounded-full border border-primary/20 flex items-center justify-center relative">
+                                            <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping opacity-20" />
+                                            <KeyRound className="w-10 h-10 text-primary" />
                                         </div>
-                                        <span className="ml-3 text-[10px] font-black text-slate-500 dark:text-gray-500 uppercase tracking-widest group-hover:text-slate-700 dark:group-hover:text-gray-300 transition-colors">
-                                            Trust this device for 30 days
-                                        </span>
-                                    </label>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <div className="inline-flex items-center gap-2 px-6 py-2 bg-primary/10 border border-primary/20 rounded-full text-primary text-[10px] font-black uppercase tracking-widest">
+                                            <ShieldCheck className="w-3 h-3" />
+                                            MFA Protected Session
+                                        </div>
+                                        <p className="text-slate-500 dark:text-gray-500 text-xs font-medium">
+                                            Security code dispatched to <span className="text-slate-900 dark:text-white font-mono bg-slate-100 dark:bg-white/5 px-2 py-1 rounded">{emailHint || identifier}</span>
+                                        </p>
+                                    </div>
                                 </div>
 
-                                <button
-                                    type="submit"
-                                    disabled={isLoading || otp.length < 6}
-                                    className="w-full py-5 premium-gradient text-white rounded-[2rem] font-black uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:grayscale"
-                                >
-                                    {isLoading ? "Verifying..." : "Confirm Identity"}
-                                </button>
+                                <div className="space-y-6">
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            value={otp}
+                                            onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                            className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-3xl px-4 py-8 text-6xl text-center font-bold tracking-[0.4em] outline-none focus:ring-4 focus:ring-primary/20 transition-all placeholder:text-slate-200 dark:placeholder:text-gray-800 text-slate-900 dark:text-white"
+                                            placeholder="000000"
+                                            maxLength={6}
+                                            autoFocus
+                                            required
+                                        />
+                                        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex gap-4 w-full max-w-[80%] opacity-20">
+                                            {[1, 2, 3, 4, 5, 6].map(i => (
+                                                <div key={i} className="h-0.5 flex-1 bg-white" />
+                                            ))}
+                                        </div>
+                                    </div>
 
-                                <button
-                                    type="button"
-                                    onClick={() => setOtpRequired(false)}
-                                    className="w-full text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 dark:text-gray-600 dark:hover:text-gray-400 transition-colors"
-                                >
-                                    ← Back to Login
-                                </button>
+                                    <div className="bg-primary/[0.03] border border-primary/10 p-4 rounded-3xl flex items-center justify-center gap-3">
+                                        <label className="relative flex items-center cursor-pointer group">
+                                            <input
+                                                type="checkbox"
+                                                className="sr-only peer"
+                                                checked={rememberDevice}
+                                                onChange={(e) => setRememberDevice(e.target.checked)}
+                                            />
+                                            <div className="w-6 h-6 bg-white/10 dark:bg-black/20 border-2 border-slate-200 dark:border-white/10 rounded-xl peer-checked:bg-primary peer-checked:border-primary transition-all flex items-center justify-center shadow-inner">
+                                                <div className="w-2 h-4 border-r-3 border-b-3 border-white rotate-45 mb-1 opacity-0 peer-checked:opacity-100 transition-opacity" />
+                                            </div>
+                                            <span className="ml-4 text-[11px] font-black text-slate-500 dark:text-gray-400 uppercase tracking-widest group-hover:text-primary transition-colors">
+                                                Activate 30-Day Trusted Protocol
+                                            </span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <button
+                                        type="submit"
+                                        disabled={isLoading || otp.length < 6}
+                                        className="w-full py-6 premium-gradient text-white rounded-[2.5rem] font-black uppercase tracking-widest shadow-2xl shadow-primary/30 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-30 disabled:grayscale flex items-center justify-center gap-3"
+                                    >
+                                        {isLoading ? (
+                                            <Loader2 className="w-6 h-6 animate-spin" />
+                                        ) : (
+                                            <>
+                                                Confirm Identity
+                                                <ArrowRight className="w-5 h-5" />
+                                            </>
+                                        )}
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => setOtpRequired(false)}
+                                        className="w-full py-2 text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 hover:text-primary transition-all group"
+                                    >
+                                        <span className="group-hover:-translate-x-1 inline-block transition-transform mr-2">←</span>
+                                        Revoke & Restart Authentication
+                                    </button>
+                                </div>
                             </form>
                         )}
 
@@ -278,22 +307,24 @@ export default function InstAdminLogin() {
                     </div>
                 </div>
 
-                {/* Secondary Actions */}
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6">
-                    <Link
-                        to="/auth/student/login"
-                        className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-primary transition-all flex items-center gap-2"
-                    >
-                        ← User / Student Portal
-                    </Link>
-                    <Link
-                        to="/register-university"
-                        className="text-[10px] font-black uppercase tracking-widest text-primary hover:scale-105 transition-all flex items-center gap-2 group"
-                    >
-                        Register Institution
-                        <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
-                    </Link>
-                </div>
+                {/* Secondary Actions — Hidden during MFA for high-security focused flow */}
+                {!otpRequired && (
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6">
+                        <Link
+                            to="/auth/student/login"
+                            className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-primary transition-all flex items-center gap-2"
+                        >
+                            ← User / Student Portal
+                        </Link>
+                        <Link
+                            to="/register-university"
+                            className="text-[10px] font-black uppercase tracking-widest text-primary hover:scale-105 transition-all flex items-center gap-2 group"
+                        >
+                            Register Institution
+                            <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+                        </Link>
+                    </div>
+                )}
 
                 <p className="text-center text-[9px] text-slate-300 dark:text-gray-800 uppercase tracking-[0.3em] font-black">
                     Institutional Governance // Corporate Infrastructure
@@ -305,6 +336,6 @@ export default function InstAdminLogin() {
     // Helpers for specific role verification
     function onVerifyMFA(e: React.FormEvent) {
         e.preventDefault();
-        handleVerifyMFA();
+        handleVerifyMFA(authType === "inst_admin" ? "INSTITUTION_ADMIN" : "FACULTY");
     }
 }

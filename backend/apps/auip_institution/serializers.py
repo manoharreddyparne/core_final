@@ -26,6 +26,9 @@ class StudentAcademicRegistrySerializer(serializers.ModelSerializer):
         ]
 
     def get_status(self, obj):
+        if hasattr(obj, 'is_active_account'):
+            return "ACTIVE" if obj.is_active_account else "SEEDED"
+        
         from apps.auip_institution.models import StudentAuthorizedAccount
         if StudentAuthorizedAccount.objects.filter(email=obj.official_email).exists():
             return "ACTIVE"

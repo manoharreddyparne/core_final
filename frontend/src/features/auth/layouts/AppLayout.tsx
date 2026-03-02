@@ -51,9 +51,52 @@ export const AppLayout = () => {
     // UI States
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [sidebarWidth, setSidebarWidth] = useState(320); // Default expanded width
+    const [isResizing, setIsResizing] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(true); // Default open for visibility
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
     const [unreadNotifs, setUnreadNotifs] = useState(0);
+
+    // Sidebar Resizing Logic
+    const startResizing = (e: React.MouseEvent) => {
+        e.preventDefault();
+        setIsResizing(true);
+    };
+
+    const stopResizing = () => {
+        setIsResizing(false);
+    };
+
+    const resize = (e: MouseEvent) => {
+        if (isResizing) {
+            const newWidth = e.clientX;
+            if (newWidth > 200 && newWidth < 600) {
+                setSidebarWidth(newWidth);
+                if (isSidebarCollapsed && newWidth > 120) setIsSidebarCollapsed(false);
+            }
+        }
+    };
+
+    useEffect(() => {
+        if (isResizing) {
+            window.addEventListener("mousemove", resize);
+            window.addEventListener("mouseup", stopResizing);
+        } else {
+            window.removeEventListener("mousemove", resize);
+            window.removeEventListener("mouseup", stopResizing);
+        }
+        return () => {
+            window.removeEventListener("mousemove", resize);
+            window.removeEventListener("mouseup", stopResizing);
+        };
+    }, [isResizing]);
+
+    // Update collapsed state based on manual resize
+    useEffect(() => {
+        if (!isResizing && sidebarWidth < 120) {
+            setIsSidebarCollapsed(true);
+        }
+    }, [sidebarWidth, isResizing]);
 
     // Fetch notifications count
     useEffect(() => {
@@ -253,8 +296,8 @@ export const AppLayout = () => {
         const userRole = user?.role?.toLowerCase();
         const roleMatch = item.roles.includes("all") || (userRole && item.roles.some(allowed => {
             // Normalize institution_admin <-> inst_admin <-> admin
-            if (allowed === "inst_admin" || allowed === "institution_admin" || allowed === "admin") {
-                return userRole === "inst_admin" || userRole === "institution_admin" || userRole === "admin";
+            if (allowed === "inst_admin" || allowed === "institution_admin" || allowed === "admin" || allowed === "INST_ADMIN") {
+                return userRole === "inst_admin" || userRole === "institution_admin" || userRole === "admin" || userRole === "INST_ADMIN";
             }
             // Normalize faculty <-> teacher
             if (allowed === "faculty" || allowed === "teacher") {
@@ -515,12 +558,39 @@ export const AppLayout = () => {
                 </button>
             </div>
 
-            {/* Sidebar */}
-            <aside className={`
-                fixed inset-y-0 left-0 z-30 bg-[var(--bg-elevated)] backdrop-blur-2xl border-r border-[var(--border)] transform transition-all duration-300 ease-in-out md:translate-x-0 md:static md:h-screen flex flex-col
-                ${isMobileMenuOpen ? "translate-x-0 w-64 shadow-2xl" : "-translate-x-full md:translate-x-0"}
-                ${isSidebarCollapsed ? "md:w-20" : "md:w-80"}
-            `}>
+            <aside
+                className={`
+                    fixed inset-y-0 left-0 z-30 bg-[#080808] border-r border-white/5 transform transition-all duration-300 ease-in-out md:static md:h-screen flex flex-col shrink-0
+                    ${isMobileMenuOpen ? "translate-x-0 w-64 shadow-2xl" : "-translate-x-full md:translate-x-0"}
+                    ${isResizing ? "transition-none" : ""}
+                `}
+                style={{ width: isMobileMenuOpen ? "256px" : (isSidebarCollapsed ? "80px" : `${sidebarWidth}px`) }}
+            >
+                {/* 🔌 IDE-Style Drag Gutter */}
+                {!isSidebarCollapsed && (
+                    <div
+                        onMouseDown={startResizing}
+                        className="hidden md:block absolute -right-[6px] top-0 w-[12px] h-full cursor-col-resize z-50 group transition-all"
+                        title="Resize Workspace"
+                    >
+                        {/* Interactive Highlight Bar */}
+                        <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors border-r border-transparent group-hover:border-primary/20" />
+
+                        {/* Center Line */}
+                        <div className="absolute left-1/2 -translate-x-1/2 w-[1px] h-[95vh] top-[2.5vh] bg-white/5 group-hover:bg-primary/50 group-hover:w-[2px] transition-all shadow-[0_0_10px_rgba(59,130,246,0)] group-hover:shadow-[0_0_10px_rgba(59,130,246,0.3)]" />
+
+                        {/* Pro-Grip Handles */}
+                        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 space-y-1 opacity-0 group-hover:opacity-100 transition-all">
+                            {[1, 2, 3].map(i => <div key={i} className="w-1 h-1 bg-primary/40 rounded-full" />)}
+                        </div>
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 space-y-1 opacity-0 group-hover:opacity-100 transition-all">
+                            {[1, 2, 3].map(i => <div key={i} className="w-1 h-1 bg-primary/40 rounded-full" />)}
+                        </div>
+                        <div className="absolute top-3/4 left-1/2 -translate-x-1/2 space-y-1 opacity-0 group-hover:opacity-100 transition-all">
+                            {[1, 2, 3].map(i => <div key={i} className="w-1 h-1 bg-primary/40 rounded-full" />)}
+                        </div>
+                    </div>
+                )}
 
                 {/* Brand + Collapse Toggle */}
                 <div className={`p-6 border-b border-[var(--border)] hidden md:flex items-center ${isSidebarCollapsed ? "justify-center" : "justify-between"}`}>
@@ -656,12 +726,12 @@ export const AppLayout = () => {
             )}
 
             {/* Content Area */}
-            <main className={`flex-1 flex flex-col min-h-0 w-full overflow-hidden ${location.pathname === '/chat-hub' ? 'p-2 md:p-4' : 'p-4 md:p-8 overflow-y-auto'
+            <main className={`flex-1 flex flex-col min-h-0 min-w-0 w-full overflow-hidden ${isInstitutionContext ? 'p-2 md:p-3 overflow-y-auto' : 'p-4 md:p-8 overflow-y-auto'
                 }`}>
                 {location.pathname === '/chat-hub' ? (
                     /* Chat route: full height, no max-width, just a top bar + outlet */
-                    <div className="flex flex-col h-full min-h-0 overflow-hidden">
-                        <div className="flex items-center justify-end gap-3 mb-2 shrink-0 px-2">
+                    <div className="flex flex-col h-full min-h-0 overflow-hidden w-full">
+                        <div className="flex items-center justify-end gap-3 mb-2 shrink-0 px-2 w-full">
                             <div className="relative">
                                 <button
                                     onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
@@ -685,15 +755,15 @@ export const AppLayout = () => {
                                 <span className="hidden sm:inline">Cmd+K</span>
                             </button>
                         </div>
-                        <div className="flex-1 min-h-0 overflow-hidden">
+                        <div className="flex-1 min-h-0 overflow-hidden w-full">
                             <Outlet />
                         </div>
                     </div>
                 ) : (
                     /* Normal routes: regular max-width scrollable content */
-                    <div className="max-w-7xl mx-auto animate-in fade-in duration-300 w-full">
+                    <div className={`${isInstitutionContext ? 'max-w-full' : 'max-w-7xl mx-auto'} animate-in fade-in duration-300 w-full px-2 sm:px-4`}>
                         <div className="mb-6 flex items-center justify-between">
-                            <div className="md:invisible font-bold text-[var(--text-secondary)] uppercase tracking-widest text-[10px]">Portal Access</div>
+                            <div className="lg:invisible font-bold text-[var(--text-secondary)] uppercase tracking-widest text-[10px]">Portal Access</div>
                             <div className="flex items-center gap-4">
                                 <div className="relative">
                                     <button

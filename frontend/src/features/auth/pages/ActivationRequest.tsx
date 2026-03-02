@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { v2AuthApi } from "../api/v2AuthApi";
 import { useInstitutions } from "../hooks/useInstitutions";
 import { InstitutionSelector } from "../components/InstitutionSelector";
 import { toast } from "react-hot-toast";
+import { TurnstileWidget } from "../components/TurnstileWidget";
 import {
     ShieldCheck,
     User,
@@ -20,13 +21,40 @@ export default function ActivationRequest() {
     const [role, setRole] = useState<"STUDENT" | "FACULTY">("STUDENT");
     const [isSuccess, setIsSuccess] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+    const [siteKey, setSiteKey] = useState("");
+    const [turnstileKey, setTurnstileKey] = useState(0);
 
     const { institutions, selectedInstitution, setSelectedInstitution, isLoading: loadingInstitutions } = useInstitutions();
+
+    useEffect(() => {
+        const fetchConfig = async () => {
+            try {
+                const config = await v2AuthApi.getPublicConfig();
+                setSiteKey(config.turnstile_site_key);
+            } catch (err) {
+                console.error("Failed to load Turnstile config", err);
+            }
+        };
+        fetchConfig();
+    }, []);
+
+    const handleTurnstileSuccess = useCallback((token: string) => {
+        setTurnstileToken(token);
+    }, []);
+
+    const handleTurnstileExpire = useCallback(() => {
+        setTurnstileToken(null);
+    }, []);
 
     const handleRequest = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedInstitution) {
             toast.error("Please select an institution.");
+            return;
+        }
+        if (!turnstileToken) {
+            toast.error("Please complete the human verification.");
             return;
         }
 
@@ -38,7 +66,7 @@ export default function ActivationRequest() {
                 email,
                 // @ts-ignore - Backend expects role
                 role,
-                turnstile_token: ""
+                turnstile_token: turnstileToken
             });
 
             if (res.success) {
@@ -51,6 +79,8 @@ export default function ActivationRequest() {
             toast.error(err.response?.data?.detail || "Something went wrong.");
         } finally {
             setIsSubmitting(false);
+            setTurnstileToken(null);
+            setTurnstileKey(prev => prev + 1);
         }
     };
 
@@ -157,9 +187,19 @@ export default function ActivationRequest() {
                             </div>
                         </div>
 
+                        <div className="pt-2">
+                            <TurnstileWidget
+                                key={turnstileKey}
+                                siteKey={siteKey}
+                                onSuccess={handleTurnstileSuccess}
+                                onExpire={handleTurnstileExpire}
+                                theme="dark"
+                            />
+                        </div>
+
                         <button
                             type="submit"
-                            disabled={isSubmitting || !selectedInstitution}
+                            disabled={isSubmitting || !selectedInstitution || !turnstileToken}
                             className="w-full py-5 premium-gradient text-white rounded-2xl font-black uppercase tracking-widest shadow-2xl shadow-primary/30 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:grayscale flex items-center justify-center gap-3"
                         >
                             {isSubmitting ? (

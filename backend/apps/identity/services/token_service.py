@@ -307,9 +307,25 @@ def logout_single_session_secure(user, session_id=None, access_jti=None, refresh
 
     # Multi-tenant filtering logic
     effective_role = getattr(user, 'role', 'anonymous')
-    if hasattr(user, 'role') and user.role in ('STUDENT', 'FACULTY', 'INSTITUTION_ADMIN'):
+    from apps.identity.models.core_models import User as GlobalUser
+    
+    # 🛡️ NORMALIZATION: Handle administrative role variations across legacy/JWT contexts
+    admin_variants = {'ADMIN', 'INST_ADMIN', 'INSTITUTION_ADMIN'}
+    is_admin_role = effective_role.upper() in admin_variants
+    is_tenant_role = is_admin_role or effective_role.upper() in ('STUDENT', 'FACULTY')
+    is_global_user = isinstance(user, GlobalUser)
+
+    if is_tenant_role and not is_global_user:
         effective_schema = schema or getattr(getattr(user, 'institution', None), 'schema_name', '')
-        user_filter = Q(tenant_user_id=user.id, tenant_schema=effective_schema, role=effective_role)
+        
+        # Expand match variants to catch sessions regardless of which naming was used at login
+        role_variants = [effective_role]
+        if is_admin_role:
+            role_variants = list(admin_variants)
+        elif effective_role == "FACULTY":
+            role_variants.append("TEACHER") # Compatibility
+        
+        user_filter = Q(tenant_user_id=user.id, tenant_schema=effective_schema, role__in=role_variants)
     else:
         # Global User
         user_filter = Q(user=user)
@@ -343,18 +359,31 @@ def logout_all_sessions_secure(user, exclude_session_id=None, exclude_jti=None, 
     from django.db.models import Q
     from apps.identity.models.core_models import User
 
-    # Determine filter based on Identity type
     effective_role = getattr(user, 'role', 'anonymous')
-    if hasattr(user, 'role') and user.role in ('STUDENT', 'FACULTY', 'INSTITUTION_ADMIN'):
+    from apps.identity.models.core_models import User as GlobalUser
+    
+    # 🛡️ NORMALIZATION: Match across all admin role naming variants
+    admin_variants = {'ADMIN', 'INST_ADMIN', 'INSTITUTION_ADMIN'}
+    is_admin_role = effective_role.upper() in admin_variants
+    is_tenant_role = is_admin_role or effective_role.upper() in ('STUDENT', 'FACULTY')
+    is_global_user = isinstance(user, GlobalUser)
+
+    if is_tenant_role and not is_global_user:
         effective_schema = schema or getattr(getattr(user, 'institution', None), 'schema_name', '')
-        user_filter = Q(tenant_user_id=user.id, tenant_schema=effective_schema, role=effective_role)
+        
+        role_variants = [effective_role]
+        if is_admin_role:
+            role_variants = list(admin_variants)
+            
+        user_filter = Q(tenant_user_id=user.id, tenant_schema=effective_schema, role__in=role_variants)
     else:
-        # Global User
+        # Global User (Public table)
         user_filter = Q(user=user)
         # 🛡️ ISOLATION: If we have a schema context, restrict logout to that context only.
         # This prevents an admin logging out of an institution from killing their super-admin portal session.
         if schema:
             user_filter &= Q(tenant_schema=schema)
+            # Match strictly against Global User or explicitly tied sessions if schema is global
 
     qs = LoginSession.objects.filter(user_filter, is_active=True)
     if exclude_session_id:

@@ -404,7 +404,7 @@ export const useLoginV2VM = () => {
         }
     }, [tempUserId, resendCooldown]);
 
-    const handleVerifyMFA = useCallback(async () => {
+    const handleVerifyMFA = useCallback(async (roleContext?: string) => {
         if (!selectedInstitution || !otp) return;
 
         setIsLoading(true);
@@ -413,7 +413,8 @@ export const useLoginV2VM = () => {
                 institution_id: selectedInstitution.id,
                 email: identifier,
                 otp,
-                remember_device: rememberDevice
+                remember_device: rememberDevice,
+                role: roleContext // ✅ Explicit context
             });
 
             if (res.success && res.data) {
@@ -451,7 +452,7 @@ export const useLoginV2VM = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [selectedInstitution, identifier, otp, navigate, rememberDevice]);
+    }, [selectedInstitution, identifier, otp, navigate, rememberDevice, setUser]);
 
     const handleVerifyAdminMFA = useCallback(async (jitTicket?: string | null) => {
         if (!tempUserId || !otp || !password) return;

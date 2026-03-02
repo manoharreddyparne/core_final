@@ -231,31 +231,36 @@ export const FacultyRegistry = () => {
     );
 
     return (
-        <div className="space-y-8 animate-in fade-in duration-500">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                <div>
-                    <h1 className="text-3xl font-black text-white tracking-tight flex items-center gap-3">
-                        <Briefcase className="w-8 h-8 text-primary" />
-                        Faculty <span className="text-primary italic">Registry</span>
+        <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500 w-full overflow-hidden">
+            {/* 🧬 Premium Fluid Header */}
+            <div className="glass p-6 md:p-8 rounded-3xl md:rounded-[2.5rem] border-white/5 shadow-2xl relative overflow-visible flex flex-wrap items-center justify-between gap-6">
+                <div className="min-w-0">
+                    <h1 className="text-2xl md:text-3xl lg:text-4xl font-black text-white italic tracking-tighter uppercase leading-none truncate flex items-center gap-3">
+                        <Briefcase className="w-8 h-8 text-primary shrink-0" />
+                        Faculty <span className="text-primary not-italic">Registry</span>
                     </h1>
-                    <p className="text-muted-foreground mt-1 text-sm font-medium">
+                    <p className="text-muted-foreground text-[8px] md:text-[10px] font-bold uppercase tracking-[0.3em] mt-2 opacity-50 flex items-center gap-2">
+                        <span className="w-1 h-1 bg-primary rounded-full animate-pulse" />
                         Staff Provisioning & Academic Governance
                     </p>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3 md:gap-4 shrink-0">
                     <button
                         onClick={handleBulkInvite}
-                        className="glass px-6 py-2.5 rounded-xl border-white/5 text-white font-bold flex items-center gap-2 hover:bg-white/5 transition-all"
+                        className="glass px-5 py-2.5 md:px-7 md:py-3.5 rounded-2xl border-white/5 text-[9px] md:text-[10px] font-black uppercase tracking-widest text-white flex items-center gap-2.5 hover:bg-white/5 transition-all group"
                     >
-                        <Mail className="w-4 h-4 text-primary" /> Send All Invites
+                        <Mail className="w-4 h-4 text-primary group-hover:scale-110 transition-transform" />
+                        <span className="hidden sm:inline">Send All Invites</span>
+                        <span className="sm:hidden">Invites</span>
                     </button>
                     <button
                         onClick={() => setShowUpload(true)}
-                        className="glass px-6 py-2.5 rounded-xl border-white/5 text-white font-bold flex items-center gap-2 hover:bg-white/5 transition-all"
+                        className="glass px-5 py-2.5 md:px-7 md:py-3.5 rounded-2xl border-white/5 text-[9px] md:text-[10px] font-black uppercase tracking-widest text-white flex items-center gap-2.5 hover:bg-white/5 transition-all group"
                     >
-                        <Upload className="w-4 h-4" /> Bulk Seed
+                        <Upload className="w-4 h-4 text-primary group-hover:scale-110 transition-transform" />
+                        <span className="hidden sm:inline">Bulk Seed</span>
+                        <span className="sm:hidden">Seed</span>
                     </button>
                     <button
                         onClick={() => {
@@ -270,9 +275,11 @@ export const FacultyRegistry = () => {
                             });
                             setIsAddModalOpen(true);
                         }}
-                        className="bg-primary px-6 py-2.5 rounded-xl text-white font-bold flex items-center gap-2 hover:opacity-90 transition-all shadow-lg shadow-primary/20"
+                        className="bg-primary px-6 py-2.5 md:px-8 md:py-3.5 rounded-2xl text-[9px] md:text-[10px] font-black uppercase tracking-widest text-white flex items-center gap-2.5 hover:scale-105 transition-all shadow-xl shadow-primary/20"
                     >
-                        <Plus className="w-4 h-4" /> Add Educator
+                        <Plus className="w-4 h-4 text-white" />
+                        <span className="hidden sm:inline">Add Educator</span>
+                        <span className="sm:hidden">Add</span>
                     </button>
                 </div>
             </div>
@@ -412,8 +419,9 @@ export const FacultyRegistry = () => {
 
             {/* Manual Add Modal */}
             {isAddModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/80 backdrop-blur-xl">
-                    <div className="glass w-full max-w-xl rounded-[3rem] border border-white/10 overflow-hidden flex flex-col animate-in zoom-in-95 duration-300">
+                <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/95 backdrop-blur-2xl animate-in fade-in duration-300" onClick={() => { setIsAddModalOpen(false); setIsEditMode(false); }} />
+                    <div className="relative w-full max-w-xl glass rounded-[3rem] border border-white/10 overflow-hidden flex flex-col animate-in zoom-in-95 duration-300 shadow-3xl">
                         <div className="p-8 flex items-center justify-between border-b border-white/5">
                             <div>
                                 <h2 className="text-xl font-black text-white uppercase tracking-tight">{isEditMode ? 'Edit' : 'Manual'} <span className="text-primary italic">Provisioning</span></h2>
@@ -496,8 +504,9 @@ export const FacultyRegistry = () => {
 
             {/* Bulk Upload Modal */}
             {showUpload && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/80 backdrop-blur-xl">
-                    <div className="glass w-full max-w-4xl rounded-[3rem] border border-white/10 overflow-hidden flex flex-col max-h-[90vh]">
+                <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/95 backdrop-blur-2xl animate-in fade-in duration-300" onClick={() => setShowUpload(false)} />
+                    <div className="relative glass w-full max-w-4xl rounded-[3rem] border border-white/10 overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-300 shadow-3xl">
                         <div className="p-10 flex items-center justify-between border-b border-white/5">
                             <div>
                                 <h2 className="text-2xl font-black text-white">Faculty <span className="text-primary italic">Seeding</span></h2>

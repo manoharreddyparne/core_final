@@ -23,6 +23,8 @@ def send_approval_email(institution, activation_url=None):
     serial_display = f"SN:{serial}"
     fingerprint_display = ':'.join(institution.certificate_fingerprint[i:i+2] for i in range(0, len(institution.certificate_fingerprint), 2)).upper() if institution.certificate_fingerprint else "N/A"
 
+    from datetime import datetime
+    year = datetime.now().year
     html_body = f"""
 <!DOCTYPE html>
 <html>
@@ -175,6 +177,8 @@ def send_activation_email(institution) -> bool:
     serial_display = f"SN:{serial}"
     fingerprint_display = ':'.join(institution.activation_cert_fingerprint[i:i+2] for i in range(0, len(institution.activation_cert_fingerprint), 2)).upper() if institution.activation_cert_fingerprint else "N/A"
 
+    from datetime import datetime
+    year = datetime.now().year
     html_body = f"""
 <!DOCTYPE html>
 <html>
@@ -329,6 +333,8 @@ def send_expiry_warning_email(institution, days_remaining: int) -> bool:
     urgency_color = "#f59e0b" if days_remaining == 30 else "#ef4444"
     urgency_label = "⚠️ Action Required Soon" if days_remaining == 30 else "🚨 Urgent: Certificate Expiring"
 
+    from datetime import datetime
+    year = datetime.now().year
     html_body = f"""
 <!DOCTYPE html>
 <html>

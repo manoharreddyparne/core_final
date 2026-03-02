@@ -460,18 +460,11 @@ export const AppRoutes = () => {
 
         <Route path="/settings/change-password" element={<ChangePasswordForm />} />
         <Route path="/settings/device-management" element={<SessionManager />} />
+        <Route path="/settings/profile" element={<EditProfile />} />
+        <Route path="/settings/password" element={<ChangePasswordForm />} />
+        <Route path="/settings/devices" element={<SessionManager />} />
       </Route>
 
-      <Route
-        path="/settings/profile"
-        element={
-          <ProtectedRoute>
-            <EditProfile />
-          </ProtectedRoute>
-        }
-      />
-      <Route path="/settings/password" element={<ChangePasswordForm />} />
-      <Route path="/settings/devices" element={<SessionManager />} />
 
       {/* FALLBACK */}
       <Route path="/404" element={<PageNotFound />} />

@@ -67,27 +67,27 @@ export default function MyProfile() {
   const role = user.role?.toLowerCase();
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in duration-700">
+    <div className="space-y-6 md:space-y-10 p-2 md:p-6 min-h-screen bg-[#050505] text-white selection:bg-primary/30 w-full overflow-x-hidden animate-in fade-in duration-700">
       {/* 🚀 Tactical Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-white/5">
-        <div>
-          <h1 className="text-4xl font-black text-white italic tracking-tighter">Identity <span className="text-primary">Intelligence</span></h1>
-          <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-[0.3em] mt-2 opacity-50">Surgical Profile Verification & Status</p>
+      <div className="glass p-6 md:p-8 rounded-3xl md:rounded-[2.5rem] border-white/5 shadow-2xl relative overflow-visible flex flex-wrap items-center justify-between gap-6">
+        <div className="min-w-0">
+          <h1 className="text-2xl md:text-3xl lg:text-4xl font-black text-white italic tracking-tighter uppercase leading-none truncate">Identity <span className="text-primary not-italic">Intelligence</span></h1>
+          <p className="text-muted-foreground text-[8px] md:text-[10px] font-bold uppercase tracking-[0.3em] mt-2 opacity-50">Surgical Profile Verification & Status</p>
         </div>
         {!roleInfo?.read_only && (
           <button
             onClick={() => navigate('/settings/profile')}
-            className="flex items-center gap-3 px-6 py-3 glass bg-white/5 border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white hover:bg-white/10 transition-all group"
+            className="flex items-center gap-3 px-6 py-3 bg-primary border border-primary/20 rounded-2xl text-[9px] md:text-[10px] font-black uppercase tracking-widest text-white shadow-xl hover:scale-105 transition-all group shrink-0"
           >
-            <Edit className="w-4 h-4 text-primary group-hover:scale-110 transition-transform" />
+            <Edit className="w-4 h-4 text-white group-hover:scale-110 transition-transform" />
             Recalibrate Profile
           </button>
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="flex flex-col 2xl:flex-row gap-8">
         {/* 🎭 Identity Card */}
-        <div className="lg:col-span-1 space-y-6">
+        <div className="w-full 2xl:w-[440px] shrink-0 space-y-6">
           <div className="glass p-8 rounded-[3rem] border-white/5 bg-gradient-to-br from-white/[0.02] to-transparent text-center space-y-6 relative overflow-hidden group">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary/50 to-transparent" />
             <div className="relative mx-auto w-32 h-32">
@@ -107,40 +107,40 @@ export default function MyProfile() {
               </div>
 
               {/* Premium Professional Network Stats */}
-              <div className="flex items-center justify-center gap-8 mt-8 pt-6 border-t border-white/5">
+              <div className="flex items-center justify-center gap-4 sm:gap-8 md:gap-10 mt-8 pt-6 border-t border-white/5">
                 <div
                   onClick={() => openConnections('followers')}
-                  className="text-center group cursor-pointer hover:scale-110 transition-all duration-500"
+                  className="flex flex-col items-center group cursor-pointer hover:scale-105 transition-all duration-300 min-w-[70px]"
                 >
-                  <p className="text-3xl font-black text-white group-hover:text-primary transition-colors animate-in slide-in-from-top-4 duration-700">
+                  <p className="text-xl md:text-2xl lg:text-3xl font-black text-white group-hover:text-primary transition-colors">
                     {networkStats?.followers_count || 0}
                   </p>
-                  <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mt-1 opacity-60 group-hover:opacity-100 transition-opacity">Followers</p>
+                  <p className="text-[8px] md:text-[9px] text-gray-400 font-black uppercase tracking-widest mt-1 opacity-60 group-hover:opacity-100 transition-opacity whitespace-nowrap">Followers</p>
                 </div>
 
-                <div className="w-px h-10 bg-white/5 mx-2" />
+                <div className="w-px h-8 bg-white/5 shrink-0" />
 
                 <div
                   onClick={() => openConnections('following')}
-                  className="text-center group cursor-pointer hover:scale-110 transition-all duration-500"
+                  className="flex flex-col items-center group cursor-pointer hover:scale-105 transition-all duration-300 min-w-[70px]"
                 >
-                  <p className="text-3xl font-black text-white group-hover:text-primary transition-colors animate-in slide-in-from-top-4 duration-1000">
+                  <p className="text-xl md:text-2xl lg:text-3xl font-black text-white group-hover:text-primary transition-colors">
                     {networkStats?.following_count || 0}
                   </p>
-                  <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mt-1 opacity-60 group-hover:opacity-100 transition-opacity">Following</p>
+                  <p className="text-[8px] md:text-[9px] text-gray-400 font-black uppercase tracking-widest mt-1 opacity-60 group-hover:opacity-100 transition-opacity whitespace-nowrap">Following</p>
                 </div>
 
-                <div className="w-px h-10 bg-white/5 mx-2" />
+                <div className="w-px h-8 bg-white/5 shrink-0" />
 
                 <div
                   onClick={() => openConnections('connections')}
-                  className="text-center group relative cursor-pointer hover:scale-110 transition-all duration-500"
+                  className="flex flex-col items-center group relative cursor-pointer hover:scale-105 transition-all duration-300 min-w-[70px]"
                 >
-                  <div className="absolute -inset-4 bg-primary/5 rounded-full blur-xl group-hover:bg-primary/10 transition-all animate-pulse" />
-                  <p className="text-3xl font-black text-white relative group-hover:text-primary transition-colors animate-in slide-in-from-top-4 duration-700">
+                  <div className="absolute -inset-2 bg-primary/5 rounded-full blur-lg group-hover:bg-primary/10 transition-all opacity-0 group-hover:opacity-100" />
+                  <p className="text-xl md:text-2xl lg:text-3xl font-black text-white relative group-hover:text-primary transition-colors">
                     {networkStats?.friends_count || 0}
                   </p>
-                  <p className="text-[10px] text-primary font-black uppercase tracking-widest mt-1 relative opacity-80 group-hover:opacity-100 transition-opacity">Connections</p>
+                  <p className="text-[8px] md:text-[9px] text-primary font-black uppercase tracking-widest mt-1 relative opacity-80 group-hover:opacity-100 transition-opacity whitespace-nowrap">Conns</p>
                 </div>
               </div>
             </div>
@@ -177,7 +177,7 @@ export default function MyProfile() {
         </div>
 
         {/* 📚 Academic Intelligence (Grid) */}
-        <div className="lg:col-span-2 space-y-8">
+        <div className="flex-1 space-y-8 min-w-0">
           {roleInfo?.intelligence_mode === "DYNAMIC" ? (
             <div className="space-y-8">
               {/* Feature CGPA if it exists in dynamic data */}
@@ -258,8 +258,8 @@ const ConnectionsModal = ({ isOpen, onClose, type, list, loading, onDisconnect }
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 min-h-screen">
-      <div className="absolute inset-0 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300" onClick={onClose} />
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/95 backdrop-blur-2xl animate-in fade-in duration-300" onClick={onClose} />
       <div className="relative w-full max-w-3xl glass p-8 rounded-[3rem] border-white/10 shadow-3xl animate-in zoom-in-95 duration-300">
         <div className="flex items-center justify-between mb-8 pb-4 border-b border-white/10">
           <div>
