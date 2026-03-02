@@ -37,7 +37,8 @@ export default function ActivationRequest() {
                 identifier,
                 email,
                 // @ts-ignore - Backend expects role
-                role
+                role,
+                turnstile_token: ""
             });
 
             if (res.success) {

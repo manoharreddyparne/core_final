@@ -19,7 +19,9 @@ def send_approval_email(institution, activation_url=None):
 
     expires_str = institution.certificate_expires_at.strftime("%B %d, %Y") if institution.certificate_expires_at else "N/A"
     issued_str  = institution.certificate_issued_at.strftime("%B %d, %Y") if institution.certificate_issued_at else "N/A"
-    serial      = institution.certificate_serial or str(institution.certificate_id)[:16].upper()
+    serial      = institution.certificate_serial or str(institution.certificate_id).replace('-', '').upper()
+    serial_display = f"SN:{serial}"
+    fingerprint_display = ':'.join(institution.certificate_fingerprint[i:i+2] for i in range(0, len(institution.certificate_fingerprint), 2)).upper() if institution.certificate_fingerprint else "N/A"
 
     html_body = f"""
 <!DOCTYPE html>
@@ -42,6 +44,7 @@ def send_approval_email(institution, activation_url=None):
     .cert-value {{ color:#fff; font-size:12px; font-weight:600; font-family:monospace; }}
     .cert-value.green {{ color:#55cc88; }}
     .cert-value.gold {{ color:#c9a84c; }}
+    .fp-box {{ font-family:monospace; font-size:10px; color:#666; margin-top:20px; text-align:center; border-top:1px solid #2a2a45; padding-top:10px; word-break:break-all; }}
     .btn {{ display:inline-block; background:linear-gradient(135deg,#4f46e5,#7c3aed); color:#fff!important; text-decoration:none; padding:13px 30px; border-radius:8px; font-size:14px; font-weight:600; margin-top:4px; }}
     .footer {{ background:#0d0d1e; padding:20px 40px; text-align:center; }}
     .footer p {{ color:#555; font-size:11px; margin:4px 0; }}
@@ -64,7 +67,7 @@ def send_approval_email(institution, activation_url=None):
       <h3>Digital Certificate Details</h3>
       <div class="cert-row">
         <span class="cert-label">Serial Number</span>
-        <span class="cert-value gold">SN:{serial[:24]}</span>
+        <span class="cert-value gold">{serial_display}</span>
       </div>
       <div class="cert-row">
         <span class="cert-label">Issued On</span>
@@ -85,6 +88,9 @@ def send_approval_email(institution, activation_url=None):
       <div class="cert-row">
         <span class="cert-label">Status</span>
         <span class="cert-value green">ACTIVE</span>
+      </div>
+      <div class="fp-box">
+        FINGERPRINT: {fingerprint_display}
       </div>
     </div>
 
@@ -165,8 +171,9 @@ def send_activation_email(institution) -> bool:
 
     expires_str  = institution.activation_cert_expires_at.strftime("%B %d, %Y") if institution.activation_cert_expires_at else "N/A"
     issued_str   = institution.activation_cert_issued_at.strftime("%B %d, %Y")  if institution.activation_cert_issued_at  else "N/A"
-    serial       = institution.activation_cert_serial or str(institution.activation_cert_id)[:16].upper() if institution.activation_cert_id else "N/A"
-    year         = institution.activation_cert_issued_at.year if institution.activation_cert_issued_at else "2026"
+    serial       = institution.activation_cert_serial or str(institution.activation_cert_id).replace('-', '').upper() if institution.activation_cert_id else "N/A"
+    serial_display = f"SN:{serial}"
+    fingerprint_display = ':'.join(institution.activation_cert_fingerprint[i:i+2] for i in range(0, len(institution.activation_cert_fingerprint), 2)).upper() if institution.activation_cert_fingerprint else "N/A"
 
     html_body = f"""
 <!DOCTYPE html>
@@ -191,6 +198,7 @@ def send_activation_email(institution) -> bool:
     .cert-value {{ color:#fff; font-size:12px; font-weight:600; font-family:monospace; }}
     .cert-value.green {{ color:#10b981; }}
     .cert-value.teal {{ color:#6ee7b7; }}
+    .fp-box {{ font-family:monospace; font-size:10px; color:#334155; margin-top:20px; text-align:center; border-top:1px solid #1e3a5f; padding-top:10px; word-break:break-all; }}
     .eku-box {{ background:#064e3b; border:1px solid #10b981; border-radius:8px; padding:12px 20px; text-align:center; margin:16px 0; }}
     .eku-box p {{ color:#10b981; font-size:11px; font-weight:700; letter-spacing:1px; margin:0; }}
     .btn {{ display:inline-block; text-decoration:none; padding:13px 30px; border-radius:8px; font-size:14px; font-weight:600; margin:4px; }}
@@ -218,7 +226,7 @@ def send_activation_email(institution) -> bool:
       <h3>⬡ SOVEREIGN ACTIVATION CERTIFICATE</h3>
       <div class="cert-row">
         <span class="cert-label">Serial Number</span>
-        <span class="cert-value teal">SN:{serial[:24]}</span>
+        <span class="cert-value teal">{serial_display}</span>
       </div>
       <div class="cert-row">
         <span class="cert-label">Activated On</span>
@@ -239,6 +247,9 @@ def send_activation_email(institution) -> bool:
       <div class="cert-row">
         <span class="cert-label">Trust Level</span>
         <span class="cert-value green">SOVEREIGN ✓</span>
+      </div>
+      <div class="fp-box">
+        FINGERPRINT: {fingerprint_display}
       </div>
     </div>
 

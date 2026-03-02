@@ -38,6 +38,7 @@ import GovernanceBrainDashboard from "../../features/intelligence/pages/Governan
 import TPOAnalyticsDashboard from "../../features/intelligence/pages/TPOAnalyticsDashboard";
 import MockTestHub from "../../features/quizzes/pages/MockTestHub";
 import AcademicHub from "../../features/academic/pages/AcademicHub";
+import FacultyAcademicWorkforce from "../../features/academic/pages/FacultyAcademicWorkforce";
 import CertificateVerify from "../../features/auth/pages/CertificateVerify";
 
 import ProtectedRoute from "../../features/auth/components/ProtectedRoute";
@@ -316,6 +317,14 @@ export const AppRoutes = () => {
           element={
             <ProtectedRoute allowedRoles={["faculty", "teacher"]}>
               <FacultyDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/faculty/academic"
+          element={
+            <ProtectedRoute allowedRoles={["faculty", "teacher"]}>
+              <FacultyAcademicWorkforce />
             </ProtectedRoute>
           }
         />

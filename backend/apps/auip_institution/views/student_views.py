@@ -1,8 +1,9 @@
+from django.db import models
 from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.parsers import MultiPartParser
+from rest_framework.parsers import MultiPartParser, JSONParser
 import logging
 import csv
 import io
@@ -14,6 +15,7 @@ from apps.identity.serializers.core_serializers import CoreStudentSerializer
 from apps.auip_institution.authentication import TenantAuthentication
 from apps.auip_institution.permissions import IsTenantAdmin
 from apps.identity.utils.response_utils import success_response, error_response
+from apps.academic.models import Department, AcademicProgram, ClassSection, Semester
 
 logger = logging.getLogger(__name__)
 
@@ -210,21 +212,25 @@ class TenantBulkStudentUploadView(APIView):
     """
     authentication_classes = [TenantAuthentication]
     permission_classes = [IsTenantAdmin]
-    parser_classes = [MultiPartParser]
+    parser_classes = [MultiPartParser, JSONParser]
 
     def post(self, request):
-        if 'file' not in request.FILES:
-            return error_response("CSV file required", code=400)
-
-        preview_mode = request.data.get('preview', 'false').lower() == 'true'
-        csv_file = request.FILES['file']
+        preview_mode = request.data.get('preview', 'false') == 'true' or request.data.get('preview') is True
         
-        try:
-            decoded_file = csv_file.read().decode('utf-8')
-            io_string = io.StringIO(decoded_file)
-            reader = csv.DictReader(io_string)
-        except Exception as e:
-            return error_response(f"File process error: {str(e)}", code=400)
+        # If committing directly from DataGrid
+        if not preview_mode and 'students' in request.data:
+            reader = request.data['students']
+        else:
+            if 'file' not in request.FILES:
+                return error_response("CSV file required", code=400)
+            
+            csv_file = request.FILES['file']
+            try:
+                decoded_file = csv_file.read().decode('utf-8')
+                io_string = io.StringIO(decoded_file)
+                reader = list(csv.DictReader(io_string))
+            except Exception as e:
+                return error_response(f"File process error: {str(e)}", code=400)
         
         from django.db import transaction
         from apps.auip_institution.models import StudentAcademicRegistry, StudentPreSeededRegistry
@@ -235,9 +241,20 @@ class TenantBulkStudentUploadView(APIView):
         new_preseeded_objs = []
         updates = []
         errors = []
+        valid_records = []
 
         with schema_context(institution.schema_name):
-            # Pre-fetch existing students to avoid N+1 queries in the loop
+            # 🚀 In-Memory Caching (Zero N+1 Queries)
+            from apps.academic.models import Department, AcademicProgram, ClassSection, Semester
+            depts = {d.code.lower(): d for d in Department.objects.all()}
+            depts.update({d.name.lower(): d for d in Department.objects.all()})
+            
+            progs = {p.code.lower(): p for p in AcademicProgram.objects.all()}
+            progs.update({p.name.lower(): p for p in AcademicProgram.objects.all()})
+            
+            sems = {(s.program_id, s.semester_number): s for s in Semester.objects.all()}
+            secs = {(s.program_id, s.semester_number, s.name.lower()): s for s in ClassSection.objects.all()}
+
             existing_records = {
                 obj.roll_number.lower(): obj 
                 for obj in StudentAcademicRegistry.objects.all()
@@ -249,35 +266,43 @@ class TenantBulkStudentUploadView(APIView):
                 
                 try:
                     existing = existing_records.get(roll.lower())
-                    incoming_data = self._clean_row(row)
+                    incoming_data = self._clean_row(row, depts, progs, sems, secs)
                     
                     if existing:
                         diff = {}
-                        for key, val in incoming_data.items():
-                            old_val = getattr(existing, key, None)
-                            if key == 'history_data':
-                                if isinstance(old_val, dict) and isinstance(val, dict):
-                                    if old_val.get('10th_percent') != val.get('10th_percent') or \
-                                       old_val.get('12th_percent') != val.get('12th_percent') or \
-                                       old_val.get('active_backlogs') != val.get('active_backlogs'):
-                                        diff[key] = {"old": "Past Data", "new": "Updated JSON"}
-                                continue
-                            if isinstance(val, (int, float, type(None))) or str(type(val)).find('Decimal') != -1:
-                                if old_val != val: diff[key] = {"old": str(old_val), "new": str(val)}
-                            else:
-                                if str(old_val).strip() != str(val).strip(): diff[key] = {"old": str(old_val), "new": str(val)}
+                        for k, v in incoming_data.items():
+                            if k.endswith('_ref'): continue
+                            old_val = getattr(existing, k, None)
+                            if str(old_val) != str(v): 
+                                diff[k] = {"old": str(old_val), "new": str(v)}
                         
                         if diff:
-                            updates.append({"roll_number": roll, "full_name": existing.full_name, "diff": diff})
-                            if not preview_mode:
-                                for key, val in incoming_data.items(): setattr(existing, key, val)
-                                existing.save() # Individual save for updates is fine if few
+                            updates.append({
+                                "roll_number": roll,
+                                "full_name": incoming_data['full_name'],
+                                "diff": diff,
+                                "is_new": False
+                            })
+                            valid_records.append(row)
+                        if not preview_mode:
+                            for key, val in incoming_data.items(): setattr(existing, key, val)
+                            existing.save() # Individual save for updates is fine if few
                     else:
                         if not preview_mode:
-                            new_academic_objs.append(StudentAcademicRegistry(roll_number=roll, **incoming_data))
-                            new_preseeded_objs.append(StudentPreSeededRegistry(identifier=roll, email=incoming_data.get('official_email')))
-                        else:
-                            updates.append({"roll_number": roll, "full_name": incoming_data.get('full_name'), "is_new": True})
+                            new_academic_objs.append(
+                                StudentAcademicRegistry(
+                                    roll_number=roll,
+                                    **incoming_data
+                                )
+                            )
+                            new_preseeded_objs.append(
+                                StudentPreSeededRegistry(
+                                    identifier=roll,
+                                    role="STUDENT"
+                                )
+                            )
+                        updates.append({"roll_number": roll, "full_name": incoming_data.get('full_name'), "is_new": True, "raw": row})
+                        valid_records.append(row)
                 
                 except Exception as e:
                     errors.append({"roll": roll or "Unknown", "error": str(e)})
@@ -298,14 +323,15 @@ class TenantBulkStudentUploadView(APIView):
                     "update_count": len(updates) if not preview_mode else len([u for u in updates if not u.get('is_new')]),
                     "error_count": len(errors)
                 },
-                "new_students": [{"roll_number": obj.roll_number, "full_name": obj.full_name} for obj in new_academic_objs] if preview_mode else [],
+                "new_students": [{"roll_number": obj.roll_number, "full_name": obj.full_name, "raw": [r for r in reader if r.get('roll_number') == obj.roll_number][0]} for obj in new_academic_objs] if preview_mode else [],
                 "updates": updates if preview_mode else [],
-                "errors": errors
+                "errors": errors,
+                "valid_records": valid_records if preview_mode else []
             }
         )
 
-    def _clean_row(self, row):
-        """Standardize row data for model comparison/saving."""
+    def _clean_row(self, row, depts, progs, sems, secs):
+        """Standardize row data for model comparison/saving using injected in-memory caches."""
         from decimal import Decimal, InvalidOperation
         
         def to_decimal(val):
@@ -326,7 +352,8 @@ class TenantBulkStudentUploadView(APIView):
                 except: pass
             return None
 
-        return {
+        # 🧬 Governance Mapping
+        data = {
             "full_name": row.get('full_name', 'Unknown Student').strip(),
             "official_email": row.get('official_email', '').strip(),
             "personal_email": row.get('personal_email', '').strip() or None,
@@ -346,3 +373,21 @@ class TenantBulkStudentUploadView(APIView):
                 "active_backlogs": int(float(row.get("active_backlogs", 0))) if str(row.get("active_backlogs", "")).replace(".","",1).isdigit() else 0,
             }
         }
+
+        # Resolution Logic (0 DB calls, Dictionary Lookups)
+        branch_query = data['branch'].lower()
+        dept = depts.get(branch_query)
+        if dept: data['department_ref'] = dept
+        
+        prog_query = data['program'].lower()
+        prog = progs.get(prog_query)
+        if prog: data['program_ref'] = prog
+        
+        if prog:
+            sem = sems.get((prog.id, data['current_semester']))
+            if sem: data['semester_ref'] = sem
+            
+            sec = secs.get((prog.id, data['current_semester'], data['section'].lower()))
+            if sec: data['section_ref'] = sec
+
+        return data

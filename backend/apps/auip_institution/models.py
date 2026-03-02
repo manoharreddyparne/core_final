@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.contrib.postgres.fields import ArrayField
+from apps.academic.models import Department, AcademicProgram, ClassSection, Semester
 
 # ==============================================================================
 # 🎓 1. STUDENT CONTEXT (Registry + Account + Academic)
@@ -13,10 +14,20 @@ class StudentAcademicRegistry(models.Model):
     """
     roll_number = models.CharField(max_length=50, unique=True, db_index=True)
     full_name = models.CharField(max_length=255)
+    
+    # Legacy String Fields (Raw Feed)
     program = models.CharField(max_length=100) # B.Tech, MBA
     branch = models.CharField(max_length=100) # CSE, ECE
-    batch_year = models.IntegerField()
+    section = models.CharField(max_length=10, blank=True)
     current_semester = models.IntegerField(default=1)
+
+    # 🧬 Smart Governance Links (Normalized)
+    program_ref = models.ForeignKey('academic.AcademicProgram', on_delete=models.SET_NULL, null=True, blank=True, related_name='registered_students')
+    department_ref = models.ForeignKey('academic.Department', on_delete=models.SET_NULL, null=True, blank=True, related_name='registered_students')
+    section_ref = models.ForeignKey('academic.ClassSection', on_delete=models.SET_NULL, null=True, blank=True, related_name='registered_students')
+    semester_ref = models.ForeignKey('academic.Semester', on_delete=models.SET_NULL, null=True, blank=True, related_name='registered_students')
+    
+    batch_year = models.IntegerField()
     
     personal_email = models.EmailField(null=True, blank=True)
     official_email = models.EmailField(null=True, blank=True)
@@ -26,7 +37,6 @@ class StudentAcademicRegistry(models.Model):
     date_of_birth = models.DateField(null=True, blank=True)
     admission_year = models.IntegerField(null=True, blank=True)
     passout_year = models.IntegerField(null=True, blank=True)
-    section = models.CharField(max_length=10, blank=True)
     
     # Performance
     current_semester = models.IntegerField(default=1)
@@ -56,11 +66,42 @@ class StudentAcademicRegistry(models.Model):
             }
         )
 
+    def sync_to_academic(self):
+        """
+        🧬 Lifecycle Automation: 
+        Auto-enrolls student in all subjects for their program/semester/section.
+        """
+        from apps.academic.models import Subject, StudentEnrollment
+        
+        if not self.program_ref or not self.semester_ref:
+            return
+
+        # Find all subjects for this program and semester
+        subjects = Subject.objects.filter(
+            program=self.program_ref,
+            semester_number=self.semester_ref.semester_number,
+            is_active=True
+        )
+
+        for subj in subjects:
+            StudentEnrollment.objects.update_or_create(
+                roll_number=self.roll_number,
+                subject=subj,
+                semester=self.semester_ref,
+                defaults={
+                    "student_name": self.full_name,
+                    "section": self.section_ref,
+                    "status": "ACTIVE"
+                }
+            )
+
     def save(self, *args, **kwargs):
         is_new = self.pk is None
         super().save(*args, **kwargs)
-        # 🛡️ Auto-Sync to Identity Registry (Table 2)
+        # 🛡️ Auto-Sync to Identity Registry
         self.sync_to_preseeded()
+        # 🧪 Auto-Sync to Academic Infrastructure (Enrollments)
+        self.sync_to_academic()
 
     def __str__(self):
         return f"{self.roll_number} - {self.full_name}"
@@ -181,6 +222,9 @@ class FacultyAcademicRegistry(models.Model):
     department = models.CharField(max_length=100, blank=True, default='')
     joining_date = models.DateField(null=True, blank=True)
     courses_handling = ArrayField(models.CharField(max_length=100), default=list, blank=True)
+    
+    # 🧬 Smart Governance Link
+    department_ref = models.ForeignKey('academic.Department', on_delete=models.SET_NULL, null=True, blank=True, related_name='registered_faculty')
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

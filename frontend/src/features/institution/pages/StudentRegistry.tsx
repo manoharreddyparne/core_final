@@ -30,6 +30,7 @@ import {
     Loader2
 } from "lucide-react";
 import { instApiClient } from "../../auth/api/base";
+import { academicApi } from "../../academic/api/academicApi";
 import { toast } from "react-hot-toast";
 
 interface Student {
@@ -67,6 +68,10 @@ export const StudentRegistry = () => {
     const [students, setStudents] = useState<Student[]>([]);
     const [sectionStats, setSectionStats] = useState<SectionStat[]>([]);
     const [searchTerm, setSearchTerm] = useState("");
+    const [filterProgram, setFilterProgram] = useState("");
+    const [filterBranch, setFilterBranch] = useState("");
+    const [filterYear, setFilterYear] = useState("");
+    const [sortBy, setSortBy] = useState<"name" | "roll" | "cgpa" | "">("");
     const [loading, setLoading] = useState(true);    // true = sections are still loading
     const [sectionsLoaded, setSectionsLoaded] = useState(false);
 
@@ -88,15 +93,36 @@ export const StudentRegistry = () => {
     const [formStudents, setFormStudents] = useState<Partial<Student>[]>([]);
     const [currentFormIndex, setCurrentFormIndex] = useState(0);
 
+    // 🧬 Governance Registry (Academic Infrastructure)
+    const [registryDepts, setRegistryDepts] = useState<any[]>([]);
+    const [registryProgs, setRegistryProgs] = useState<any[]>([]);
+    const [registrySections, setRegistrySections] = useState<any[]>([]);
+
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // 🔄 Sync Effects
     useEffect(() => {
         fetchSections();
+        fetchAcademicRegistry();
         if (viewMode === "LIST" || activeSection) {
             fetchStudents();
         }
     }, [subFeature, viewMode, activeSection]);
+
+    const fetchAcademicRegistry = async () => {
+        try {
+            const [depts, progs, secs] = await Promise.all([
+                academicApi.list("departments"),
+                academicApi.list("programs"),
+                academicApi.list("sections")
+            ]);
+            if (depts.data.success) setRegistryDepts(depts.data.data);
+            if (progs.data.success) setRegistryProgs(progs.data.data);
+            if (secs.data.success) setRegistrySections(secs.data.data);
+        } catch (err) {
+            console.warn("Soft failure fetching academic registry for selectors", err);
+        }
+    };
 
     const fetchSections = async () => {
         setLoading(true);
@@ -141,10 +167,10 @@ export const StudentRegistry = () => {
 
     // 📄 Template Engine
     const downloadTemplate = () => {
-        const headers = ["roll_number", "full_name", "official_email", "personal_email", "phone_number", "program", "branch", "batch_year", "admission_year", "passout_year", "section", "current_semester", "cgpa", "date_of_birth"];
+        const headers = ["roll_number", "full_name", "program", "branch", "batch_year", "current_semester", "personal_email", "official_email", "phone_number", "date_of_birth", "admission_year", "passout_year", "cgpa", "10th_percent", "12th_percent", "active_backlogs"];
         const rows = [
             headers.join(","),
-            ["2024-CSE-001", "P. Manohar Reddy", "manohar@university.edu", "personal@gmail.com", "9876543210", "B.Tech", "CSE", "2024", "2024", "2028", "A", "1", "9.50", "2005-06-15"].join(","),
+            ["2024-CSE-001", "P. Manohar Reddy", "B.Tech", "CSE", "2024", "1", "personal@gmail.com", "manohar@university.edu", "9876543210", "2005-06-15", "2024", "2028", "9.50", "95.5", "98.2", "0"].join(","),
         ];
         const blob = new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
@@ -154,63 +180,87 @@ export const StudentRegistry = () => {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        toast.success("Import template downloaded — 14 fields included");
+        toast.success("Import template downloaded — 16 fields included");
     };
 
     // 📤 Bulk Operations
-    // 📤 Bulk Operations
-    const handleFileUpload = async (e: any, isPreview: boolean = true) => {
+    const [isValidating, setIsValidating] = useState(false);
+    const [valProgress, setValProgress] = useState(0);
+    const [valMessage, setValMessage] = useState("");
+
+    const handleFileSelect = async (e: any) => {
         const file = e.target?.files?.[0] || e;
         if (!file) return;
 
+        setIsValidating(true);
+        setValProgress(0);
+        setValMessage("Initializing Data Scanner...");
+
         const formData = new FormData();
         formData.append("file", file);
-        formData.append("preview", isPreview ? "true" : "false");
-
-        if (!isPreview) {
-            setIsCommitting(true);
-            setCommitProgress(5);
-            setCommitPhase("Initializing Transmission...");
-        }
-
-        const loadingToast = isPreview ? toast.loading("Validating data...") : null;
+        formData.append("preview", "true");
 
         try {
-            if (!isPreview) {
-                // Phased Simulation for Premium Feel (since backend is fast now)
-                setTimeout(() => { setCommitPhase("Parsing Identity Bits..."); setCommitProgress(25) }, 400);
-                setTimeout(() => { setCommitPhase("De-listing Collisions..."); setCommitProgress(50) }, 800);
-                setTimeout(() => { setCommitPhase("Finalizing Registry..."); setCommitProgress(75) }, 1200);
-            }
+            const intervals = setInterval(() => {
+                setValProgress(p => {
+                    if (p > 50) setValMessage("Analyzing Academic Collisions...");
+                    else setValMessage("Parsing Identity Vectors...");
+                    return p < 90 ? p + 15 : p;
+                });
+            }, 300);
 
             const res = await instApiClient.post("bulk-seed-students/", formData, {
                 headers: { "Content-Type": "multipart/form-data" }
             });
 
+            clearInterval(intervals);
+
             if (res.data.success) {
-                if (!isPreview) {
-                    setCommitProgress(100);
-                    setCommitPhase("Migration Complete");
-                    setTimeout(() => {
-                        setIsCommitting(false);
-                        setShowUpload(false);
-                        setPreviewData(null);
-                        toast.success("Registry synchronization successful.");
-                        fetchStudents();
-                        fetchSections();
-                    }, 500);
-                } else {
-                    toast.success("Validation complete", { id: loadingToast! });
+                setValProgress(100);
+                setValMessage("Validation Matrix Complete");
+                setTimeout(() => {
+                    setIsValidating(false);
                     setPreviewData({ ...res.data.data, file });
-                }
+                }, 800);
             }
         } catch (err) {
-            if (isPreview) {
-                toast.error("Process error. Verify CSV column headers.", { id: loadingToast! });
-            } else {
+            setIsValidating(false);
+            toast.error("Process error. Verify CSV column headers.");
+        }
+    };
+
+    const commitGridData = async (updatedStudents: any[]) => {
+        setIsCommitting(true);
+        setCommitProgress(0);
+        setCommitPhase("Allocating Cloud Resources...");
+
+        try {
+            const iv = setInterval(() => {
+                setCommitProgress(p => {
+                    if (p > 60) setCommitPhase("Writing Registry Blocks...");
+                    else setCommitPhase("Synchronizing Identity Pool...");
+                    return p < 95 ? p + 8 : p;
+                });
+            }, 200);
+
+            await instApiClient.post("bulk-seed-students/", { preview: false, students: updatedStudents });
+
+            clearInterval(iv);
+            setCommitProgress(100);
+            setCommitPhase("Migration Complete");
+
+            setTimeout(() => {
                 setIsCommitting(false);
-                toast.error("Migration failed. Connection dropped or data corrupt.");
-            }
+                setShowUpload(false);
+                setPreviewData(null);
+                toast.success("Registry synchronization successful.");
+                fetchStudents();
+                fetchSections();
+            }, 800);
+
+        } catch (err) {
+            setIsCommitting(false);
+            toast.error("Migration failed. Connection dropped or data corrupt.");
         }
     };
 
@@ -334,11 +384,22 @@ export const StudentRegistry = () => {
         }
     };
 
-    const filteredStudents = students.filter((s: Student) =>
-        (s.full_name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (s.roll_number?.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (s.official_email?.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+    const filteredStudents = students.filter((s: Student) => {
+        const matchesSearch = (s.full_name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+            (s.roll_number?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+            (s.official_email?.toLowerCase().includes(searchTerm.toLowerCase()));
+
+        const matchesProgram = filterProgram ? s.program === filterProgram : true;
+        const matchesBranch = filterBranch ? s.branch === filterBranch : true;
+        const matchesYear = filterYear ? (s.batch_year || s.admission_year)?.toString() === filterYear : true;
+
+        return matchesSearch && matchesProgram && matchesBranch && matchesYear;
+    }).sort((a, b) => {
+        if (sortBy === "name") return (a.full_name || "").localeCompare(b.full_name || "");
+        if (sortBy === "roll") return (a.roll_number || "").localeCompare(b.roll_number || "");
+        if (sortBy === "cgpa") return (Number(b.cgpa) || 0) - (Number(a.cgpa) || 0); // descending
+        return 0; // default order
+    });
 
     const totalStats = sectionStats.reduce((acc, curr) => ({
         total: acc.total + curr.total,
@@ -484,24 +545,52 @@ export const StudentRegistry = () => {
                     <div className="space-y-6">
                         {/* Mode Selector & Filter */}
                         {!activeSection && (
-                            <div className="flex items-center justify-between">
-                                <div className="flex bg-white/5 p-1 rounded-xl border border-white/5">
-                                    <button
-                                        onClick={() => setViewMode("CARDS")}
-                                        className={`px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all ${viewMode === "CARDS" ? "bg-white text-black shadow-lg" : "text-muted-foreground hover:text-white"}`}
-                                    >
-                                        <LayoutGrid className="w-3 h-3" /> Section View
-                                    </button>
-                                    <button
-                                        onClick={showAllStudents}
-                                        className={`px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all ${viewMode === "LIST" ? "bg-white text-black shadow-lg" : "text-muted-foreground hover:text-white"}`}
-                                    >
-                                        <List className="w-3 h-3" /> Global List
-                                    </button>
+                            <div className="flex flex-col gap-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex bg-white/5 p-1 rounded-xl border border-white/5 w-fit">
+                                        <button
+                                            onClick={() => setViewMode("CARDS")}
+                                            className={`px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all ${viewMode === "CARDS" ? "bg-white text-black shadow-lg" : "text-muted-foreground hover:text-white"}`}
+                                        >
+                                            <LayoutGrid className="w-3 h-3" /> Section View
+                                        </button>
+                                        <button
+                                            onClick={showAllStudents}
+                                            className={`px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all ${viewMode === "LIST" ? "bg-white text-black shadow-lg" : "text-muted-foreground hover:text-white"}`}
+                                        >
+                                            <List className="w-3 h-3" /> Global List
+                                        </button>
+                                    </div>
+                                    <div className="glass px-5 py-2.5 rounded-xl border-white/5 flex items-center gap-3 w-64 shadow-inner">
+                                        <Search className="w-4 h-4 text-primary" />
+                                        <input type="text" placeholder="Identity Search..." className="bg-transparent border-none outline-none text-white text-[11px] font-bold flex-1" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                                    </div>
                                 </div>
-                                <div className="glass px-5 py-2.5 rounded-xl border-white/5 flex items-center gap-3 w-64 shadow-inner">
-                                    <Search className="w-4 h-4 text-primary" />
-                                    <input type="text" placeholder="Identity Search..." className="bg-transparent border-none outline-none text-white text-[11px] font-bold flex-1" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                                <div className="flex items-center gap-3 w-full bg-white/[0.02] p-3 rounded-2xl border border-white/5 shadow-inner">
+                                    <select title="Filter by Program" className="glass bg-transparent px-4 py-2.5 rounded-xl border-white/5 text-white text-[10px] uppercase font-black outline-none flex-1 max-w-[150px]" value={filterProgram} onChange={(e) => setFilterProgram(e.target.value)}>
+                                        <option value="" className="text-black">All Programs</option>
+                                        {Array.from(new Set(students.map(s => s.program).filter(Boolean))).map(p => (
+                                            <option key={p} value={String(p)} className="text-black">{p}</option>
+                                        ))}
+                                    </select>
+                                    <select title="Filter by Branch" className="glass bg-transparent px-4 py-2.5 rounded-xl border-white/5 text-white text-[10px] uppercase font-black outline-none flex-1 max-w-[150px]" value={filterBranch} onChange={(e) => setFilterBranch(e.target.value)}>
+                                        <option value="" className="text-black">All Branches</option>
+                                        {Array.from(new Set(students.map(s => s.branch).filter(Boolean))).map(b => (
+                                            <option key={b} value={String(b)} className="text-black">{b}</option>
+                                        ))}
+                                    </select>
+                                    <select title="Filter by Year" className="glass bg-transparent px-4 py-2.5 rounded-xl border-white/5 text-white text-[10px] uppercase font-black outline-none flex-1 max-w-[150px]" value={filterYear} onChange={(e) => setFilterYear(e.target.value)}>
+                                        <option value="" className="text-black">All Years</option>
+                                        {Array.from(new Set(students.map(s => s.batch_year || s.admission_year).filter(Boolean))).map(y => (
+                                            <option key={y} value={String(y)} className="text-black">{y}</option>
+                                        ))}
+                                    </select>
+                                    <select title="Sort By" className="glass bg-transparent px-4 py-2.5 rounded-xl border-white/5 text-white text-[10px] uppercase font-black outline-none flex-1 max-w-[150px]" value={sortBy} onChange={(e) => setSortBy(e.target.value as any)}>
+                                        <option value="" className="text-black">Sort: Default</option>
+                                        <option value="name" className="text-black">Sort: Name (A-Z)</option>
+                                        <option value="roll" className="text-black">Sort: Roll No.</option>
+                                        <option value="cgpa" className="text-black">Sort: CGPA (High-Low)</option>
+                                    </select>
                                 </div>
                             </div>
                         )}
@@ -691,96 +780,143 @@ export const StudentRegistry = () => {
                         </div>
 
                         <div className="flex-1 overflow-y-auto p-10 space-y-10 scrollbar-hide">
-                            {!previewData ? (
-                                <div className="space-y-10 py-10">
-                                    <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-white/10 rounded-[2.5rem] p-24 flex flex-col items-center text-center group cursor-pointer hover:border-primary/40 transition-all bg-white/[0.01]">
-                                        <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center text-white/20 group-hover:text-primary transition-all mb-8 shadow-2xl">
-                                            <FileText className="w-8 h-8" />
+                            {(isValidating || isCommitting) ? (
+                                <div className="flex flex-col items-center justify-center py-20 animate-in fade-in zoom-in-95 duration-500">
+                                    <div className="w-40 h-40 relative mb-10 group">
+                                        <div className="absolute inset-0 border-t-2 border-primary rounded-full animate-spin shadow-[0_0_30px_rgba(59,130,246,0.5)]" style={{ animationDuration: "1.5s" }} />
+                                        <div className="absolute inset-4 border-b-2 border-blue-400 rounded-full animate-[spin_2s_linear_reverse]" />
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                            <span className="text-4xl font-black text-white tabular-nums">{isValidating ? valProgress : commitProgress}<span className="text-xl text-primary">%</span></span>
                                         </div>
-                                        <h3 className="text-xl font-black text-white italic">Drop Import List</h3>
-                                        <p className="text-muted-foreground text-xs mt-3 max-w-sm uppercase font-bold tracking-widest leading-relaxed">
+                                    </div>
+                                    <h3 className="text-2xl font-black text-white italic tracking-widest uppercase">
+                                        {isValidating ? "Quantum Analysis" : "Cloud Transmission"}
+                                    </h3>
+                                    <p className="text-[11px] font-black uppercase tracking-[0.4em] text-primary mt-4 animate-pulse bg-primary/10 px-6 py-2 rounded-full border border-primary/20">
+                                        {isValidating ? valMessage : commitPhase}
+                                    </p>
+                                </div>
+                            ) : !previewData ? (
+                                <div className="space-y-10 py-10">
+                                    <div onClick={() => !isValidating && fileInputRef.current?.click()} className="border-2 border-dashed border-white/10 rounded-[2.5rem] p-24 flex flex-col items-center text-center group cursor-pointer hover:border-primary/40 hover:bg-primary/[0.02] transition-all bg-white/[0.01]">
+                                        <div className="w-20 h-20 bg-white/5 rounded-3xl flex items-center justify-center text-white/20 group-hover:text-primary transition-all mb-8 shadow-2xl group-hover:scale-110">
+                                            <FileText className="w-10 h-10" />
+                                        </div>
+                                        <h3 className="text-2xl font-black text-white italic">Drop Import List</h3>
+                                        <p className="text-muted-foreground text-[10px] mt-4 max-w-sm uppercase font-black tracking-widest leading-relaxed">
                                             Upload official CSV source. Existing records will be precision-matched; NEW IDs will be auto-seeded.
                                         </p>
-                                        <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={(e) => handleFileUpload(e, true)} />
+                                        <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={handleFileSelect} />
                                     </div>
                                     <div className="text-center">
-                                        <button onClick={downloadTemplate} className="text-[10px] font-black text-primary uppercase tracking-widest flex items-center gap-2 mx-auto hover:opacity-80 transition-all">
+                                        <button onClick={downloadTemplate} className="text-[10px] font-black text-primary uppercase tracking-[0.2em] flex items-center gap-2 mx-auto hover:opacity-80 transition-all bg-primary/5 px-6 py-3 rounded-xl border border-primary/20 hover:bg-primary/10">
                                             <Download className="w-4 h-4" /> Download Import Schema
                                         </button>
                                     </div>
                                 </div>
                             ) : (
                                 <div className="space-y-10 animate-in slide-in-from-bottom-8 duration-500">
-                                    <div className="grid grid-cols-3 gap-6">
-                                        <div className="glass p-8 rounded-3xl border-primary/20 bg-primary/5">
-                                            <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-2">New Identity Bits</p>
-                                            <p className="text-4xl font-black text-white tabular-nums">{previewData.summary.new_count}</p>
+                                    {/* Health Diagnostics Report */}
+                                    <div className="grid grid-cols-4 gap-4">
+                                        <div className="glass p-6 rounded-2xl border-white/5 bg-white/[0.02] flex flex-col items-center text-center">
+                                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-2">Total Scanned</p>
+                                            <p className="text-3xl font-black text-white">{previewData.summary.new_count + previewData.summary.update_count + previewData.summary.error_count}</p>
                                         </div>
-                                        <div className="glass p-8 rounded-3xl border-white/5 bg-white/[0.02]">
-                                            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">Precision Updates</p>
-                                            <p className="text-4xl font-black text-white tabular-nums">{previewData.summary.update_count}</p>
+                                        <div className="glass p-6 rounded-2xl border-primary/20 bg-primary/5 flex flex-col items-center text-center">
+                                            <p className="text-[9px] font-black text-primary uppercase tracking-widest mb-2">New Identities</p>
+                                            <p className="text-3xl font-black text-white">{previewData.summary.new_count}</p>
                                         </div>
-                                        <div className="glass p-8 rounded-3xl border-red-500/10 bg-red-500/[0.02]">
-                                            <p className="text-[10px] font-black text-red-400 uppercase tracking-widest mb-2">Data Collisions</p>
-                                            <p className="text-4xl font-black text-white tabular-nums">{previewData.summary.error_count}</p>
+                                        <div className="glass p-6 rounded-2xl border-blue-500/20 bg-blue-500/5 flex flex-col items-center text-center">
+                                            <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest mb-2">Precision Updates</p>
+                                            <p className="text-3xl font-black text-white">{previewData.summary.update_count}</p>
+                                        </div>
+                                        <div className="glass p-6 rounded-2xl border-red-500/20 bg-red-500/5 flex flex-col items-center text-center relative overflow-hidden">
+                                            {previewData.summary.error_count > 0 && <div className="absolute inset-0 bg-red-500/10 animate-pulse" />}
+                                            <p className="text-[9px] font-black text-red-400 uppercase tracking-widest mb-2 relative z-10">Critical Errors</p>
+                                            <p className="text-3xl font-black text-white relative z-10">{previewData.summary.error_count}</p>
                                         </div>
                                     </div>
 
-                                    {/* 📊 Diff Preview */}
-                                    {previewData.updates.length > 0 && (
-                                        <div className="space-y-5">
-                                            <h4 className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-2 opacity-50">
-                                                <Activity className="w-4 h-4 text-primary" /> Proposed Modifications (Stored vs Incoming)
+                                    {/* DataGrid Viewer & Editor */}
+                                    <div className="space-y-4">
+                                        <div className="flex items-center justify-between">
+                                            <h4 className="text-[12px] font-black text-white uppercase tracking-widest flex items-center gap-2">
+                                                <Activity className="w-5 h-5 text-primary" /> DataGrid Inspector
                                             </h4>
-                                            <div className="glass rounded-[2rem] border-white/5 overflow-hidden shadow-inner">
-                                                <table className="w-full text-left text-[10px] border-collapse">
-                                                    <thead>
-                                                        <tr className="bg-white/5">
-                                                            <th className="p-4 font-black uppercase text-muted-foreground">ID Reference</th>
-                                                            <th className="p-4 font-black uppercase text-muted-foreground">Modified Attribute</th>
-                                                            <th className="p-4 font-black uppercase text-muted-foreground italic">Baseline</th>
-                                                            <th className="p-4 font-black uppercase text-primary">Incoming Signal</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y divide-white/5 bg-white/[0.01]">
-                                                        {previewData.updates.map((u: any, i: number) => (
-                                                            Object.entries(u.diff).map(([f, v]: any, j: number) => (
-                                                                <tr key={`${i}-${j}`} className="group hover:bg-white/[0.02]">
-                                                                    {j === 0 && (
-                                                                        <td rowSpan={Object.keys(u.diff).length} className="p-4 border-r border-white/5 align-top font-bold text-white">
-                                                                            {u.roll_number}
-                                                                        </td>
-                                                                    )}
-                                                                    <td className="p-4 font-black uppercase text-amber-500/80">{f.replace('_', ' ')}</td>
-                                                                    <td className="p-4 text-gray-500 italic line-through opacity-50">{v.old || '---'}</td>
-                                                                    <td className="p-4 text-green-400 font-black">{v.new}</td>
-                                                                </tr>
-                                                            ))
-                                                        ))}
-                                                    </tbody>
-                                                </table>
-                                            </div>
+                                            <span className="text-[9px] uppercase tracking-widest text-muted-foreground glass px-3 py-1 rounded border-white/5">Read-Only View</span>
                                         </div>
-                                    )}
 
-                                    <div className="flex items-center justify-between p-10 glass rounded-[2.5rem] border-primary/20 bg-primary/[0.03] shadow-lg">
+                                        <div className="glass rounded-[1.5rem] border-white/5 overflow-x-auto shadow-inner max-h-[400px]">
+                                            <table className="w-full text-left text-[11px] border-collapse whitespace-nowrap">
+                                                <thead className="sticky top-0 z-10 bg-[#0a0a0a]/90 backdrop-blur-md">
+                                                    <tr>
+                                                        <th className="p-4 font-black uppercase text-muted-foreground border-b border-white/5">Status</th>
+                                                        <th className="p-4 font-black uppercase text-muted-foreground border-b border-white/5">Roll / ID</th>
+                                                        <th className="p-4 font-black uppercase text-muted-foreground border-b border-white/5">Full Name</th>
+                                                        <th className="p-4 font-black uppercase text-muted-foreground border-b border-white/5">Program</th>
+                                                        <th className="p-4 font-black uppercase text-muted-foreground border-b border-white/5">Branch</th>
+                                                        <th className="p-4 font-black uppercase text-muted-foreground border-b border-white/5">Official Email</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-white/5">
+                                                    {/* Render Errors First */}
+                                                    {previewData.errors.map((e: any, i: number) => (
+                                                        <tr key={`err-${i}`} className="bg-red-500/10 hover:bg-red-500/20 transition-all">
+                                                            <td className="p-4 font-black text-red-400">ERROR</td>
+                                                            <td className="p-4 text-white font-bold">{e.roll}</td>
+                                                            <td className="p-4 text-red-300 col-span-4" colSpan={4}>{e.error}</td>
+                                                        </tr>
+                                                    ))}
+                                                    {/* Render Updates */}
+                                                    {previewData.updates.map((u: any, i: number) => (
+                                                        <tr key={`upd-${i}`} className="group hover:bg-white/[0.04] transition-all">
+                                                            <td className="p-4 font-black text-blue-400 flex items-center gap-1"><RefreshCw className="w-3 h-3" /> UPDATE</td>
+                                                            <td className="p-4 text-white font-bold">{u.roll_number}</td>
+                                                            <td className="p-4 text-gray-300">{u.full_name}</td>
+                                                            <td colSpan={3} className="p-4 text-muted-foreground text-[9px] uppercase tracking-widest">
+                                                                {Object.keys(u.diff).length} Attributes Modified
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                    {/* Render New (Using raw data from backend patch) */}
+                                                    {previewData.new_students.map((s: any, i: number) => (
+                                                        <tr key={`new-${i}`} className="group hover:bg-white/[0.04] transition-all">
+                                                            <td className="p-4 font-black text-green-400 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> NEW</td>
+                                                            <td className="p-4 text-white font-bold">{s.roll_number}</td>
+                                                            <td className="p-4 text-gray-300">{s.full_name}</td>
+                                                            <td className="p-4 text-gray-400">{s.raw?.program || "---"}</td>
+                                                            <td className="p-4 text-gray-400">{s.raw?.branch || "---"}</td>
+                                                            <td className="p-4 text-gray-400">{s.raw?.official_email || "---"}</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center justify-between p-8 glass rounded-[2.5rem] border-primary/20 bg-primary/[0.03] shadow-lg">
                                         <div className="flex items-center gap-5 text-muted-foreground">
-                                            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-xl">
-                                                <ShieldCheck className="w-6 h-6" />
+                                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center text-white shadow-xl shadow-primary/30">
+                                                <Upload className="w-6 h-6" />
                                             </div>
                                             <div>
-                                                <p className="text-xs font-black text-white italic font-serif">Confirm Registry Ingestion</p>
-                                                <p className="text-[9px] uppercase font-bold tracking-widest leading-relaxed mt-0.5 opacity-60">Primary record fields will be overwritten.<br />Identity registry synchronized automatically.</p>
+                                                <p className="text-sm font-black text-white italic tracking-tighter uppercase">Finalize Ingestion</p>
+                                                <p className="text-[10px] uppercase font-bold tracking-widest mt-0.5 opacity-60">
+                                                    {previewData.summary.error_count > 0 ? "Resolve critical errors before transmitting." : "Matrix is clear. Ready for cloud allocation."}
+                                                </p>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-4">
-                                            <button onClick={() => setPreviewData(null)} className="px-8 py-3.5 glass text-white font-black uppercase text-[10px] tracking-widest hover:bg-white/10 transition-all rounded-xl">Discard</button>
+                                            <button onClick={() => setPreviewData(null)} className="px-8 py-3.5 glass border-white/10 text-white font-black uppercase text-[10px] tracking-widest hover:bg-white/10 transition-all rounded-xl">Discard</button>
                                             <button
-                                                disabled={isCommitting}
-                                                onClick={() => handleFileUpload(previewData.file, false)}
-                                                className="px-12 py-3.5 bg-primary text-white font-black uppercase text-[10px] tracking-widest rounded-xl shadow-2xl hover:scale-105 transition-all disabled:opacity-50 disabled:scale-100"
+                                                disabled={previewData.summary.error_count > 0}
+                                                onClick={() => {
+                                                    // Map the frontend state into an array to send back
+                                                    commitGridData(previewData.valid_records);
+                                                }}
+                                                className="px-12 py-3.5 bg-primary text-white font-black uppercase text-[10px] tracking-widest rounded-xl shadow-[0_0_20px_rgba(59,130,246,0.5)] hover:bg-blue-500 hover:scale-105 transition-all disabled:opacity-20 disabled:scale-100 disabled:shadow-none"
                                             >
-                                                {isCommitting ? "Transmitting..." : "Commit Sync"}
+                                                Commit to Cloud
                                             </button>
                                         </div>
                                     </div>
@@ -879,22 +1015,35 @@ export const StudentRegistry = () => {
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <label className="text-[9px] font-black text-white/30 uppercase tracking-widest">Program</label>
-                                        <select className="w-full glass bg-white/5 border-white/10 rounded-xl p-3.5 text-white font-bold text-sm outline-none focus:border-primary/50 transition-all"
-                                            value={formStudents[currentFormIndex]?.program || 'B.Tech'} onChange={(e) => updateFormStudent('program', e.target.value)}>
-                                            {["B.Tech", "M.Tech", "MBA", "BCA", "MCA", "B.Sc", "M.Sc", "PhD", "Diploma"].map(p => <option key={p} value={p}>{p}</option>)}
+                                        <select className="w-full glass bg-white/5 border-white/10 rounded-xl p-3.5 text-white font-bold text-sm outline-none focus:border-primary/50 transition-all appearance-none"
+                                            value={formStudents[currentFormIndex]?.program || ''} onChange={(e) => updateFormStudent('program', e.target.value)}>
+                                            <option value="" className="bg-black">Select Program</option>
+                                            {registryProgs.map(p => <option key={p.id} value={p.code} className="bg-black">{p.name} ({p.code})</option>)}
+                                            {/* Fallback */}
+                                            {registryProgs.length === 0 && ["B.Tech", "M.Tech", "MBA", "BCA", "MCA"].map(p => <option key={p} value={p} className="bg-black">{p}</option>)}
                                         </select>
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-[9px] font-black text-white/30 uppercase tracking-widest">Branch / Dept</label>
-                                        <input placeholder="CSE, ECE, MECH..." type="text"
-                                            className="w-full glass bg-white/5 border-white/10 rounded-xl p-3.5 text-white font-bold text-sm uppercase outline-none focus:border-primary/50 transition-all placeholder:text-white/10"
-                                            value={formStudents[currentFormIndex]?.branch || ''} onChange={(e) => updateFormStudent('branch', e.target.value)} />
+                                        <select className="w-full glass bg-white/5 border-white/10 rounded-xl p-3.5 text-white font-bold text-sm outline-none focus:border-primary/50 transition-all appearance-none"
+                                            value={formStudents[currentFormIndex]?.branch || ''} onChange={(e) => updateFormStudent('branch', e.target.value)}>
+                                            <option value="" className="bg-black">Select Department</option>
+                                            {registryDepts.map(d => <option key={d.id} value={d.code} className="bg-black">{d.name} ({d.code})</option>)}
+                                            {/* Fallback */}
+                                            {registryDepts.length === 0 && ["CSE", "ECE", "ME", "EEE", "IT"].map(d => <option key={d} value={d} className="bg-black">{d}</option>)}
+                                        </select>
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-[9px] font-black text-white/30 uppercase tracking-widest">Section</label>
-                                        <input placeholder="A, B, Sigma..." type="text"
-                                            className="w-full glass bg-white/5 border-white/10 rounded-xl p-3.5 text-white font-bold text-sm uppercase outline-none focus:border-primary/50 transition-all placeholder:text-white/10"
-                                            value={formStudents[currentFormIndex]?.section || ''} onChange={(e) => updateFormStudent('section', e.target.value)} />
+                                        <select className="w-full glass bg-white/5 border-white/10 rounded-xl p-3.5 text-white font-bold text-sm outline-none focus:border-primary/50 transition-all appearance-none"
+                                            value={formStudents[currentFormIndex]?.section || ''} onChange={(e) => updateFormStudent('section', e.target.value)}>
+                                            <option value="" className="bg-black">Select Section</option>
+                                            {registrySections
+                                                .filter(s => s.program_code === formStudents[currentFormIndex]?.program || !formStudents[currentFormIndex]?.program)
+                                                .map(s => <option key={s.id} value={s.name} className="bg-black">Section {s.name} (Sem {s.semester_number})</option>)}
+                                            {/* Manual Fallback if registry is blank */}
+                                            {["A", "B", "C", "D"].map(s => <option key={s} value={s} className="bg-black">{s}</option>)}
+                                        </select>
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-[9px] font-black text-white/30 uppercase tracking-widest">Current Semester</label>

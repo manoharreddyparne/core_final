@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth/context/AuthProvider/AuthProvider";
 import {
     BookOpen,
@@ -12,6 +13,7 @@ import {
 
 export const FacultyDashboard = () => {
     const { user } = useAuth();
+    const navigate = useNavigate();
 
     const stats = [
         { label: "Active Courses", value: "4", icon: BookOpen, color: "text-blue-400", bg: "bg-blue-400/10" },
@@ -69,8 +71,11 @@ export const FacultyDashboard = () => {
                         </p>
                     </div>
                     <div className="relative z-10">
-                        <button className="px-8 py-3 bg-white text-blue-900 font-bold rounded-2xl shadow-xl hover:bg-white/90 transition-all flex items-center gap-2">
-                            View Courses
+                        <button
+                            onClick={() => navigate('/faculty/academic')}
+                            className="px-8 py-3 bg-white text-blue-900 font-bold rounded-2xl shadow-xl hover:bg-white/90 transition-all flex items-center gap-2"
+                        >
+                            Academic Management
                         </button>
                     </div>
                 </div>

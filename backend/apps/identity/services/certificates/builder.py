@@ -113,7 +113,7 @@ def _draw_certificate_pdf(institution, cert_pem, serial_hex, fingerprint_hex, ex
         c.setFillColor(colors.HexColor(value_color))
         c.drawString(x, y, value)
 
-    meta_block(col1_x, row_y, "Serial Number", f"SN:{serial_hex[:24]}...", "#c9a84c")
+    meta_block(col1_x, row_y, "Serial Number", f"SN:{serial_hex.upper()}", "#c9a84c")
     meta_block(col2_x, row_y, "Issued On", institution.certificate_issued_at.strftime("%Y-%m-%d") if institution.certificate_issued_at else "N/A")
     meta_block(col3_x, row_y, "Valid Until", expires_at.strftime("%Y-%m-%d"), "#55cc88")
 
@@ -122,14 +122,15 @@ def _draw_certificate_pdf(institution, cert_pem, serial_hex, fingerprint_hex, ex
     meta_block(col2_x, row_y2, "Signature Algorithm", "SHA-256 with RSA-4096")
     meta_block(col3_x, row_y2, "Certificate Status", "ACTIVE  ✓", "#55cc88")
 
-    # ── Fingerprint (small) ────────────────────────────────────────
+    # ── Fingerprint (Full SHA-256) ────────────────────────────────────────
     c.setFont("Helvetica", 7.5)
     c.setFillColor(colors.HexColor("#666677"))
-    c.drawCentredString(w / 2, row_y2 - 30, f"SHA-256 Fingerprint:  {':'.join(fingerprint_hex[i:i+2] for i in range(0, 32, 2))}...")
+    formatted_fp = ':'.join(fingerprint_hex[i:i+2] for i in range(0, len(fingerprint_hex), 2)).upper()
+    c.drawCentredString(w / 2, row_y2 - 30, f"SHA-256 Fingerprint: {formatted_fp}")
 
     # ── QR Code ───────────────────────────────────────────────────────
     if QRCODE_OK:
-        qr = qrcode.QRCode(version=2, box_size=5, border=2,
+        qr = qrcode.QRCode(version=None, box_size=5, border=2,
                            error_correction=qrcode.constants.ERROR_CORRECT_H)
         qr.add_data(verify_url)
         qr.make(fit=True)
@@ -315,7 +316,7 @@ def _draw_activation_pdf(institution, cert_pem, serial_hex, fingerprint_hex, exp
         c.drawString(x, y, value)
 
     activated_str = institution.activation_cert_issued_at.strftime("%Y-%m-%d") if institution.activation_cert_issued_at else "N/A"
-    meta_block(col1_x, row_y, "Serial Number", f"SN:{serial_hex[:24]}...", "#10b981")
+    meta_block(col1_x, row_y, "Serial Number", f"SN:{serial_hex.upper()}", "#10b981")
     meta_block(col2_x, row_y, "Activated On",  activated_str)
     meta_block(col3_x, row_y, "Valid Until",   expires_at.strftime("%Y-%m-%d"), "#10b981")
 
@@ -330,14 +331,15 @@ def _draw_activation_pdf(institution, cert_pem, serial_hex, fingerprint_hex, exp
     c.setFillColor(colors.HexColor("#10b981"))
     c.drawCentredString(w / 2, row_y2 - 28, eku_text)
 
-    # ── Fingerprint ──────────────────────────────────────────────────────────
+    # ── Fingerprint (Full SHA-256) ──────────────────────────────────────────────────────────
     c.setFont("Helvetica", 7.5)
     c.setFillColor(colors.HexColor("#334155"))
-    c.drawCentredString(w / 2, row_y2 - 44, f"SHA-256 Fingerprint:  {':'.join(fingerprint_hex[i:i+2] for i in range(0, 32, 2))}...")
+    formatted_fp = ':'.join(fingerprint_hex[i:i+2] for i in range(0, len(fingerprint_hex), 2)).upper()
+    c.drawCentredString(w / 2, row_y2 - 44, f"SHA-256 Fingerprint: {formatted_fp}")
 
     # ── QR Code ─────────────────────────────────────────────────────────────
     if QRCODE_OK:
-        qr = qrcode.QRCode(version=2, box_size=5, border=2,
+        qr = qrcode.QRCode(version=None, box_size=5, border=2,
                            error_correction=qrcode.constants.ERROR_CORRECT_H)
         qr.add_data(verify_url)
         qr.make(fit=True)

@@ -34,53 +34,84 @@ export const TurnstileWidget: FC<Props> = ({
     // Turnstile always renders - no bypasses
 
     useEffect(() => {
+        let isMounted = true;
+
         const renderWidget = () => {
+            if (!isMounted) return;
             const trimmedKey = siteKey?.trim();
-            if (containerRef.current && (window as any).turnstile && !widgetIdRef.current && trimmedKey) {
-                widgetIdRef.current = (window as any).turnstile.render(containerRef.current, {
-                    sitekey: trimmedKey,
-                    callback: (token: string) => {
-                        retryCountRef.current = 0;
-                        onSuccessRef.current(token);
-                    },
-                    "expired-callback": () => {
-                        onExpireRef.current?.();
-                    },
-                    "error-callback": (code: string) => {
-                        if (retryCountRef.current < MAX_RETRIES) {
-                            retryCountRef.current++;
-                            if (widgetIdRef.current) {
-                                (window as any).turnstile.reset(widgetIdRef.current);
+
+            // Critical check: Only render if container, library, and key are all ready
+            if (containerRef.current && (window as any).turnstile && trimmedKey) {
+                // If already rendered, reset instead of re-rendering to avoid duplicates
+                if (widgetIdRef.current) {
+                    try {
+                        (window as any).turnstile.reset(widgetIdRef.current);
+                    } catch (e) { }
+                    return;
+                }
+
+                try {
+                    widgetIdRef.current = (window as any).turnstile.render(containerRef.current, {
+                        sitekey: trimmedKey,
+                        callback: (token: string) => {
+                            retryCountRef.current = 0;
+                            onSuccessRef.current(token);
+                        },
+                        "expired-callback": () => {
+                            onExpireRef.current?.();
+                        },
+                        "error-callback": (code: string) => {
+                            if (retryCountRef.current < MAX_RETRIES) {
+                                retryCountRef.current++;
+                                if (widgetIdRef.current) {
+                                    (window as any).turnstile.reset(widgetIdRef.current);
+                                }
+                            } else {
+                                onErrorRef.current?.();
                             }
-                        } else {
-                            onErrorRef.current?.();
-                        }
-                    },
-                    theme: theme,
-                });
+                        },
+                        theme: theme,
+                    });
+                    console.debug("[TURNSTILE] Widget rendered successfully");
+                } catch (err) {
+                    console.error("[TURNSTILE] Render error:", err);
+                }
             }
         };
 
+        // Load the script if missing
         if (!(window as any).turnstile) {
-            if (!document.querySelector('script[src*="turnstile/v0/api.js"]')) {
+            const existingScript = document.querySelector('script[src*="turnstile/v0/api.js"]');
+            if (!existingScript) {
                 const script = document.createElement("script");
                 script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
                 script.async = true;
                 script.defer = true;
-                script.onload = renderWidget;
+                script.onload = () => {
+                    // Small delay to ensure initialization
+                    setTimeout(renderWidget, 100);
+                };
                 document.head.appendChild(script);
+            } else {
+                // Script exists but lib not ready - poll briefly
+                const interval = setInterval(() => {
+                    if ((window as any).turnstile) {
+                        renderWidget();
+                        clearInterval(interval);
+                    }
+                }, 100);
+                setTimeout(() => clearInterval(interval), 5000); // Stop after 5s
             }
         } else {
             renderWidget();
         }
 
         return () => {
+            isMounted = false;
             if (widgetIdRef.current && (window as any).turnstile) {
                 try {
                     (window as any).turnstile.remove(widgetIdRef.current);
-                } catch (err) {
-                    // ignore error on cleanup
-                }
+                } catch (err) { }
                 widgetIdRef.current = null;
             }
         };

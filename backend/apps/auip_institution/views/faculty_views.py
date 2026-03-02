@@ -11,6 +11,7 @@ from apps.auip_institution.authentication import TenantAuthentication
 from apps.auip_institution.permissions import IsTenantAdmin
 from apps.auip_institution.models import FacultyAcademicRegistry, FacultyPreSeededRegistry
 from apps.identity.utils.response_utils import success_response, error_response
+from apps.academic.models import Department
 
 logger = logging.getLogger(__name__)
 
@@ -218,10 +219,21 @@ class TenantBulkFacultyUploadView(APIView):
         )
 
     def _clean_row(self, row):
-        return {
+        data = {
             "full_name": row.get('full_name', ''),
             "email": row.get('email', ''),
             "designation": row.get('designation', ''),
             "department": row.get('department', ''),
             "joining_date": row.get('joining_date') if row.get('joining_date') else None,
         }
+        
+        # 🧬 Governance Mapping
+        try:
+            from apps.academic.models import Department
+            dept = Department.objects.filter(models.Q(code=data['department']) | models.Q(name=data['department'])).first()
+            if dept:
+                data['department_ref'] = dept
+        except Exception as e:
+            logger.warning(f"Faculty Department resolution failed: {e}")
+            
+        return data

@@ -26,7 +26,6 @@ oauthlib==3.3.1
 openpyxl==3.1.5
 pandas==2.3.1
 pillow==11.3.0
-psycopg2==2.9.10
 psycopg2-binary==2.9.10
 pyasn1==0.6.1
 pyasn1_modules==0.4.2
@@ -54,10 +53,11 @@ httpagentparser==1.9.5
 google-generativeai==0.8.3
 openai==1.55.0
 PyPDF2==3.0.1
-cryptography>=42.0.0
 endesive>=2.12.0
 qrcode[pil]>=7.4.2
+python-dotenv==1.0.1
 # ── Celery (async task queue + periodic beat scheduler) ──
-celery==5.4.0
+celery[redis]==5.4.0
 django-celery-beat==2.7.0
 django-celery-results==2.5.1
+redis==5.0.1

@@ -16,6 +16,7 @@ import {
     GraduationCap
 } from "lucide-react";
 import { instApiClient } from "../../auth/api/base";
+import { academicApi } from "../../academic/api/academicApi";
 import { toast } from "react-hot-toast";
 
 interface Faculty {
@@ -51,9 +52,15 @@ export const FacultyRegistry = () => {
 
     const fetchDepartments = async () => {
         try {
-            const res = await instApiClient.get("faculty/departments/");
+            // 🧬 Switch to Academic Governance API
+            const res = await academicApi.list("departments");
             if (res.data.success) {
-                setDepartments(["ALL", ...res.data.data]);
+                const names = res.data.data.map((d: any) => d.code);
+                setDepartments(["ALL", ...names]);
+            } else {
+                // Fallback to existing strings if registry is empty
+                const legacyRes = await instApiClient.get("faculty/departments/");
+                if (legacyRes.data.success) setDepartments(["ALL", ...legacyRes.data.data]);
             }
         } catch (err) {
             console.error("Failed to fetch departments", err);
@@ -463,12 +470,16 @@ export const FacultyRegistry = () => {
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-2">Department</label>
-                                    <input
-                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white outline-none focus:ring-2 focus:ring-primary/50 text-sm"
+                                    <select
+                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white outline-none focus:ring-2 focus:ring-primary/50 text-sm appearance-none"
                                         value={newFaculty.department}
                                         onChange={e => setNewFaculty({ ...newFaculty, department: e.target.value })}
-                                        placeholder="CSE"
-                                    />
+                                    >
+                                        <option value="" className="bg-black">Select Registry</option>
+                                        {departments.filter(d => d !== "ALL").map(d => (
+                                            <option key={d} value={d} className="bg-black">{d}</option>
+                                        ))}
+                                    </select>
                                 </div>
                             </div>
 

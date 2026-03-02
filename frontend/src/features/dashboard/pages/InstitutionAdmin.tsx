@@ -124,10 +124,12 @@ export const InstitutionAdmin = () => {
                     setApproveComplete(true);
                     toast.success("✅ Environment LIVE — Isolation Kernel Ready", { id: "provisioning-start", duration: 5000 });
                     fetchInstitutions();
-                    // Close modal after a short delay to show success state
+                    // Keep active state for a bit for visual consistency
                     setTimeout(() => {
                         setIsQuantumProcessing(false);
                         setSelectedInst(null);
+                        setActiveAction(null);
+                        setIsActionLoading(false);
                     }, 2500);
                 }
             } else {
@@ -202,10 +204,10 @@ export const InstitutionAdmin = () => {
             logger.error(`Failed to perform action ${action}`, err);
             toast.error(extractApiError(err, `Failed to ${action} institution.`));
         } finally {
-            setIsActionLoading(false);
-            setActiveAction(null);
-            // Only stop "Quantum Processing" if it wasn't an approval (which is now async)
+            // If it's approval, we keep action loading / active until WS 100% or error
             if (action !== "approve") {
+                setIsActionLoading(false);
+                setActiveAction(null);
                 setTimeout(() => setIsQuantumProcessing(false), 400);
             }
         }

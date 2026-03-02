@@ -1,9 +1,18 @@
 from rest_framework import serializers
-from apps.auip_institution.models import StudentAcademicRegistry, StudentPreSeededRegistry, StudentAuthorizedAccount
+from apps.auip_institution.models import (
+    StudentAcademicRegistry, StudentPreSeededRegistry, StudentAuthorizedAccount,
+    FacultyAcademicRegistry, FacultyPreSeededRegistry
+)
 
 class StudentAcademicRegistrySerializer(serializers.ModelSerializer):
     status = serializers.SerializerMethodField()
     department = serializers.CharField(source='branch', read_only=True)
+    
+    # 🧬 Rich Data Context for Frontend
+    program_name = serializers.CharField(source='program_ref.name', read_only=True)
+    department_name = serializers.CharField(source='department_ref.name', read_only=True)
+    section_name = serializers.CharField(source='section_ref.name', read_only=True)
+    semester_label = serializers.CharField(source='semester_ref.label', read_only=True)
 
     class Meta:
         model = StudentAcademicRegistry
@@ -11,11 +20,12 @@ class StudentAcademicRegistrySerializer(serializers.ModelSerializer):
             'id', 'roll_number', 'full_name', 'official_email', 'personal_email',
             'phone_number', 'program', 'branch', 'department', 'batch_year',
             'admission_year', 'passout_year', 'current_semester', 'section',
-            'cgpa', 'date_of_birth', 'status', 'created_at'
+            'cgpa', 'date_of_birth', 'status', 'created_at',
+            'program_ref', 'department_ref', 'section_ref', 'semester_ref',
+            'program_name', 'department_name', 'section_name', 'semester_label'
         ]
 
     def get_status(self, obj):
-        # Determine status based on associated account
         from apps.auip_institution.models import StudentAuthorizedAccount
         if StudentAuthorizedAccount.objects.filter(email=obj.official_email).exists():
             return "ACTIVE"
@@ -31,21 +41,20 @@ class StudentAuthorizedAccountSerializer(serializers.ModelSerializer):
         model = StudentAuthorizedAccount
         fields = ['id', 'email', 'is_active', 'last_login_at']
 
-from apps.auip_institution.models import FacultyAcademicRegistry, FacultyPreSeededRegistry
-
 class FacultyAcademicRegistrySerializer(serializers.ModelSerializer):
     status = serializers.SerializerMethodField()
+    department_name = serializers.CharField(source='department_ref.name', read_only=True)
 
     class Meta:
         model = FacultyAcademicRegistry
         fields = [
             'id', 'employee_id', 'full_name', 'email',
             'designation', 'department', 'joining_date',
-            'courses_handling', 'status', 'created_at'
+            'courses_handling', 'status', 'created_at',
+            'department_ref', 'department_name'
         ]
 
     def get_status(self, obj):
-        # Determine status based on associated account
         from apps.auip_institution.models import FacultyAuthorizedAccount
         if FacultyAuthorizedAccount.objects.filter(email=obj.email).exists():
             return "ACTIVE"

@@ -80,13 +80,22 @@ class SubjectListSerializer(serializers.ModelSerializer):
     """Lightweight serializer for list views."""
     department_code = serializers.CharField(source='department.code', read_only=True)
 
+    syllabus_units_count = serializers.SerializerMethodField()
+    syllabus_ai_ready = serializers.SerializerMethodField()
+
     class Meta:
         model = Subject
         fields = [
             'id', 'code', 'name', 'subject_type', 'credits',
             'semester_number', 'is_placement_relevant', 'placement_tags',
-            'department_code', 'is_active'
+            'department_code', 'is_active', 'syllabus_units_count', 'syllabus_ai_ready'
         ]
+
+    def get_syllabus_units_count(self, obj):
+        return obj.syllabus_units.count()
+
+    def get_syllabus_ai_ready(self, obj):
+        return obj.syllabus_units.filter(ai_question_weight__gt=0).exists()
 
 
 class ClassSectionSerializer(serializers.ModelSerializer):
@@ -112,11 +121,13 @@ class TeacherAssignmentSerializer(serializers.ModelSerializer):
     section_label = serializers.SerializerMethodField()
     academic_year_label = serializers.CharField(source='academic_year.label', read_only=True)
 
+    subject_max_marks = serializers.IntegerField(source='subject.max_marks', read_only=True)
+
     class Meta:
         model = TeacherAssignment
         fields = [
             'id', 'employee_id', 'faculty_name', 'subject', 'subject_name', 'subject_code',
-            'section', 'section_label', 'academic_year', 'academic_year_label',
+            'subject_max_marks', 'section', 'section_label', 'academic_year', 'academic_year_label',
             'semester', 'is_primary', 'created_at'
         ]
         read_only_fields = ['id', 'created_at']
