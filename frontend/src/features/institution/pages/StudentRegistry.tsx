@@ -11,9 +11,11 @@ import { toast } from "react-hot-toast";
 
 import { useStudentRegistry, Student } from "../hooks/useStudentRegistry";
 import { useBulkOperations } from "../hooks/useBulkOperations";
+import { useDispatchSocket } from "../hooks/useDispatchSocket";
 import { UploadConsole } from "../components/UploadConsole";
 import { StudentProfileDrawer } from "../components/StudentProfileDrawer";
 import { ManualEntryModal } from "../components/ManualEntryModal";
+import { DispatchProgressModal } from "../components/DispatchProgressModal";
 import { instApiClient } from "../../auth/api/base";
 
 // ─── Skeleton Loader ─────────────────────────────────────────────────────────
@@ -114,6 +116,8 @@ export const StudentRegistry = () => {
         registryDepts, registryProgs, registrySections, refresh
     } = useStudentRegistry(activeSection, viewMode);
 
+    const ws = useDispatchSocket();
+
     const {
         isValidating, valProgress, valMessage,
         previewData, setPreviewData,
@@ -126,6 +130,7 @@ export const StudentRegistry = () => {
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState("ALL");
     const [showUpload, setShowUpload] = useState(false);
+    const [showDispatch, setShowDispatch] = useState(false);
     const [showFormModal, setShowFormModal] = useState(false);
     const [isEditMode, setIsEditMode] = useState(false);
     const [formStudents, setFormStudents] = useState<Partial<Student>[]>([]);
@@ -210,34 +215,19 @@ export const StudentRegistry = () => {
         }
     };
 
-    const handleSingleInvite = async (rollNumber: string) => {
-        const loadingToast = toast.loading(`Sending activation link...`);
-        try {
-            await instApiClient.post("students/bulk_invite/", { roll_numbers: [rollNumber] });
-            toast.success("Activation link sent", { id: loadingToast });
-            refresh();
-        } catch (err) {
-            toast.error("Transmission failed", { id: loadingToast });
-        }
+    const handleSingleInvite = (rollNumber: string) => {
+        setSelectedStudents([rollNumber]);
+        setShowDispatch(true);
+        // Slight delay so modal renders first
+        setTimeout(() => ws.dispatch([rollNumber]), 50);
     };
 
-    // Enhanced bulk dispatch with result panel
-    const handleDispatch = async () => {
+    // WebSocket-driven bulk dispatch
+    const handleDispatch = () => {
         if (selectedStudents.length === 0) return;
-        setIsDispatching(true);
-        const loadingToast = toast.loading(`Dispatching to ${selectedStudents.length} student(s)...`);
-        try {
-            const res = await instApiClient.post("students/bulk_invite/", { roll_numbers: selectedStudents });
-            toast.dismiss(loadingToast);
-            const { data } = res.data;
-            setDispatchResult(data || { invited: [], already_activated: [], not_found: [], failed: [] });
-            setSelectedStudents([]);
-            refresh();
-        } catch (err: any) {
-            toast.error(err.response?.data?.message || "Dispatch failed", { id: loadingToast });
-        } finally {
-            setIsDispatching(false);
-        }
+        setShowDispatch(true);
+        setTimeout(() => ws.dispatch(selectedStudents), 50);
+        setSelectedStudents([]);
     };
 
     // Filtered data (client-side search on current page)
@@ -509,14 +499,9 @@ export const StudentRegistry = () => {
                                         </button>
                                         <button
                                             onClick={handleDispatch}
-                                            disabled={isDispatching}
-                                            className="bg-primary px-8 py-3 rounded-xl text-white font-black text-[10px] uppercase tracking-widest shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 flex items-center gap-2"
+                                            className="bg-primary px-8 py-3 rounded-xl text-white font-black text-[10px] uppercase tracking-widest shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2"
                                         >
-                                            {isDispatching ? (
-                                                <><Loader2 className="w-4 h-4 animate-spin" /> Sending...</>
-                                            ) : (
-                                                <><Mail className="w-4 h-4" /> Send Activation Invites</>
-                                            )}
+                                            <Mail className="w-4 h-4" /> Send Activation Invites
                                         </button>
                                     </div>
                                 </div>
@@ -548,8 +533,18 @@ export const StudentRegistry = () => {
             {viewingProfile && (
                 <StudentProfileDrawer student={viewingProfile} onClose={() => setViewingProfile(null)} onEdit={openEditModal} />
             )}
-            {dispatchResult && (
-                <DispatchResultPanel result={dispatchResult} onClose={() => setDispatchResult(null)} />
+            {showDispatch && (
+                <DispatchProgressModal
+                    state={ws.state}
+                    events={ws.events}
+                    summary={ws.summary}
+                    errorMsg={ws.errorMsg}
+                    pct={ws.pct}
+                    current={ws.current}
+                    total={ws.total}
+                    onClose={() => { setShowDispatch(false); ws.reset(); refresh(); }}
+                    onCancel={() => { ws.cancel(); setShowDispatch(false); }}
+                />
             )}
             {collisionInfo && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/90 backdrop-blur-xl animate-in fade-in duration-300">

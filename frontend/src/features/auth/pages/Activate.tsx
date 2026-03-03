@@ -189,23 +189,37 @@ export default function Activate() {
 
     // ── TOKEN ERROR ──
     if (tokenError) {
+        const isReplaced = tokenError.toLowerCase().includes("replaced") || tokenError.toLowerCase().includes("invalidated");
+        const isExpired = tokenError.toLowerCase().includes("expired");
         return (
             <div className="flex flex-col items-center justify-center min-h-screen bg-[#0a0a0b] p-4">
                 <div className="w-full max-w-md glass p-10 text-center rounded-[3rem] space-y-8 animate-in slide-in-from-top-4 duration-500">
                     <div className="flex justify-center">
-                        <div className="w-20 h-20 rounded-[2rem] bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500">
+                        <div className={`w-20 h-20 rounded-[2rem] flex items-center justify-center ${isReplaced ? "bg-amber-500/10 border border-amber-500/20 text-amber-400" : "bg-red-500/10 border border-red-500/20 text-red-500"}`}>
                             <AlertCircle className="w-10 h-10" />
                         </div>
                     </div>
                     <div>
-                        <h1 className="text-2xl font-black text-white uppercase tracking-tight">Invalid <span className="text-red-500 italic">Link</span></h1>
-                        <p className="text-gray-500 text-sm mt-2">{tokenError}</p>
+                        <h1 className="text-2xl font-black text-white uppercase tracking-tight">
+                            {isReplaced
+                                ? <>Link <span className="text-amber-400 italic">Superseded</span></>
+                                : isExpired
+                                    ? <>Link <span className="text-red-500 italic">Expired</span></>
+                                    : <>Invalid <span className="text-red-500 italic">Link</span></>}
+                        </h1>
+                        <p className="text-gray-500 text-sm mt-3 leading-relaxed">
+                            {isReplaced
+                                ? "Your administrator issued a new activation link. This old link has been superseded — please check your email for the latest invitation."
+                                : isExpired
+                                    ? "This activation link has expired (links are valid for 7 days). Contact your administrator to resend a fresh invitation."
+                                    : tokenError}
+                        </p>
                     </div>
                     <Link
                         to="/login"
-                        className="inline-block w-full py-4 glass border-white/5 text-white rounded-2xl font-bold hover:bg-white/5 transition-all text-xs uppercase tracking-widest"
+                        className="inline-flex items-center justify-center gap-2 w-full py-4 glass border-white/5 text-white rounded-2xl font-bold hover:bg-white/5 transition-all text-xs uppercase tracking-widest"
                     >
-                        Return to Portal
+                        Return to Portal <ArrowRight className="w-4 h-4" />
                     </Link>
                 </div>
             </div>
@@ -224,16 +238,19 @@ export default function Activate() {
                     </div>
                     <div>
                         <h1 className="text-2xl font-black uppercase tracking-tight">Already <span className="text-green-400 italic">Activated</span></h1>
-                        <p className="text-gray-400 text-sm mt-2">
-                            The account for <strong className="text-white">{tokenInfo.email}</strong> has already been activated. Please log in with your existing credentials.
+                        <p className="text-gray-400 text-sm mt-2 leading-relaxed">
+                            <strong className="text-white">{tokenInfo.email}</strong> is already active.
+                            <br />This link has been permanently invalidated — please log in with your existing credentials.
                         </p>
+                        {tokenInfo.identifier && tokenInfo.identifier !== tokenInfo.email && (
+                            <p className="mt-2 text-xs text-gray-600">ID: {tokenInfo.identifier}</p>
+                        )}
                     </div>
                     <Link
                         to="/login"
                         className="flex items-center justify-center gap-2 w-full py-4 premium-gradient text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-primary/25 hover:scale-105 transition-all"
                     >
-                        Go to Login
-                        <ArrowRight className="w-5 h-5" />
+                        Go to Login <ArrowRight className="w-5 h-5" />
                     </Link>
                 </div>
             </div>
