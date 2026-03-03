@@ -182,6 +182,14 @@ export const useSessionSocket = (user: User | null, isReady: boolean = true) => 
           break;
         }
 
+        case "bulk_upload_progress": {
+          const customEvent = new CustomEvent('bulk-upload-progress', {
+            detail: data
+          });
+          window.dispatchEvent(customEvent);
+          break;
+        }
+
         case "ping":
           break;
       }

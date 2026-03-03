@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import {
     Users,
     Search,
@@ -10,11 +10,16 @@ import {
     Briefcase,
     Building2,
     Calendar,
+    ChevronLeft,
+    ChevronRight,
+    Database,
 } from "lucide-react";
 import { createPortal } from "react-dom";
 import { instApiClient } from "../../auth/api/base";
 import { academicApi } from "../../academic/api/academicApi";
 import { toast } from "react-hot-toast";
+import { useFacultyBulkOperations } from "../hooks/useFacultyBulkOperations";
+import { FacultyUploadConsole } from "../components/FacultyUploadConsole";
 
 interface Faculty {
     id: number;
@@ -34,18 +39,44 @@ export const FacultyRegistry = () => {
     const [searchTerm, setSearchTerm] = useState("");
     const [loading, setLoading] = useState(true);
     const [showUpload, setShowUpload] = useState(false);
-    const [previewData, setPreviewData] = useState<any>(null);
-    const [selectedFaculty, setSelectedFaculty] = useState<string[]>([]);
+
+    // Pagination
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+
+    // Modal & Menu state
+    const [activeMenu, setActiveMenu] = useState<number | null>(null);
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditMode, setIsEditMode] = useState(false);
     const [editingEmpId, setEditingEmpId] = useState<string | null>(null);
-    const [activeMenu, setActiveMenu] = useState<number | null>(null);
+    const [newFaculty, setNewFaculty] = useState({
+        employee_id: "",
+        full_name: "",
+        email: "",
+        designation: "Assistant Professor",
+        department: "",
+        joining_date: new Date().toISOString().split('T')[0]
+    });
 
-    const fileInputRef = useRef<HTMLInputElement>(null);
+    const refresh = () => {
+        fetchDepartments();
+        fetchFaculty();
+    };
+
+    const {
+        isValidating, valProgress, valMessage,
+        previewData, setPreviewData,
+        isCommitting, commitPhase, commitProgress,
+        handleFileSelect, commitGridData
+    } = useFacultyBulkOperations(refresh);
 
     useEffect(() => {
         fetchDepartments();
+    }, []);
+
+    useEffect(() => {
         fetchFaculty();
-    }, [activeDept]);
+    }, [activeDept, page, searchTerm]);
 
     const fetchDepartments = async () => {
         try {
@@ -53,9 +84,6 @@ export const FacultyRegistry = () => {
             if (res.data.success) {
                 const names = res.data.data.map((d: any) => d.code);
                 setDepartments(["ALL", ...names]);
-            } else {
-                const legacyRes = await instApiClient.get("faculty/departments/");
-                if (legacyRes.data.success) setDepartments(["ALL", ...legacyRes.data.data]);
             }
         } catch (err) {
             console.error("Failed to fetch departments", err);
@@ -65,9 +93,15 @@ export const FacultyRegistry = () => {
     const fetchFaculty = async () => {
         setLoading(true);
         try {
-            const url = activeDept === "ALL" ? "faculty/" : `faculty/?department=${activeDept}`;
+            let url = `faculty/?page=${page}`;
+            if (activeDept !== "ALL") url += `&department=${activeDept}`;
+            if (searchTerm) url += `&search=${searchTerm}`;
+
             const res = await instApiClient.get(url);
-            if (res.data.success) setFaculty(res.data.data);
+            if (res.data.success) {
+                setFaculty(res.data.data);
+                if (res.data.total_pages) setTotalPages(res.data.total_pages);
+            }
         } catch (err) {
             toast.error("Failed to load faculty registry");
         } finally {
@@ -99,8 +133,7 @@ export const FacultyRegistry = () => {
             const res = await instApiClient.delete(`faculty/${empId}/`);
             if (res.data.success) {
                 toast.success("Educator removed", { id: loadingToast });
-                fetchFaculty();
-                fetchDepartments();
+                refresh();
             }
         } catch (err) {
             toast.error("Failed to delete record", { id: loadingToast });
@@ -122,6 +155,35 @@ export const FacultyRegistry = () => {
         setActiveMenu(null);
     };
 
+    const handleManualAdd = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const loadingToast = toast.loading(isEditMode ? "Updating record..." : "Provisioning educator...");
+        try {
+            const res = isEditMode
+                ? await instApiClient.patch(`faculty/${editingEmpId}/`, newFaculty)
+                : await instApiClient.post("faculty/", newFaculty);
+            if (res.data.success) {
+                toast.success(isEditMode ? "Record updated" : "Educator provisioned successfully", { id: loadingToast });
+                setIsAddModalOpen(false);
+                setIsEditMode(false);
+                setEditingEmpId(null);
+                refresh();
+            }
+        } catch (err: any) {
+            toast.error(err.response?.data?.message || "Failed to add educator", { id: loadingToast });
+        }
+    };
+
+    const downloadTemplate = () => {
+        const headers = ["employee_id", "full_name", "email", "designation", "department", "joining_date"];
+        const sample = ["EMP-001", "Dr. Manohar Reddy", "manohar@university.edu", "Assistant Professor", "CSE", "2024-01-15"];
+        const blob = new Blob([[headers.join(","), sample.join(",")].join("\n")], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        Object.assign(document.createElement("a"), { href: url, download: "AUIP_Faculty_Template.csv" }).click();
+        URL.revokeObjectURL(url);
+        toast.success("Faculty Template downloaded");
+    };
+
     const handleBulkInvite = async () => {
         const toInvite = faculty.filter(f => f.status === "SEEDED").map(f => f.employee_id);
         if (toInvite.length === 0) return toast.error("No pending faculty to invite.");
@@ -139,70 +201,8 @@ export const FacultyRegistry = () => {
         }
     };
 
-    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-    const [newFaculty, setNewFaculty] = useState({
-        employee_id: "",
-        full_name: "",
-        email: "",
-        designation: "Assistant Professor",
-        department: "",
-        joining_date: new Date().toISOString().split('T')[0]
-    });
-
-    const handleManualAdd = async (e: React.FormEvent) => {
-        e.preventDefault();
-        const loadingToast = toast.loading(isEditMode ? "Updating record..." : "Provisioning educator...");
-        try {
-            const res = isEditMode
-                ? await instApiClient.patch(`faculty/${editingEmpId}/`, newFaculty)
-                : await instApiClient.post("faculty/", newFaculty);
-            if (res.data.success) {
-                toast.success(isEditMode ? "Record updated" : "Educator provisioned successfully", { id: loadingToast });
-                setIsAddModalOpen(false);
-                setIsEditMode(false);
-                setEditingEmpId(null);
-                fetchFaculty();
-                fetchDepartments();
-            }
-        } catch (err: any) {
-            toast.error(err.response?.data?.message || "Failed to add educator", { id: loadingToast });
-        }
-    };
-
-    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, isPreview: boolean = true) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("preview", isPreview ? "true" : "false");
-        const loadingToast = toast.loading(isPreview ? "Analyzing CSV..." : "Applying faculty changes...");
-        try {
-            const res = await instApiClient.post("bulk-seed-faculty/", formData, {
-                headers: { "Content-Type": "multipart/form-data" }
-            });
-            if (res.data.success) {
-                toast.success(isPreview ? "Analysis complete" : "Faculty Registry updated", { id: loadingToast });
-                if (isPreview) setPreviewData({ ...res.data.data, file });
-                else {
-                    setShowUpload(false);
-                    setPreviewData(null);
-                    fetchFaculty();
-                    fetchDepartments();
-                }
-            }
-        } catch (err) {
-            toast.error("Upload failed.", { id: loadingToast });
-        }
-    };
-
-    const filteredFaculty = faculty.filter(f =>
-        (f.full_name?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
-        (f.employee_id?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
-        (f.email?.toLowerCase() || "").includes(searchTerm.toLowerCase())
-    );
-
     return (
-        <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500 w-full overflow-hidden">
+        <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500 w-full overflow-hidden min-h-screen">
             <div className="glass p-6 md:p-8 rounded-3xl md:rounded-[2.5rem] border-white/5 shadow-2xl relative overflow-visible flex flex-wrap items-center justify-between gap-6">
                 <div className="min-w-0">
                     <h1 className="text-2xl md:text-3xl lg:text-4xl font-black text-white italic tracking-tighter uppercase leading-none truncate flex items-center gap-3">
@@ -236,11 +236,11 @@ export const FacultyRegistry = () => {
             <div className="flex flex-col lg:flex-row gap-4">
                 <div className="flex-1 glass p-2 rounded-2xl border-white/5 flex items-center gap-2 pr-4">
                     <div className="bg-white/5 p-2.5 rounded-xl"><Search className="w-5 h-5 text-muted-foreground" /></div>
-                    <input type="text" placeholder="Search by ID, Name or Email..." className="bg-transparent border-none focus:ring-0 text-white font-medium flex-1 text-sm outline-none" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                    <input type="text" placeholder="Search by ID, Name or Email..." className="bg-transparent border-none focus:ring-0 text-white font-medium flex-1 text-sm outline-none" value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }} />
                 </div>
                 <div className="flex items-center gap-2 overflow-x-auto pb-2 lg:pb-0 scrollbar-hide">
                     {departments.map(dept => (
-                        <button key={dept} onClick={() => setActiveDept(dept)} className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeDept === dept ? 'bg-primary text-white shadow-xl' : 'glass border-white/5 text-muted-foreground hover:text-white'}`}>{dept}</button>
+                        <button key={dept} onClick={() => { setActiveDept(dept); setPage(1); }} className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeDept === dept ? 'bg-primary text-white shadow-xl' : 'glass border-white/5 text-muted-foreground hover:text-white'}`}>{dept}</button>
                     ))}
                 </div>
             </div>
@@ -260,16 +260,16 @@ export const FacultyRegistry = () => {
                             Array(3).fill(0).map((_, i) => (
                                 <tr key={i} className="animate-pulse"><td colSpan={4} className="p-8"><div className="h-4 bg-white/5 rounded-full w-full"></div></td></tr>
                             ))
-                        ) : filteredFaculty.length === 0 ? (
-                            <tr><td colSpan={4} className="p-20 text-center text-muted-foreground">No faculty records found.</td></tr>
-                        ) : filteredFaculty.map((f) => (
+                        ) : faculty.length === 0 ? (
+                            <tr><td colSpan={4} className="p-20 text-center text-muted-foreground uppercase font-black tracking-widest opacity-20 italic">No faculty records found.</td></tr>
+                        ) : faculty.map((f) => (
                             <tr key={f.id} className="hover:bg-white/[0.02] transition-all group">
                                 <td className="p-6">
                                     <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400 font-black text-xs">{f.full_name.charAt(0)}</div>
-                                        <div>
-                                            <p className="text-white font-bold text-sm tracking-tight">{f.full_name}</p>
-                                            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mt-0.5">{f.employee_id} • {f.email}</p>
+                                        <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400 font-black text-xs uppercase italic">{f.full_name?.charAt(0) || "?"}</div>
+                                        <div className="min-w-0">
+                                            <p className="text-white font-bold text-sm tracking-tight truncate">{f.full_name}</p>
+                                            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mt-0.5 truncate opacity-50">{f.employee_id} • {f.email}</p>
                                         </div>
                                     </div>
                                 </td>
@@ -277,12 +277,12 @@ export const FacultyRegistry = () => {
                                     <div className="flex items-center gap-3">
                                         <div className="px-3 py-1 bg-primary/10 rounded-lg text-primary text-[10px] font-black uppercase tracking-tighter">{f.designation}</div>
                                         <Building2 className="w-3 h-3 text-white/20" />
-                                        <div className="text-[10px] font-medium text-gray-300">{f.department}</div>
+                                        <div className="text-[10px] font-medium text-gray-300 uppercase tracking-widest">{f.department}</div>
                                     </div>
                                 </td>
                                 <td className="p-6">
                                     <div className="flex flex-col gap-1">
-                                        <div className="flex items-center gap-2"><Calendar className="w-3 h-3 text-muted-foreground" /><span className="text-[10px] text-gray-400">Joined {f.joining_date || "N/A"}</span></div>
+                                        <div className="flex items-center gap-2"><Calendar className="w-3 h-3 text-muted-foreground" /><span className="text-[10px] text-gray-400 font-bold">Joined {f.joining_date || "N/A"}</span></div>
                                         <div className={`flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest ${f.status === 'ACTIVE' ? 'text-green-400' : 'text-amber-500'}`}><span className={`w-1 h-1 rounded-full ${f.status === 'ACTIVE' ? 'bg-green-400' : 'bg-amber-500 animate-pulse'}`} />{f.status} Account</div>
                                     </div>
                                 </td>
@@ -294,9 +294,9 @@ export const FacultyRegistry = () => {
                                         <div className="relative">
                                             <button onClick={() => setActiveMenu(activeMenu === f.id ? null : f.id)} className="p-2.5 hover:bg-white/5 rounded-xl text-muted-foreground hover:text-white transition-all"><MoreVertical className="w-4 h-4" /></button>
                                             {activeMenu === f.id && (
-                                                <div className="absolute right-0 bottom-full mb-2 w-48 bg-[#0a0a0c]/90 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-bottom-2">
+                                                <div className="absolute right-0 top-full mt-2 w-48 bg-[#0a0a0c]/90 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
                                                     <button onClick={() => openEditModal(f)} className="w-full px-5 py-3 text-left text-[10px] font-black uppercase tracking-widest text-white hover:bg-white/5 transition-all">Edit Record</button>
-                                                    <button onClick={() => handleDelete(f.employee_id)} className="w-full px-5 py-3 text-left text-[10px] font-black uppercase tracking-widest text-red-400 hover:bg-red-500/10 transition-all">Remove educator</button>
+                                                    <button onClick={() => handleDelete(f.employee_id)} className="w-full px-5 py-3 text-left text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-500/10 transition-all">Remove educator</button>
                                                 </div>
                                             )}
                                         </div>
@@ -306,6 +306,15 @@ export const FacultyRegistry = () => {
                         ))}
                     </tbody>
                 </table>
+                {totalPages > 1 && (
+                    <div className="p-6 border-t border-white/5 flex items-center justify-between bg-white/[0.01]">
+                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Page {page} of {totalPages}</p>
+                        <div className="flex items-center gap-2">
+                            <button disabled={page === 1} onClick={() => setPage(p => p - 1)} className="p-2 rounded-xl glass border-white/5 disabled:opacity-20 hover:text-primary transition-all"><ChevronLeft className="w-5 h-5" /></button>
+                            <button disabled={page === totalPages} onClick={() => setPage(p => p + 1)} className="p-2 rounded-xl glass border-white/5 disabled:opacity-20 hover:text-primary transition-all"><ChevronRight className="w-5 h-5" /></button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {isAddModalOpen && createPortal(
@@ -359,101 +368,21 @@ export const FacultyRegistry = () => {
                 document.body
             )}
 
-            {showUpload && createPortal(
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300">
-                    <div className="absolute inset-0 bg-black/20 backdrop-blur-3xl" onClick={() => setShowUpload(false)} />
-                    <div className="relative bg-[#0a0a0f]/80 backdrop-blur-md w-full max-w-4xl rounded-[3rem] border border-white/10 overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-300 shadow-[0_0_120px_rgba(0,0,0,0.6)]">
-                        <div className="p-10 flex items-center justify-between border-b border-white/5 bg-white/5">
-                            <div>
-                                <h2 className="text-3xl font-black text-white italic tracking-tighter uppercase">Batch <span className="text-primary not-italic">Seeding</span></h2>
-                                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-[0.2em] mt-1">High-Volume Staff Provisioning</p>
-                            </div>
-                            <button onClick={() => setShowUpload(false)} className="p-3 rounded-xl hover:bg-white/5 text-gray-500 transition-all"><X className="w-8 h-8" /></button>
-                        </div>
-                        <div className="p-10 overflow-y-auto custom-scrollbar">
-                            {!previewData ? (
-                                <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-white/10 rounded-[3rem] p-24 flex flex-col items-center text-center cursor-pointer hover:bg-primary/5 hover:border-primary/50 transition-all group">
-                                    <div className="w-24 h-24 rounded-[2.5rem] bg-primary/10 flex items-center justify-center mb-8 group-hover:scale-110 transition-all">
-                                        <Upload className="w-12 h-12 text-primary" />
-                                    </div>
-                                    <p className="text-white font-black text-xl italic uppercase tracking-tighter">Select Registry CSV</p>
-                                    <p className="text-muted-foreground text-[10px] mt-4 max-w-xs uppercase tracking-[0.2em] font-black leading-relaxed">Required: employee_id, full_name, email, designation, department</p>
-                                    <input type="file" ref={fileInputRef} className="hidden" onChange={(e) => handleFileUpload(e, true)} />
-                                </div>
-                            ) : (
-                                <div className="space-y-10 animate-in fade-in duration-500">
-                                    <div className="grid grid-cols-3 gap-6">
-                                        <div className="glass p-8 rounded-3xl bg-green-500/[0.03] border-green-500/10 text-center">
-                                            <p className="text-[10px] font-black text-green-500 uppercase tracking-widest mb-2">New Identity Seeds</p>
-                                            <p className="text-4xl font-black text-white tracking-tighter">{previewData.summary.new_count}</p>
-                                        </div>
-                                        <div className="glass p-8 rounded-3xl bg-primary/[0.03] border-primary/10 text-center">
-                                            <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-2">Registry Updates</p>
-                                            <p className="text-4xl font-black text-white tracking-tighter">{previewData.summary.update_count}</p>
-                                        </div>
-                                        <div className="glass p-8 rounded-3xl bg-red-500/[0.03] border-red-500/10 text-center">
-                                            <p className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-2">Protocol Conflicts</p>
-                                            <p className="text-4xl font-black text-white tracking-tighter">{previewData.summary.error_count}</p>
-                                        </div>
-                                    </div>
-
-                                    {previewData.updates.length > 0 && (
-                                        <div className="space-y-4">
-                                            <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-2">Identity Update Preview</h3>
-                                            <div className="glass rounded-2xl border-white/5 overflow-hidden">
-                                                <table className="w-full text-left text-[10px]">
-                                                    <thead className="bg-white/5">
-                                                        <tr>
-                                                            <th className="p-4 font-black text-gray-400 uppercase">Educator</th>
-                                                            <th className="p-4 font-black text-gray-400 uppercase">Modifications</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y divide-white/5">
-                                                        {previewData.updates.map((u: any, i: number) => (
-                                                            <tr key={i} className="hover:bg-white/[0.02]">
-                                                                <td className="p-4">
-                                                                    <p className="text-white font-bold">{u.full_name}</p>
-                                                                    <p className="text-gray-500 uppercase tracking-widest">{u.employee_id}</p>
-                                                                </td>
-                                                                <td className="p-4">
-                                                                    {u.is_new ? (
-                                                                        <span className="text-green-400 font-black uppercase tracking-widest">New Identity</span>
-                                                                    ) : u.is_unchanged ? (
-                                                                        <span className="text-gray-600 font-black uppercase tracking-widest">No Changes Detected</span>
-                                                                    ) : (
-                                                                        <div className="flex flex-wrap gap-2">
-                                                                            {Object.entries(u.diff).map(([field, d]: any) => (
-                                                                                <span key={field} className="px-2 py-1 bg-primary/10 border border-primary/20 rounded-lg text-primary text-[8px] font-bold">
-                                                                                    {field}: {d.old || 'none'} → {d.new}
-                                                                                </span>
-                                                                            ))}
-                                                                        </div>
-                                                                    )}
-                                                                </td>
-                                                            </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    <div className="p-8 bg-blue-500/[0.02] rounded-[2rem] border border-blue-500/10 flex items-center gap-4">
-                                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
-                                        <p className="text-[11px] text-gray-400 font-bold uppercase tracking-widest leading-relaxed">Checked payload against institutional neural lattice. Ready for synchronization.</p>
-                                    </div>
-                                    <div className="flex justify-end gap-4 pt-10 border-t border-white/5">
-                                        <button onClick={() => setPreviewData(null)} className="px-10 py-4 glass rounded-2xl text-gray-500 hover:text-white font-black text-[10px] uppercase tracking-widest transition-all">Discard Buffer</button>
-                                        <button onClick={() => handleFileUpload({ target: { files: [previewData.file] } } as any, false)} className="px-12 py-4 bg-primary rounded-2xl text-white font-black text-[10px] uppercase tracking-[0.25em] shadow-2xl shadow-primary/20 hover:scale-105 transition-all">Commit to Registry</button>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                        <FacultyEscListener onEsc={() => setShowUpload(false)} />
-                    </div>
-                </div>,
-                document.body
-            )}
+            <FacultyUploadConsole
+                isOpen={showUpload}
+                onClose={() => setShowUpload(false)}
+                isValidating={isValidating}
+                valProgress={valProgress}
+                valMessage={valMessage}
+                isCommitting={isCommitting}
+                commitPhase={commitPhase}
+                commitProgress={commitProgress}
+                previewData={previewData}
+                onFileSelect={handleFileSelect}
+                onDownloadTemplate={downloadTemplate}
+                onDiscard={() => setPreviewData(null)}
+                onCommit={commitGridData}
+            />
         </div>
     );
 };
