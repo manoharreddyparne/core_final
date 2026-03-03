@@ -88,7 +88,8 @@ export const useStudentRegistry = (activeSection: string | null, viewMode: "CARD
         setLoading(true);
         try {
             let url = `students/?page_size=${PAGE_SIZE}&page=${targetPage}`;
-            if (activeSection) url += `&section=${encodeURIComponent(activeSection)}`;
+            // If searching, ignore section to enable Global Discovery
+            if (activeSection && !searchTerm.trim()) url += `&section=${encodeURIComponent(activeSection)}`;
             if (searchTerm.trim()) url += `&search=${encodeURIComponent(searchTerm.trim())}`;
 
             const res = await instApiClient.get(url);

@@ -24,27 +24,33 @@ interface StudentTableProps {
     onGoToPage: (p: number) => void;
     onClearSelection: () => void;
     onDispatch: () => void;
+    searchTerm?: string;
 }
 
 export const StudentTable: React.FC<StudentTableProps> = ({
     students, activeSection, subFeature, selectedStudents, allSelected,
     page, totalPages, totalCount, seededCount,
     onToggleSelectAll, onToggleSelect, onViewProfile, onEdit,
-    onSingleInvite, onBack, onGoToPage, onClearSelection, onDispatch
+    onSingleInvite, onBack, onGoToPage, onClearSelection, onDispatch,
+    searchTerm = ""
 }) => (
     <div className="glass rounded-[2rem] md:rounded-[2.5rem] border-white/5 overflow-hidden shadow-3xl bg-white/[0.01] w-full">
 
         {/* Section back-header */}
-        {activeSection && (
+        {(activeSection || searchTerm) && (
             <div className="p-6 md:p-8 border-b border-white/5 bg-primary/5 flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                    <button onClick={onBack} className="w-10 h-10 glass border-white/10 rounded-xl flex items-center justify-center hover:bg-white/5 transition-all text-primary">
-                        <ChevronLeft className="w-6 h-6" />
-                    </button>
+                    {activeSection && (
+                        <button onClick={onBack} className="w-10 h-10 glass border-white/10 rounded-xl flex items-center justify-center hover:bg-white/5 transition-all text-primary">
+                            <ChevronLeft className="w-6 h-6" />
+                        </button>
+                    )}
                     <div>
-                        <h3 className="text-xl font-black text-white italic tracking-tighter uppercase">Section <span className="text-primary not-italic">{activeSection}</span></h3>
+                        <h3 className="text-xl font-black text-white italic tracking-tighter uppercase">
+                            {searchTerm ? "Global Results" : <>Section <span className="text-primary not-italic">{activeSection}</span></>}
+                        </h3>
                         <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">
-                            {totalCount} students · {seededCount} pending activation
+                            {searchTerm ? `Found ${totalCount} matching identities` : `${totalCount} students · ${seededCount} pending activation`}
                         </p>
                     </div>
                 </div>

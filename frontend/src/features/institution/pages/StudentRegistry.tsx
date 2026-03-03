@@ -81,12 +81,15 @@ export const StudentRegistry = () => {
         const id = toast.loading(isEditMode ? "Updating..." : "Seeding...");
         try {
             const res = await (isEditMode ? instApiClient.put(`students/${s.id}/`, s) : instApiClient.post("students/", s));
-            // Backend returns 200 with success:false for conflicts — must check BEFORE success branch
+
+            // 🚨 CONFLICT DETECTED
             if (!res.data.success && res.data.code === "DUPLICATE_IDENTITY") {
                 toast.dismiss(id);
+                setShowFormModal(false); // ✅ Close entry modal immediately
                 setCollisionInfo({ student: res.data.student, originalData: s });
                 return;
             }
+
             if (res.data.success || [200, 201].includes(res.status)) {
                 toast.success(isEditMode ? "Updated" : "Seeded", { id });
                 if (currentFormIndex < formStudents.length - 1) setCurrentFormIndex(p => p + 1);
@@ -95,9 +98,10 @@ export const StudentRegistry = () => {
                 toast.error(res.data.message || "Failed", { id });
             }
         } catch (err: any) {
-            // 4xx/5xx path (belt-and-suspenders)
             if (err.response?.data?.code === "DUPLICATE_IDENTITY") {
-                toast.dismiss(id); setCollisionInfo({ student: err.response.data.student, originalData: s });
+                toast.dismiss(id);
+                setShowFormModal(false); // ✅ Close entry modal immediately
+                setCollisionInfo({ student: err.response.data.student, originalData: s });
             } else toast.error(err.response?.data?.message || "Failed", { id });
         }
     };
@@ -238,6 +242,7 @@ export const StudentRegistry = () => {
                         onGoToPage={goToPage}
                         onClearSelection={() => setSelectedStudents([])}
                         onDispatch={handleDispatch}
+                        searchTerm={debouncedSearchTerm}
                     />
                 </div>
             )}
@@ -271,16 +276,31 @@ export const StudentRegistry = () => {
                 />
             )}
             {collisionInfo && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/90 backdrop-blur-xl animate-in fade-in duration-300">
-                    <div className="glass w-full max-w-md rounded-[2.5rem] border border-red-500/30 p-8 text-center space-y-4">
-                        <div className="w-16 h-16 bg-red-500/10 rounded-2xl flex items-center justify-center text-red-500 mx-auto animate-pulse"><Activity className="w-8 h-8" /></div>
-                        <h3 className="text-xl font-black text-white italic tracking-tighter uppercase">Identity Collision</h3>
-                        <p className="text-xs text-muted-foreground leading-relaxed">
-                            Roll <strong className="text-white">{collisionInfo.student.roll_number}</strong> already mapped to <strong className="text-white">{collisionInfo.student.full_name}</strong>.
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-6 bg-black/95 backdrop-blur-2xl animate-in fade-in duration-300">
+                    <div className="glass w-full max-w-md rounded-[2.5rem] border border-red-500/30 p-10 text-center space-y-6 shadow-[0_0_100px_rgba(239,68,68,0.1)]">
+                        <div className="w-20 h-20 bg-red-500/10 rounded-3xl flex items-center justify-center text-red-500 mx-auto animate-pulse border border-red-500/20">
+                            <Activity className="w-10 h-10" />
+                        </div>
+                        <div>
+                            <h3 className="text-2xl font-black text-white italic tracking-tighter uppercase">Identity Collision</h3>
+                            <p className="text-[10px] font-black text-red-400 uppercase tracking-widest mt-1">Registry Conflict Detected</p>
+                        </div>
+                        <p className="text-sm text-muted-foreground leading-relaxed px-4">
+                            Roll <strong className="text-white font-black italic">{collisionInfo.student.roll_number}</strong> is already mapped to <span className="text-white font-medium">{collisionInfo.student.full_name}</span>.
                         </p>
                         <div className="pt-4 space-y-3">
-                            <button onClick={resolveCollision} className="w-full bg-white text-black py-4 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary hover:text-white transition-all">Update Existing Identity</button>
-                            <button onClick={() => setCollisionInfo(null)} className="w-full bg-white/5 text-white py-4 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all">Cancel</button>
+                            <button
+                                onClick={resolveCollision}
+                                className="w-full h-14 bg-white text-black rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-primary hover:text-white transition-all shadow-2xl active:scale-95"
+                            >
+                                Update Existing Identity
+                            </button>
+                            <button
+                                onClick={() => setCollisionInfo(null)}
+                                className="w-full h-14 bg-white/5 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all active:scale-95"
+                            >
+                                Cancel & Review
+                            </button>
                         </div>
                     </div>
                 </div>
