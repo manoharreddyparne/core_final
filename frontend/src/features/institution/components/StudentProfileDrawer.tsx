@@ -1,5 +1,8 @@
-import React from "react";
-import { User, X, GraduationCap, LayoutGrid, BarChart2, Lock } from "lucide-react";
+import React, { useEffect } from "react";
+import {
+    User, X, GraduationCap, LayoutGrid, BarChart2, Lock,
+    Mail, Phone, Calendar, Hash, ShieldCheck, Send, Edit2
+} from "lucide-react";
 import { Student } from "../hooks/useStudentRegistry";
 
 interface StudentProfileDrawerProps {
@@ -9,85 +12,141 @@ interface StudentProfileDrawerProps {
 }
 
 export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({ student, onClose, onEdit }) => {
+    // ESC key support
+    useEffect(() => {
+        const handleKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape") onClose();
+        };
+        document.addEventListener("keydown", handleKey);
+        return () => document.removeEventListener("keydown", handleKey);
+    }, [onClose]);
+
     if (!student) return null;
 
-    return (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-6 bg-black/97 backdrop-blur-3xl animate-in zoom-in-95 duration-300">
-            <div className="glass w-full max-w-2xl overflow-hidden flex flex-col rounded-[3.5rem] border border-white/10 shadow-3xl">
-                <div className="p-12 relative overflow-hidden flex flex-col items-center text-center">
-                    <div className="absolute top-0 left-0 w-full h-40 bg-gradient-to-b from-primary/20 to-transparent opacity-50" />
-                    <button onClick={onClose} className="absolute top-10 right-10 w-12 h-12 glass rounded-2xl border-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all">
-                        <X className="w-6 h-6" />
-                    </button>
-                    <div className="relative z-10 space-y-6 flex flex-col items-center mt-4">
-                        <div className="w-24 h-24 bg-primary/10 rounded-[2.5rem] border border-primary/20 flex items-center justify-center text-primary shadow-2xl">
-                            <User className="w-12 h-12" />
-                        </div>
-                        <div>
-                            <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em] mb-2 px-4 py-1 glass rounded-full inline-block border-primary/20">{student.roll_number}</p>
-                            <h2 className="text-3xl font-black text-white italic tracking-tighter">{student.full_name}</h2>
-                            <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest mt-1 opacity-50">{student.official_email}</p>
-                            {student.personal_email && <p className="text-white/30 text-xs mt-1">{student.personal_email}</p>}
-                            {student.phone_number && <p className="text-white/30 text-xs mt-0.5">📞 {student.phone_number}</p>}
-                        </div>
-                    </div>
-                </div>
+    const statusActive = student.status === "ACTIVE";
 
-                <div className="px-12 pb-8 bg-white/[0.01] grid grid-cols-2 gap-8 border-t border-white/5 pt-8">
-                    <div className="space-y-5">
-                        <div className="space-y-1">
-                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest opacity-40">Program / Branch</p>
-                            <div className="flex items-center gap-3">
-                                <GraduationCap className="w-4 h-4 text-primary" />
-                                <p className="text-sm font-bold text-white uppercase">{student.program || "B.Tech"} — {student.branch}</p>
-                            </div>
+    return (
+        // Backdrop
+        <div
+            className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-8 bg-black/80 backdrop-blur-2xl animate-in fade-in duration-200"
+            onClick={onClose}  // click outside = close
+        >
+            {/* Card — stop propagation so clicking inside doesn't close */}
+            <div
+                className="relative w-full max-w-xl bg-[#0a0a0f] border border-white/8 rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300"
+                onClick={e => e.stopPropagation()}
+            >
+                {/* Ambient glows */}
+                <div className="absolute top-0 right-0 w-72 h-72 bg-primary/10 blur-[120px] rounded-full -mr-36 -mt-36 pointer-events-none" />
+                <div className="absolute bottom-0 left-0 w-48 h-48 bg-primary/5 blur-[80px] rounded-full -ml-24 -mb-24 pointer-events-none" />
+
+                {/* Header gradient strip */}
+                <div className="relative bg-gradient-to-br from-primary/20 via-primary/5 to-transparent pt-10 pb-8 px-8 flex flex-col items-center text-center border-b border-white/5">
+                    <button
+                        onClick={onClose}
+                        className="absolute top-5 right-5 w-10 h-10 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl flex items-center justify-center text-white/40 hover:text-white transition-all"
+                        aria-label="Close"
+                    >
+                        <X className="w-5 h-5" />
+                    </button>
+
+                    {/* Avatar */}
+                    <div className="relative mb-5">
+                        <div className="w-20 h-20 bg-primary/10 border-2 border-primary/30 rounded-[1.75rem] flex items-center justify-center shadow-2xl shadow-primary/20">
+                            <span className="text-3xl font-black text-primary italic">{student.full_name.charAt(0)}</span>
                         </div>
-                        <div className="space-y-1">
-                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest opacity-40">Section · Semester</p>
-                            <div className="flex items-center gap-3">
-                                <LayoutGrid className="w-4 h-4 text-primary" />
-                                <p className="text-sm font-bold text-white uppercase">Section {student.section} · Sem {student.current_semester}</p>
-                            </div>
-                        </div>
-                        <div className="space-y-1">
-                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest opacity-40">Batch / Passout</p>
-                            <p className="text-sm font-bold text-white">{student.batch_year} → {student.passout_year || "—"}</p>
-                        </div>
+                        <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-[#0a0a0f] ${statusActive ? "bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.6)]" : "bg-amber-400/80"}`} />
                     </div>
-                    <div className="space-y-5 border-l border-white/5 pl-8">
-                        <div className="space-y-1">
-                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest opacity-40">Account Status</p>
-                            <div className="flex items-center gap-3">
-                                <div className={`w-2 h-2 rounded-full ${student.status === 'ACTIVE' ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-white/20'}`} />
-                                <p className="text-sm font-black text-white">{student.status}</p>
+
+                    {/* Roll chip */}
+                    <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 px-3 py-1 rounded-full mb-3">
+                        <Hash className="w-3 h-3 text-primary" />
+                        <span className="text-[10px] font-black text-primary tracking-widest uppercase">{student.roll_number}</span>
+                    </div>
+
+                    <h2 className="text-2xl font-black text-white tracking-tight uppercase italic mb-1">{student.full_name}</h2>
+
+                    <div className="flex flex-col items-center gap-1 mt-1">
+                        {student.official_email && (
+                            <div className="flex items-center gap-1.5 text-muted-foreground">
+                                <Mail className="w-3.5 h-3.5" />
+                                <span className="text-[11px] font-medium">{student.official_email}</span>
                             </div>
-                        </div>
-                        <div className="space-y-1">
-                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest opacity-40">CGPA</p>
-                            <div className="flex items-center gap-3">
-                                <BarChart2 className="w-4 h-4 text-amber-400" />
-                                <p className="text-sm font-black text-white tracking-widest">{student.cgpa || "0.00"}</p>
+                        )}
+                        {student.personal_email && (
+                            <div className="flex items-center gap-1.5 text-white/30">
+                                <Mail className="w-3 h-3" />
+                                <span className="text-[10px]">{student.personal_email}</span>
                             </div>
-                        </div>
-                        {student.date_of_birth && (
-                            <div className="space-y-1">
-                                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest opacity-40">Date of Birth</p>
-                                <p className="text-sm font-bold text-white">{student.date_of_birth}</p>
+                        )}
+                        {student.phone_number && (
+                            <div className="flex items-center gap-1.5 text-white/30">
+                                <Phone className="w-3 h-3" />
+                                <span className="text-[10px]">{student.phone_number}</span>
                             </div>
                         )}
                     </div>
                 </div>
 
-                <div className="p-8 border-t border-white/5 flex items-center justify-between">
-                    <div className="flex items-center gap-3 text-[10px] text-muted-foreground font-medium italic opacity-50">
-                        <Lock className="w-3 h-3" /> Secure Institutional Identity
+                {/* Info Grid */}
+                <div className="grid grid-cols-2 gap-0 divide-x divide-white/5">
+                    {/* Left column */}
+                    <div className="p-6 space-y-5">
+                        <InfoItem icon={<GraduationCap className="w-4 h-4 text-primary" />} label="Program / Branch" value={`${student.program || "B.Tech"} — ${student.branch}`} />
+                        <InfoItem icon={<LayoutGrid className="w-4 h-4 text-primary" />} label="Section · Semester" value={`Section ${student.section} · Sem ${student.current_semester}`} />
+                        <InfoItem icon={<Calendar className="w-4 h-4 text-primary" />} label="Batch / Passout" value={`${student.batch_year} → ${student.passout_year || "—"}`} />
                     </div>
-                    <div className="flex gap-3">
-                        <button onClick={() => { onClose(); onEdit(student); }} className="px-6 py-3 bg-primary/10 text-primary font-black uppercase text-[9px] tracking-widest rounded-xl border border-primary/20 hover:bg-primary transition-all hover:text-white">Edit Profile</button>
-                        <button onClick={onClose} className="px-6 py-3 glass text-white font-black uppercase text-[9px] tracking-widest rounded-xl hover:bg-white/10 transition-all border-white/10">Close</button>
+                    {/* Right column */}
+                    <div className="p-6 space-y-5">
+                        <div className="space-y-1">
+                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest opacity-50">Account Status</p>
+                            <div className="flex items-center gap-2 mt-1">
+                                <div className={`w-2 h-2 rounded-full ${statusActive ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" : "bg-amber-400/70 animate-pulse"}`} />
+                                <span className={`text-sm font-black uppercase ${statusActive ? "text-green-400" : "text-amber-400"}`}>{student.status}</span>
+                            </div>
+                        </div>
+                        {student.cgpa && (
+                            <InfoItem icon={<BarChart2 className="w-4 h-4 text-amber-400" />} label="CGPA" value={String(student.cgpa)} />
+                        )}
+                        {student.date_of_birth && (
+                            <InfoItem icon={<Calendar className="w-4 h-4 text-white/30" />} label="Date of Birth" value={student.date_of_birth} />
+                        )}
+                    </div>
+                </div>
+
+                {/* Footer Actions */}
+                <div className="px-6 pb-6 pt-0 flex items-center justify-between border-t border-white/5 mt-0 pt-5">
+                    <div className="flex items-center gap-2 text-[9px] text-white/20 font-medium">
+                        <Lock className="w-3 h-3" />
+                        <span>Secure Institutional Record</span>
+                    </div>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => { onClose(); onEdit(student); }}
+                            className="flex items-center gap-2 px-5 py-2.5 bg-primary/10 text-primary font-black uppercase text-[9px] tracking-widest rounded-xl border border-primary/20 hover:bg-primary hover:text-white transition-all"
+                        >
+                            <Edit2 className="w-3.5 h-3.5" /> Edit
+                        </button>
+                        <button
+                            onClick={onClose}
+                            className="px-5 py-2.5 bg-white/5 text-white/50 font-black uppercase text-[9px] tracking-widest rounded-xl hover:bg-white/10 hover:text-white transition-all border border-white/5"
+                        >
+                            Close
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
     );
 };
+
+// Small helper component
+const InfoItem = ({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) => (
+    <div className="space-y-1">
+        <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest opacity-50">{label}</p>
+        <div className="flex items-center gap-2">
+            {icon}
+            <p className="text-sm font-bold text-white uppercase">{value}</p>
+        </div>
+    </div>
+);
