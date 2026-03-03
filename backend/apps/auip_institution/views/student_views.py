@@ -151,14 +151,26 @@ class RegisteredStudentViewSet(viewsets.ModelViewSet):
             found_rolls = set()
             for roll in query_rolls:
                 try:
+                    # 🔍 Step 1: Check Identity Registry
                     stu = StudentPreSeededRegistry.objects.filter(identifier__iexact=roll).first()
+                    
+                    # 🛠️ Hub Resilience: If missing from identity registry but exists in academic registry, sync now
+                    if not stu:
+                        academic_stu = StudentAcademicRegistry.objects.filter(roll_number__iexact=roll).first()
+                        if academic_stu:
+                            logger.info(f"[BULK-INVITE] Auto-syncing missing identity for {roll}")
+                            academic_stu.sync_to_preseeded()
+                            stu = StudentPreSeededRegistry.objects.filter(identifier__iexact=roll).first()
+                    
                     if not stu:
                         summary["not_found"].append(roll)
                         continue
+                        
                     found_rolls.add(roll.upper())
                     if stu.is_activated:
                         summary["already_activated"].append(roll)
                         continue
+                        
                     ActivationService.create_tenant_invitation(stu, institution.schema_name, entry_type="student")
                     summary["invited"].append(roll)
                 except Exception as e:

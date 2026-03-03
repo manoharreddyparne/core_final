@@ -122,7 +122,7 @@ export const PremiumOTPModal = ({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-md bg-[#0d1117] border border-white/10 rounded-[3rem] shadow-2xl p-0 overflow-hidden backdrop-blur-3xl animate-in zoom-in-95 duration-300">
+            <DialogContent className="sm:max-w-md bg-[#0d1117] border border-white/10 rounded-[3rem] shadow-2xl p-0 overflow-y-auto max-h-[90vh] backdrop-blur-3xl animate-in zoom-in-95 duration-300">
                 {/* Visual Flair */}
                 <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 blur-[100px] rounded-full -mr-32 -mt-32 pointer-events-none" />
                 <div className="absolute bottom-0 left-0 w-48 h-48 bg-primary/5 blur-[80px] rounded-full -ml-24 -mb-24 pointer-events-none" />
