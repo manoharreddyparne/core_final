@@ -77,9 +77,14 @@ export const useStudentRegistry = (activeSection: string | null, viewMode: "CARD
     const fetchSections = async () => {
         try {
             const res = await instApiClient.get("students/sections/");
-            setSectionStats(res.data);
+            if (res.data.success) {
+                setSectionStats(res.data.data);
+            } else {
+                setSectionStats([]);
+            }
         } catch (err) {
             console.error("Failed to fetch sections", err);
+            setSectionStats([]);
         }
     };
 
@@ -114,7 +119,7 @@ export const useStudentRegistry = (activeSection: string | null, viewMode: "CARD
         } finally {
             setLoading(false);
         }
-    }, [viewMode, activeSection]);
+    }, [viewMode, activeSection, searchTerm, statusFilter]);
 
     // Sections + academic meta: load once
     useEffect(() => {

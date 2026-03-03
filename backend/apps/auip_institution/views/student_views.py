@@ -56,16 +56,9 @@ class RegisteredStudentViewSet(viewsets.ModelViewSet):
 
             # 🔍 Apply Filters INSIDE schema context
             section = self.request.query_params.get('section')
-            search_query = self.request.query_params.get('search')
             status_filter = self.request.query_params.get('status')
 
-            if search_query:
-                qs = qs.filter(
-                    Q(roll_number__icontains=search_query) |
-                    Q(full_name__icontains=search_query) |
-                    Q(official_email__icontains=search_query)
-                )
-            elif section:
+            if section:
                 qs = qs.filter(section=section)
 
             if status_filter == 'ACTIVE':
@@ -101,13 +94,17 @@ class RegisteredStudentViewSet(viewsets.ModelViewSet):
     pagination_class = StudentPagination
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-        serializer = self.get_serializer(queryset, many=True)
-        return success_response("Students retrieved successfully", data=serializer.data)
+        """Ensure the entire list process (filtering, pagination, serialization) runs in tenant schema."""
+        from django_tenants.utils import schema_context
+        institution = self.request.user.institution
+        with schema_context(institution.schema_name):
+            queryset = self.filter_queryset(self.get_queryset())
+            page = self.paginate_queryset(queryset)
+            if page is not None:
+                serializer = self.get_serializer(page, many=True)
+                return self.get_paginated_response(serializer.data)
+            serializer = self.get_serializer(queryset, many=True)
+            return success_response("Students retrieved successfully", data=serializer.data)
 
     @action(detail=False, methods=['get'])
     def sections(self, request):

@@ -12,7 +12,9 @@ interface SectionGridProps {
 export const SectionGrid: React.FC<SectionGridProps> = ({
     sectionStats, subFeature, onSelectSection, onInviteSection
 }) => {
-    if (sectionStats.length === 0) {
+    const stats = Array.isArray(sectionStats) ? sectionStats : [];
+
+    if (stats.length === 0) {
         return (
             <div className="col-span-full py-20 bg-white/[0.01] rounded-[2rem] border border-white/5 flex flex-col items-center justify-center gap-4">
                 <Activity className="w-12 h-12 text-white/10" />
@@ -23,7 +25,7 @@ export const SectionGrid: React.FC<SectionGridProps> = ({
 
     return (
         <>
-            {sectionStats.map((s, i) => (
+            {stats.map((s, i) => (
                 <div key={i} className="glass p-6 md:p-8 rounded-[2rem] border-white/5 hover:border-primary/40 hover:bg-primary/[0.03] transition-all group relative flex flex-col justify-between">
                     <div onClick={() => onSelectSection(s.name)} className="cursor-pointer">
                         <h4 className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1 opacity-50">Cohort</h4>
