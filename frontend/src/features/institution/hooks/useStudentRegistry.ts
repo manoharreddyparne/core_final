@@ -47,7 +47,7 @@ interface PaginatedState {
  * - page_size=100, max_page_size=500 (set on backend)
  * - Exposes goToPage() for navigation
  */
-export const useStudentRegistry = (activeSection: string | null, viewMode: "CARDS" | "LIST") => {
+export const useStudentRegistry = (activeSection: string | null, viewMode: "CARDS" | "LIST", searchTerm = "") => {
     const [students, setStudents] = useState<Student[]>([]);
     const [totalCount, setTotalCount] = useState(0);
     const [page, setPage] = useState(1);
@@ -84,12 +84,12 @@ export const useStudentRegistry = (activeSection: string | null, viewMode: "CARD
     };
 
     const fetchStudents = useCallback(async (targetPage = 1) => {
-        // Only fetch if we're in list mode or have a section drill-down
         if (viewMode === "CARDS" && !activeSection) return;
         setLoading(true);
         try {
             let url = `students/?page_size=${PAGE_SIZE}&page=${targetPage}`;
-            if (activeSection) url += `&section=${activeSection}`;
+            if (activeSection) url += `&section=${encodeURIComponent(activeSection)}`;
+            if (searchTerm.trim()) url += `&search=${encodeURIComponent(searchTerm.trim())}`;
 
             const res = await instApiClient.get(url);
 
@@ -120,11 +120,11 @@ export const useStudentRegistry = (activeSection: string | null, viewMode: "CARD
         fetchAcademicRegistry();
     }, []);
 
-    // Re-fetch when section/view changes — reset to page 1
+    // Re-fetch when section/view/search changes — reset to page 1
     useEffect(() => {
         setPage(1);
         fetchStudents(1);
-    }, [viewMode, activeSection]);
+    }, [viewMode, activeSection, searchTerm]);
 
     const goToPage = (newPage: number) => {
         setPage(newPage);

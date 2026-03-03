@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Users, Search, Plus, Upload, List, LayoutGrid, Zap, Activity } from "lucide-react";
 import { toast } from "react-hot-toast";
 
@@ -20,8 +20,19 @@ export const StudentRegistry = () => {
     const [viewMode, setViewMode] = useState<"CARDS" | "LIST">("CARDS");
     const [activeSection, setActiveSection] = useState<string | null>(null);
 
+    // Search/filter state
+    const [searchTerm, setSearchTerm] = useState("");
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+    const [statusFilter, setStatusFilter] = useState("ALL");
+
+    // Debounce search to prevent API spam
+    useEffect(() => {
+        const timer = setTimeout(() => setDebouncedSearchTerm(searchTerm), 300);
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
+
     const { students, totalCount, page, totalPages, goToPage, sectionStats, loading, refresh } =
-        useStudentRegistry(activeSection, viewMode);
+        useStudentRegistry(activeSection, viewMode, debouncedSearchTerm);
 
     const ws = useDispatchSocket();
 
@@ -32,9 +43,7 @@ export const StudentRegistry = () => {
         handleFileSelect, commitGridData, handleInviteSection,
     } = useBulkOperations(refresh);
 
-    // UI state
-    const [searchTerm, setSearchTerm] = useState("");
-    const [statusFilter, setStatusFilter] = useState("ALL");
+    // Remaining UI state
     const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
     const [showUpload, setShowUpload] = useState(false);
     const [showDispatch, setShowDispatch] = useState(false);
@@ -72,15 +81,24 @@ export const StudentRegistry = () => {
         const id = toast.loading(isEditMode ? "Updating..." : "Seeding...");
         try {
             const res = await (isEditMode ? instApiClient.put(`students/${s.id}/`, s) : instApiClient.post("students/", s));
+            // Backend returns 200 with success:false for conflicts — must check BEFORE success branch
+            if (!res.data.success && res.data.code === "DUPLICATE_IDENTITY") {
+                toast.dismiss(id);
+                setCollisionInfo({ student: res.data.student, originalData: s });
+                return;
+            }
             if (res.data.success || [200, 201].includes(res.status)) {
                 toast.success(isEditMode ? "Updated" : "Seeded", { id });
                 if (currentFormIndex < formStudents.length - 1) setCurrentFormIndex(p => p + 1);
                 else { setShowFormModal(false); refresh(); }
+            } else {
+                toast.error(res.data.message || "Failed", { id });
             }
         } catch (err: any) {
+            // 4xx/5xx path (belt-and-suspenders)
             if (err.response?.data?.code === "DUPLICATE_IDENTITY") {
                 toast.dismiss(id); setCollisionInfo({ student: err.response.data.student, originalData: s });
-            } else toast.error("Failed", { id });
+            } else toast.error(err.response?.data?.message || "Failed", { id });
         }
     };
     const resolveCollision = async () => {
@@ -103,13 +121,8 @@ export const StudentRegistry = () => {
         setSelectedStudents([]);
     };
 
-    const filteredStudents = useMemo(() => students.filter(s =>
-        (searchTerm === "" || s.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            s.roll_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            s.official_email.toLowerCase().includes(searchTerm.toLowerCase())) &&
-        (statusFilter === "ALL" || s.status === statusFilter)
-    ), [students, searchTerm, statusFilter]);
-
+    // Server handles search+filter — filteredStudents is just what server returns
+    const filteredStudents = students;
     const seededCount = useMemo(() => filteredStudents.filter(s => s.status !== "ACTIVE").length, [filteredStudents]);
     const allSeededOnPage = filteredStudents.filter(s => s.status !== "ACTIVE").map(s => s.roll_number);
     const allSelected = allSeededOnPage.length > 0 && allSeededOnPage.every(r => selectedStudents.includes(r));
