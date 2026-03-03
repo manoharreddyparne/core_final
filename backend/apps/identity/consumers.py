@@ -30,17 +30,17 @@ class SessionConsumer(AsyncWebsocketConsumer):
             return
 
         # 🚀 Role-based Group Isolation
-        role = "anonymous"
         payload = self.scope.get("token_payload")
+        role = "anonymous"
         if payload:
-            role = payload.get("role") or getattr(self.user, 'role', 'anonymous')
+            role = payload.get("role") or "anonymous"
         
-        print(f"[WS-SESSION] Setting up group: user_id={self.user.id} role={role}")
         self.group_name = f"user_sessions_{self.user.id}_{role}"
         await self.channel_layer.group_add(self.group_name, self.channel_name)
 
-        # 🚀 REAL-TIME HUB: Add Super Admins to the broadcast group
-        if self.user.role == "SUPER_ADMIN":
+        # 🚀 REAL-TIME HUB
+        user_role = getattr(self.user, 'role', role)
+        if user_role == "SUPER_ADMIN":
             self.broadcast_group = "superadmin_updates"
             await self.channel_layer.group_add(self.broadcast_group, self.channel_name)
             logger.info(f"Super Admin {self.user.email} joined real-time institutional hub.")
