@@ -14,10 +14,35 @@ from apps.auip_institution.permissions import IsTenantAdmin
 from apps.auip_institution.models import FacultyAcademicRegistry, FacultyPreSeededRegistry
 from apps.identity.utils.response_utils import success_response, error_response
 from apps.academic.models import Department
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 
 logger = logging.getLogger(__name__)
 
 from apps.auip_institution.serializers import FacultyAcademicRegistrySerializer
+
+def broadcast_bulk_progress(user, role, progress, message, action="bulk_upload_progress"):
+    """Helper to send progress updates via WebSocket."""
+    layer = get_channel_layer()
+    if not layer:
+        return
+    
+    group_name = f"user_sessions_{user.id}_{role}"
+    try:
+        async_to_sync(layer.group_send)(
+            group_name,
+            {
+                "type": "session_update",
+                "data": {
+                    "action": action,
+                    "progress": progress,
+                    "message": message,
+                    "phase": "COMMIT"
+                }
+            }
+        )
+    except Exception as e:
+        logger.warning(f"Failed to broadcast progress: {e}")
 
 class RegisteredFacultyViewSet(viewsets.ModelViewSet):
     """
@@ -139,9 +164,17 @@ class RegisteredFacultyViewSet(viewsets.ModelViewSet):
             data=summary
         )
 
+BULK_FACULTY_FIELDS = [
+    'full_name', 'email', 'designation', 'department',
+    'joining_date', 'department_ref',
+]
+
 class TenantBulkFacultyUploadView(APIView):
     """
-    Bulk Faculty Seeding with Preview/Diff support.
+    High-Speed Bulk Faculty Seeding with Real-time WebSocket Progress:
+    - preview=true  → instant diff, zero writes
+    - preview=false & faculty=[…] → commit from DataGrid (JSON)
+    - preview=false & file → direct fast-commit from CSV
     """
     authentication_classes = [TenantAuthentication]
     permission_classes = [IsTenantAdmin]
@@ -153,10 +186,11 @@ class TenantBulkFacultyUploadView(APIView):
             or request.data.get('preview') is True
         )
         
-        # JSON Commit Support (from frontend DataGrid)
+        # ── Route: DataGrid JSON commit ──────────────────────────────────────
         if not preview_mode and 'faculty' in request.data:
             return self._commit_json(request, request.data['faculty'])
 
+        # ── Route: CSV file ──────────────────────────────────────────────────
         if 'file' not in request.FILES:
             return error_response("CSV file required", code=400)
 
@@ -179,16 +213,41 @@ class TenantBulkFacultyUploadView(APIView):
         valid_records = []
 
         with schema_context(institution.schema_name):
-            # Caches for O(1) lookups
             depts = {d.code.lower(): d for d in Department.objects.all()}
             depts.update({d.name.lower(): d for d in Department.objects.all()})
             
-            existing_ids = set(FacultyAcademicRegistry.objects.values_list('employee_id', flat=True))
+            # FAST-PATH: empty check
+            total_existing = FacultyAcademicRegistry.objects.count()
+            if total_existing == 0:
+                for row in rows:
+                    emp_id = row.get('employee_id', '').strip()
+                    if not emp_id: continue
+                    try:
+                        incoming = self._clean_row(row, depts)
+                        updates.append({
+                            "employee_id": emp_id,
+                            "full_name": incoming.get('full_name'),
+                            "is_new": True,
+                            "diff": {},
+                            "is_unchanged": False
+                        })
+                        valid_records.append(row)
+                    except Exception as e:
+                        errors.append({"employee_id": emp_id, "error": str(e)})
+                
+                return success_response("Preview generated (Fast Path)", data={
+                    "preview": True,
+                    "summary": {"new_count": len(updates), "update_count": 0, "error_count": len(errors)},
+                    "updates": updates,
+                    "valid_records": valid_records,
+                    "invalid_records": errors,
+                })
+
+            # STANDARD-PATH: targeted load
+            incoming_ids = {r.get('employee_id', '').strip().lower() for r in rows if r.get('employee_id')}
             existing_objs = {
                 obj.employee_id.lower(): obj 
-                for obj in FacultyAcademicRegistry.objects.filter(
-                    employee_id__in=[r.get('employee_id', '').strip() for r in rows if r.get('employee_id')]
-                )
+                for obj in FacultyAcademicRegistry.objects.filter(employee_id__in=list(incoming_ids))
             }
 
             for row in rows:
@@ -196,20 +255,18 @@ class TenantBulkFacultyUploadView(APIView):
                 if not emp_id: continue
                 
                 try:
-                    incoming_data = self._clean_row(row, depts)
+                    incoming = self._clean_row(row, depts)
                     existing = existing_objs.get(emp_id.lower())
                     
                     if existing:
-                        diff = {}
-                        for key, val in incoming_data.items():
-                            if key == 'department_ref': continue
-                            old_val = getattr(existing, key, None)
-                            if str(old_val) != str(val):
-                                diff[key] = {"old": old_val, "new": val}
-                        
+                        diff = {
+                            k: {"old": str(getattr(existing, k, None)), "new": str(v)}
+                            for k, v in incoming.items()
+                            if k in BULK_FACULTY_FIELDS and str(getattr(existing, k, None)) != str(v)
+                        }
                         updates.append({
                             "employee_id": emp_id,
-                            "full_name": existing.full_name,
+                            "full_name": incoming.get('full_name'),
                             "diff": diff,
                             "is_new": False,
                             "is_unchanged": not bool(diff)
@@ -217,7 +274,7 @@ class TenantBulkFacultyUploadView(APIView):
                     else:
                         updates.append({
                             "employee_id": emp_id,
-                            "full_name": incoming_data.get('full_name'),
+                            "full_name": incoming.get('full_name'),
                             "is_new": True,
                             "diff": {},
                             "is_unchanged": False
@@ -231,74 +288,134 @@ class TenantBulkFacultyUploadView(APIView):
 
         return success_response("Preview generated", data={
             "preview": True,
-            "summary": {
-                "new_count": new_count,
-                "update_count": update_count,
-                "error_count": len(errors)
-            },
+            "summary": {"new_count": new_count, "update_count": update_count, "error_count": len(errors)},
             "updates": updates,
             "valid_records": valid_records,
-            "errors": errors
+            "invalid_records": errors,
         })
 
     def _commit_csv(self, request, rows):
+        """Direct CSV commit - extreme speed"""
+        user = request.user
+        role = getattr(user, 'role', 'INSTITUTION_ADMIN')
+        broadcast_bulk_progress(user, role, 10, "Initializing Registry Protocol...")
+
         institution = request.user.institution
+        errors = []
         with schema_context(institution.schema_name):
+            # Ensure departments
+            incoming_dept_codes = {r.get('department', '').strip() for r in rows if r.get('department')}
+            for code in incoming_dept_codes:
+                Department.objects.get_or_create(code=code, defaults={"name": f"Department of {code}"})
+
             depts = {d.code.lower(): d for d in Department.objects.all()}
             depts.update({d.name.lower(): d for d in Department.objects.all()})
             
-            created_count = 0
-            errors = []
+            existing_ids = set(FacultyAcademicRegistry.objects.values_list('employee_id', flat=True))
+            existing_preseeded = set(FacultyPreSeededRegistry.objects.values_list('identifier', flat=True))
             
-            with transaction.atomic():
-                for row in rows:
-                    emp_id = row.get('employee_id', '').strip()
-                    if not emp_id: continue
-                    try:
-                        data = self._clean_row(row, depts)
-                        obj, created = FacultyAcademicRegistry.objects.update_or_create(
-                            employee_id=emp_id,
-                            defaults=data
-                        )
-                        if created:
-                            created_count += 1
-                        FacultyPreSeededRegistry.objects.get_or_create(
-                            identifier=emp_id, 
-                            defaults={"email": data.get('email')}
-                        )
-                    except Exception as e:
-                        errors.append({"employee_id": emp_id, "error": str(e)})
+            new_objs = []
+            new_preseeded = []
+            
+            total = len(rows)
+            for i, row in enumerate(rows):
+                emp_id = row.get('employee_id', '').strip()
+                if not emp_id: continue
+                try:
+                    data = self._clean_row(row, depts)
+                    if emp_id not in existing_ids:
+                        new_objs.append(FacultyAcademicRegistry(employee_id=emp_id, **data))
+                        if emp_id not in existing_preseeded:
+                            new_preseeded.append(FacultyPreSeededRegistry(identifier=emp_id, email=data.get('email')))
+                except Exception as e:
+                    errors.append({"employee_id": emp_id, "error": str(e)})
+                
+                if i % 100 == 0:
+                    pct = 20 + int((i / total) * 60)
+                    broadcast_bulk_progress(user, role, pct, f"Indexing Educator {i}/{total}...")
 
-            return success_response("Faculty processing complete", data={
-                "summary": {"new_count": created_count, "error_count": len(errors)},
-                "errors": errors
-            })
+            with transaction.atomic():
+                created = 0
+                broadcast_bulk_progress(user, role, 85, "Executing Atomic Batch Write...")
+                if new_objs:
+                    res = FacultyAcademicRegistry.objects.bulk_create(new_objs, ignore_conflicts=True)
+                    created = len(res)
+                if new_preseeded:
+                    FacultyPreSeededRegistry.objects.bulk_create(new_preseeded, ignore_conflicts=True)
+
+        broadcast_bulk_progress(user, role, 100, "Registry Commitment Successful.")
+        return success_response("Faculty processing complete", data={
+            "summary": {"new_count": created, "update_count": 0, "error_count": len(errors)},
+            "errors": errors
+        })
 
     def _commit_json(self, request, faculty_data):
+        """DataGrid commit with updates support and real-time progress"""
+        user = request.user
+        role = getattr(user, 'role', 'INSTITUTION_ADMIN')
+        broadcast_bulk_progress(user, role, 10, "Opening Synchronization Channel...")
+
         institution = request.user.institution
+        errors = []
         with schema_context(institution.schema_name):
+            # Ensure departments
+            incoming_dept_codes = {r.get('department', '').strip() for r in faculty_data if r.get('department')}
+            for code in incoming_dept_codes:
+                Department.objects.get_or_create(code=code, defaults={"name": f"Department of {code}"})
+
             depts = {d.code.lower(): d for d in Department.objects.all()}
             depts.update({d.name.lower(): d for d in Department.objects.all()})
-            created = 0
-            errors = []
+            
+            incoming_ids = [str(r.get('employee_id', '')).strip() for r in faculty_data if r.get('employee_id')]
+            existing_map = {
+                obj.employee_id.lower(): obj 
+                for obj in FacultyAcademicRegistry.objects.filter(employee_id__in=incoming_ids)
+            }
+            existing_preseeded = set(FacultyPreSeededRegistry.objects.values_list('identifier', flat=True))
+            
+            new_objs = []
+            update_objs = []
+            new_preseeded = []
+
+            total = len(faculty_data)
+            for i, row in enumerate(faculty_data):
+                emp_id = str(row.get('employee_id', '')).strip()
+                if not emp_id or row.get('_status') == 'INVALID': continue
+                try:
+                    data = self._clean_row(row, depts)
+                    existing = existing_map.get(emp_id.lower())
+                    if existing:
+                        for k, v in data.items(): setattr(existing, k, v)
+                        update_objs.append(existing)
+                    else:
+                        new_objs.append(FacultyAcademicRegistry(employee_id=emp_id, **data))
+                        if emp_id not in existing_preseeded:
+                            new_preseeded.append(FacultyPreSeededRegistry(identifier=emp_id, email=data.get('email')))
+                except Exception as e:
+                    errors.append({"employee_id": emp_id, "error": str(e)})
+
+                if i % 50 == 0:
+                    pct = 20 + int((i / total) * 50)
+                    broadcast_bulk_progress(user, role, pct, f"Merging Identity {i}/{total}...")
+
             with transaction.atomic():
-                for row in faculty_data:
-                    emp_id = row.get('employee_id', '').strip()
-                    if not emp_id: continue
-                    try:
-                        data = self._clean_row(row, depts)
-                        obj, is_new = FacultyAcademicRegistry.objects.update_or_create(
-                            employee_id=emp_id,
-                            defaults=data
-                        )
-                        if is_new: created += 1
-                        FacultyPreSeededRegistry.objects.get_or_create(
-                            identifier=emp_id, 
-                            defaults={"email": data.get('email')}
-                        )
-                    except Exception as e:
-                        errors.append({"employee_id": emp_id, "error": str(e)})
-            return success_response("Faculty JSON commit complete", data={"new_count": created, "errors": errors})
+                created = updated = 0
+                broadcast_bulk_progress(user, role, 80, "Applying Global Changes...")
+                if new_objs:
+                    res = FacultyAcademicRegistry.objects.bulk_create(new_objs, ignore_conflicts=True)
+                    created = len(res)
+                if update_objs:
+                    FacultyAcademicRegistry.objects.bulk_update(update_objs, fields=BULK_FACULTY_FIELDS, batch_size=200)
+                    updated = len(update_objs)
+                if new_preseeded:
+                    FacultyPreSeededRegistry.objects.bulk_create(new_preseeded, ignore_conflicts=True)
+
+        broadcast_bulk_progress(user, role, 100, "Registry Sync Complete.")
+        return success_response("Faculty processing complete", data={
+            "summary": {"new_count": created, "update_count": updated, "error_count": len(errors)},
+            "errors": errors,
+        })
+
 
     def _clean_row(self, row, dept_cache):
         data = {
@@ -314,4 +431,3 @@ class TenantBulkFacultyUploadView(APIView):
             data['department_ref'] = dept_cache[dept_str]
             
         return data
-
