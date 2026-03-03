@@ -32,7 +32,7 @@ export const StudentRegistry = () => {
     }, [searchTerm]);
 
     const { students, totalCount, page, totalPages, goToPage, sectionStats, loading, refresh } =
-        useStudentRegistry(activeSection, viewMode, debouncedSearchTerm);
+        useStudentRegistry(activeSection, viewMode, debouncedSearchTerm, statusFilter);
 
     const ws = useDispatchSocket();
 
@@ -296,7 +296,10 @@ export const StudentRegistry = () => {
                                 Update Existing Identity
                             </button>
                             <button
-                                onClick={() => setCollisionInfo(null)}
+                                onClick={() => {
+                                    setCollisionInfo(null);
+                                    setShowFormModal(true); // ✅ Re-open entry modal to fix details
+                                }}
                                 className="w-full h-14 bg-white/5 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all active:scale-95"
                             >
                                 Cancel & Review

@@ -53,10 +53,26 @@ class RegisteredStudentViewSet(viewsets.ModelViewSet):
             ).annotate(
                 is_active_account=Exists(active_account_subquery)
             )
-            
+
+            # 🔍 Apply Filters INSIDE schema context
             section = self.request.query_params.get('section')
-            if section:
+            search_query = self.request.query_params.get('search')
+            status_filter = self.request.query_params.get('status')
+
+            if search_query:
+                qs = qs.filter(
+                    Q(roll_number__icontains=search_query) |
+                    Q(full_name__icontains=search_query) |
+                    Q(official_email__icontains=search_query)
+                )
+            elif section:
                 qs = qs.filter(section=section)
+
+            if status_filter == 'ACTIVE':
+                qs = qs.filter(is_active_account=True)
+            elif status_filter == 'SEEDED':
+                qs = qs.filter(is_active_account=False)
+
             return qs
 
     def create(self, request, *args, **kwargs):
@@ -95,37 +111,29 @@ class RegisteredStudentViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def sections(self, request):
-        """Get unique sections and student counts for card view — single query."""
-        from apps.auip_institution.models import StudentAcademicRegistry, StudentPreSeededRegistry
+        """Get unique sections and student counts for stats cards."""
+        from apps.auip_institution.models import StudentAcademicRegistry, StudentAuthorizedAccount
+        from django_tenants.utils import schema_context
+        institution = self.request.user.institution
 
-        # Build activated-roll set once (single query)
-        activated_rolls = set(
-            StudentPreSeededRegistry.objects
-            .filter(is_activated=True)
-            .values_list('identifier', flat=True)
-        )
-
-        sections_data = (
-            StudentAcademicRegistry.objects
-            .exclude(section__isnull=True)
-            .exclude(section='')
-            .values('section')
-            .annotate(total_students=Count('id'))
-            .order_by('section')
-        )
-
-        # For activated counts per section, do one bulk query
-        section_rolls = {}
-        for row in StudentAcademicRegistry.objects.exclude(section__isnull=True).exclude(section='').values_list('section', 'roll_number'):
-            section_rolls.setdefault(row[0], []).append(row[1])
-
-        results = []
-        for item in sections_data:
-            sec = item['section']
-            rolls = section_rolls.get(sec, [])
-            activated_count = sum(1 for r in rolls if r in activated_rolls)
-            results.append({"name": sec, "total": item['total_students'], "activated": activated_count})
-        return Response(results)
+        with schema_context(institution.schema_name):
+            sections_qs = (
+                StudentAcademicRegistry.objects
+                .exclude(section__isnull=True).exclude(section='')
+                .values('section').annotate(total=Count('id')).order_by('section')
+            )
+            # Use official authorized accounts for activation status
+            active_emails = set(StudentAuthorizedAccount.objects.values_list('email', flat=True))
+            results = []
+            for item in sections_qs:
+                name = item['section']
+                emails = StudentAcademicRegistry.objects.filter(section=name).values_list('official_email', flat=True)
+                results.append({
+                    "name": name,
+                    "total": item['total'],
+                    "activated": sum(1 for e in emails if e in active_emails)
+                })
+            return success_response("Section stats retrieved successfully", data=results)
 
     @action(detail=False, methods=['post'])
     def bulk_invite(self, request):

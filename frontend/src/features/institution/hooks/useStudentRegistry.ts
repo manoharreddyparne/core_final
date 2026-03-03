@@ -47,7 +47,7 @@ interface PaginatedState {
  * - page_size=100, max_page_size=500 (set on backend)
  * - Exposes goToPage() for navigation
  */
-export const useStudentRegistry = (activeSection: string | null, viewMode: "CARDS" | "LIST", searchTerm = "") => {
+export const useStudentRegistry = (activeSection: string | null, viewMode: "CARDS" | "LIST", searchTerm = "", statusFilter = "ALL") => {
     const [students, setStudents] = useState<Student[]>([]);
     const [totalCount, setTotalCount] = useState(0);
     const [page, setPage] = useState(1);
@@ -91,6 +91,7 @@ export const useStudentRegistry = (activeSection: string | null, viewMode: "CARD
             // If searching, ignore section to enable Global Discovery
             if (activeSection && !searchTerm.trim()) url += `&section=${encodeURIComponent(activeSection)}`;
             if (searchTerm.trim()) url += `&search=${encodeURIComponent(searchTerm.trim())}`;
+            if (statusFilter !== "ALL") url += `&status=${statusFilter}`;
 
             const res = await instApiClient.get(url);
 
@@ -121,11 +122,11 @@ export const useStudentRegistry = (activeSection: string | null, viewMode: "CARD
         fetchAcademicRegistry();
     }, []);
 
-    // Re-fetch when section/view/search changes — reset to page 1
+    // Re-fetch when section/view/search/status changes — reset to page 1
     useEffect(() => {
         setPage(1);
         fetchStudents(1);
-    }, [viewMode, activeSection, searchTerm]);
+    }, [viewMode, activeSection, searchTerm, statusFilter]);
 
     const goToPage = (newPage: number) => {
         setPage(newPage);
