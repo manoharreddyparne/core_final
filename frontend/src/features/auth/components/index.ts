@@ -4,3 +4,4 @@ export * from "./ProtectedRoute";
 export * from "./PublicRoute";
 export * from "./AuthLoading";
 export * from "./ToastRenderer";
+export * from "./PremiumOTPModal";

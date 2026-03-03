@@ -77,6 +77,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     5) websocket session presence
   -------------------------------------------------- */
   const sessionSocket = useSessionSocket(user, sessionHydration.hydrated);
+  const {
+    sessions,
+    loading,
+    loadSessions,
+    logoutOneSession,
+    logoutAllSessions: logoutAllSessionsSocket
+  } = sessionSocket;
 
   /* -------------------------------------------------
     6) login per-role
@@ -91,7 +98,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     7) logout
   -------------------------------------------------- */
   const logoutTools = useLogoutHandler(setUser);
-  const { logout } = logoutTools;
+  const { logout, logoutAllSessions, clearFrontendTokens } = logoutTools;
 
   /* -------------------------------------------------
     8) secure ops
@@ -161,20 +168,24 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       adminLogin,
 
       /* -------- logout -------- */
-      ...prune(logoutTools),
+      logout,
+      logoutAllSessions,
+      // Provide UI-specific session actions renamed to avoid collisions
+      killSession: logoutOneSession,
+      killAllSessions: logoutAllSessionsSocket,
+      clearFrontendTokens,
 
       /* -------- secure account ops -------- */
       ...prune(secureRotation),
       ...prune(secureCooldown),
       ...prune(secureAccount),
 
-      /* -------- session mgmt -------- */
-      ...prune(sessionHydration),
-      ...prune(sessionRestore),
       // Backwards compatibility aliases
       bootstrapping: sessionHydration.hydrating,
       bootstrapped: sessionHydration.hydrated,
-      ...prune(sessionSocket),
+      sessions,
+      loadingSessions: loading,
+      loadSessions,
 
       /* -------- password ops -------- */
       ...prune(passwordTools),

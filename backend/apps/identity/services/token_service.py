@@ -312,7 +312,7 @@ def logout_single_session_secure(user, session_id=None, access_jti=None, refresh
     # 🛡️ NORMALIZATION: Handle administrative role variations across legacy/JWT contexts
     admin_variants = {'ADMIN', 'INST_ADMIN', 'INSTITUTION_ADMIN'}
     is_admin_role = effective_role.upper() in admin_variants
-    is_tenant_role = is_admin_role or effective_role.upper() in ('STUDENT', 'FACULTY')
+    is_tenant_role = is_admin_role or effective_role.upper() in ('STUDENT', 'FACULTY', 'TEACHER')
     is_global_user = isinstance(user, GlobalUser)
 
     if is_tenant_role and not is_global_user:
@@ -322,8 +322,8 @@ def logout_single_session_secure(user, session_id=None, access_jti=None, refresh
         role_variants = [effective_role]
         if is_admin_role:
             role_variants = list(admin_variants)
-        elif effective_role == "FACULTY":
-            role_variants.append("TEACHER") # Compatibility
+        elif effective_role.upper() in ("FACULTY", "TEACHER"):
+            role_variants = ["FACULTY", "TEACHER"]
         
         user_filter = Q(tenant_user_id=user.id, tenant_schema=effective_schema, role__in=role_variants)
     else:
@@ -365,7 +365,7 @@ def logout_all_sessions_secure(user, exclude_session_id=None, exclude_jti=None, 
     # 🛡️ NORMALIZATION: Match across all admin role naming variants
     admin_variants = {'ADMIN', 'INST_ADMIN', 'INSTITUTION_ADMIN'}
     is_admin_role = effective_role.upper() in admin_variants
-    is_tenant_role = is_admin_role or effective_role.upper() in ('STUDENT', 'FACULTY')
+    is_tenant_role = is_admin_role or effective_role.upper() in ('STUDENT', 'FACULTY', 'TEACHER')
     is_global_user = isinstance(user, GlobalUser)
 
     if is_tenant_role and not is_global_user:
@@ -374,6 +374,8 @@ def logout_all_sessions_secure(user, exclude_session_id=None, exclude_jti=None, 
         role_variants = [effective_role]
         if is_admin_role:
             role_variants = list(admin_variants)
+        elif effective_role.upper() in ("FACULTY", "TEACHER"):
+            role_variants = ["FACULTY", "TEACHER"]
             
         user_filter = Q(tenant_user_id=user.id, tenant_schema=effective_schema, role__in=role_variants)
     else:

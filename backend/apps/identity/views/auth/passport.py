@@ -130,11 +130,15 @@ class PassportView(APIView):
                 )
                 from apps.identity.models.institution import Institution
                 
+                # 🛡️ NORMALIZATION: Align variant naming for account lookup
+                admin_variants = {'ADMIN', 'INST_ADMIN', 'INSTITUTION_ADMIN'}
+                faculty_variants = {'FACULTY', 'TEACHER'}
+                
                 with schema_context(schema_claim):
-                    # Determine model based on role
-                    if role_claim == "INSTITUTION_ADMIN":
+                    # Determine model based on role variant
+                    if role_claim in admin_variants:
                         acc_model = AdminAuthorizedAccount
-                    elif role_claim == "FACULTY":
+                    elif role_claim in faculty_variants:
                         acc_model = FacultyAuthorizedAccount
                     else:
                         acc_model = StudentAuthorizedAccount

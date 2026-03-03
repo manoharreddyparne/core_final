@@ -78,10 +78,10 @@ class InstAdminTokenObtainPairView(APIView):
                 from apps.identity.models.core_models import User
                 global_user = User.objects.filter(email=account.email).first()
                 
-                trusted = is_device_trusted(request, user=global_user, device_hash=device_hash, role="INSTITUTION_ADMIN") if global_user else False
+                trusted = is_device_trusted(request, user=global_user, device_hash=device_hash, role="INST_ADMIN") if global_user else False
                 if not trusted:
                     # Fallback to tenant trust
-                    trusted = is_device_trusted(request, tenant_user_id=account.id, tenant_schema=institution.schema_name, device_hash=device_hash, role="INSTITUTION_ADMIN")
+                    trusted = is_device_trusted(request, tenant_user_id=account.id, tenant_schema=institution.schema_name, device_hash=device_hash, role="INST_ADMIN")
 
                 if not trusted:
                     # Trigger OTP
@@ -108,10 +108,10 @@ class InstAdminTokenObtainPairView(APIView):
                     ip=ip,
                     user_agent=ua,
                     request=request,
-                    role_context="INSTITUTION_ADMIN",
+                    role_context="INST_ADMIN",
                     custom_claims={
                         "schema": institution.schema_name,
-                        "role": "INSTITUTION_ADMIN",
+                        "role": "INST_ADMIN",
                         "email": account.email,
                         "tenant_user_id": account.id,
                         "user_id": identity_to_login.id if hasattr(identity_to_login, 'id') else None
@@ -120,7 +120,7 @@ class InstAdminTokenObtainPairView(APIView):
 
                 resp = success_response("Login Successful", data={
                     "access": login_data["access"],
-                    "role": "INSTITUTION_ADMIN",
+                    "role": "INST_ADMIN",
                     "institution": institution.name,
                     "identifier": account.email,
                     "user_id": account.id,
@@ -128,7 +128,7 @@ class InstAdminTokenObtainPairView(APIView):
                         "id": identity_to_login.id if hasattr(identity_to_login, 'id') else account.id,
                         "email": account.email,
                         "username": account.email,
-                        "role": "INSTITUTION_ADMIN",
+                        "role": "INST_ADMIN",
                         "first_name": getattr(account, "first_name", ""),
                         "last_name": getattr(account, "last_name", ""),
                         "full_name": f"{getattr(account, 'first_name', '')} {getattr(account, 'last_name', '')}".strip()
@@ -136,7 +136,7 @@ class InstAdminTokenObtainPairView(APIView):
                 })
 
                 set_quantum_shield(resp, login_data["fragments"])
-                set_logged_in_cookie(resp, "true", role="INSTITUTION_ADMIN")
+                set_logged_in_cookie(resp, "true", role="INST_ADMIN")
                 
                 return resp
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useLoginV2VM } from "../hooks/useLoginV2VM";
 import { useInstitutions } from "../hooks/useInstitutions";
-import { TurnstileWidget, InstitutionSelector } from "../components";
+import { TurnstileWidget, InstitutionSelector, PremiumOTPModal } from "../components";
 import { toast } from "react-hot-toast";
 import {
     Building2,
@@ -17,6 +17,7 @@ import {
     EyeOff,
     Users,
     ChevronRight,
+    History
 } from "lucide-react";
 
 type AuthType = "inst_admin" | "educator";
@@ -45,7 +46,9 @@ export default function InstAdminLogin() {
         emailHint,
         setOtpRequired,
         rememberDevice,
-        setRememberDevice
+        setRememberDevice,
+        handleResendAdminOTP,
+        resendCooldown
     } = useLoginV2VM();
 
     const { institutions, isLoading: loadingInstitutions } = useInstitutions();
@@ -215,88 +218,22 @@ export default function InstAdminLogin() {
                                 </button>
                             </form>
                         ) : (
-                            <form onSubmit={(e) => { e.preventDefault(); handleVerifyMFA(authType === "inst_admin" ? "INSTITUTION_ADMIN" : "FACULTY"); }} className="space-y-10 animate-in zoom-in-95 duration-500">
-                                <div className="text-center space-y-6">
-                                    <div className="flex justify-center">
-                                        <div className="w-20 h-20 bg-primary/10 rounded-full border border-primary/20 flex items-center justify-center relative">
-                                            <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping opacity-20" />
-                                            <KeyRound className="w-10 h-10 text-primary" />
-                                        </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <div className="inline-flex items-center gap-2 px-6 py-2 bg-primary/10 border border-primary/20 rounded-full text-primary text-[10px] font-black uppercase tracking-widest">
-                                            <ShieldCheck className="w-3 h-3" />
-                                            MFA Protected Session
-                                        </div>
-                                        <p className="text-slate-500 dark:text-gray-500 text-xs font-medium">
-                                            Security code dispatched to <span className="text-slate-900 dark:text-white font-mono bg-slate-100 dark:bg-white/5 px-2 py-1 rounded">{emailHint || identifier}</span>
-                                        </p>
-                                    </div>
+                            <div className="py-12 flex flex-col items-center justify-center space-y-4 animate-in fade-in duration-500">
+                                <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
+                                    <ShieldCheck className="w-8 h-8 animate-pulse" />
                                 </div>
-
-                                <div className="space-y-6">
-                                    <div className="relative">
-                                        <input
-                                            type="text"
-                                            value={otp}
-                                            onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                                            className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-3xl px-4 py-8 text-6xl text-center font-bold tracking-[0.4em] outline-none focus:ring-4 focus:ring-primary/20 transition-all placeholder:text-slate-200 dark:placeholder:text-gray-800 text-slate-900 dark:text-white"
-                                            placeholder="000000"
-                                            maxLength={6}
-                                            autoFocus
-                                            required
-                                        />
-                                        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex gap-4 w-full max-w-[80%] opacity-20">
-                                            {[1, 2, 3, 4, 5, 6].map(i => (
-                                                <div key={i} className="h-0.5 flex-1 bg-white" />
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    <div className="bg-primary/[0.03] border border-primary/10 p-4 rounded-3xl flex items-center justify-center gap-3">
-                                        <label className="relative flex items-center cursor-pointer group">
-                                            <input
-                                                type="checkbox"
-                                                className="sr-only peer"
-                                                checked={rememberDevice}
-                                                onChange={(e) => setRememberDevice(e.target.checked)}
-                                            />
-                                            <div className="w-6 h-6 bg-white/10 dark:bg-black/20 border-2 border-slate-200 dark:border-white/10 rounded-xl peer-checked:bg-primary peer-checked:border-primary transition-all flex items-center justify-center shadow-inner">
-                                                <div className="w-2 h-4 border-r-3 border-b-3 border-white rotate-45 mb-1 opacity-0 peer-checked:opacity-100 transition-opacity" />
-                                            </div>
-                                            <span className="ml-4 text-[11px] font-black text-slate-500 dark:text-gray-400 uppercase tracking-widest group-hover:text-primary transition-colors">
-                                                Activate 30-Day Trusted Protocol
-                                            </span>
-                                        </label>
-                                    </div>
+                                <div className="text-center">
+                                    <h3 className="text-sm font-black uppercase tracking-widest text-white">MFA Challenge Active</h3>
+                                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">Please complete verification in the secure overlay</p>
                                 </div>
-
-                                <div className="space-y-4">
-                                    <button
-                                        type="submit"
-                                        disabled={isLoading || otp.length < 6}
-                                        className="w-full py-6 premium-gradient text-white rounded-[2.5rem] font-black uppercase tracking-widest shadow-2xl shadow-primary/30 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-30 disabled:grayscale flex items-center justify-center gap-3"
-                                    >
-                                        {isLoading ? (
-                                            <Loader2 className="w-6 h-6 animate-spin" />
-                                        ) : (
-                                            <>
-                                                Confirm Identity
-                                                <ArrowRight className="w-5 h-5" />
-                                            </>
-                                        )}
-                                    </button>
-
-                                    <button
-                                        type="button"
-                                        onClick={() => setOtpRequired(false)}
-                                        className="w-full py-2 text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 hover:text-primary transition-all group"
-                                    >
-                                        <span className="group-hover:-translate-x-1 inline-block transition-transform mr-2">←</span>
-                                        Revoke & Restart Authentication
-                                    </button>
-                                </div>
-                            </form>
+                                <button
+                                    onClick={() => setOtpRequired(false)}
+                                    className="text-[9px] font-black uppercase tracking-[0.2em] text-primary/60 hover:text-primary transition-colors flex items-center gap-2 mt-4"
+                                >
+                                    <History className="w-3 h-3" />
+                                    Return to Login
+                                </button>
+                            </div>
                         )}
 
                         <div className="text-center space-y-2">
@@ -330,6 +267,21 @@ export default function InstAdminLogin() {
                     Institutional Governance // Corporate Infrastructure
                 </p>
             </div>
+
+            {/* Premium MFA Overlay */}
+            <PremiumOTPModal
+                open={otpRequired}
+                onOpenChange={setOtpRequired}
+                otp={otp}
+                setOtp={setOtp}
+                onVerify={() => handleVerifyMFA(authType === "inst_admin" ? "INSTITUTION_ADMIN" : "FACULTY")}
+                isLoading={isLoading}
+                emailHint={emailHint || identifier}
+                onResend={handleResendAdminOTP}
+                resendCooldown={resendCooldown}
+                rememberDevice={rememberDevice}
+                setRememberDevice={setRememberDevice}
+            />
         </div>
     );
 

@@ -226,7 +226,14 @@
   }
 }
 
+@keyframes orbit {
+    from { transform: rotate(0deg) translateX(40px) rotate(0deg); }
+    to { transform: rotate(360deg) translateX(40px) rotate(-360deg); }
+}
 
+.animate-orbit {
+    animation: orbit 10s linear infinite;
+}
 /* Bounce for AI indicator */
 @keyframes bounce-dot {
 

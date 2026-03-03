@@ -8,7 +8,9 @@ import {
 import { academicApi } from '../api/academicApi';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../auth/context/AuthProvider/AuthProvider';
+import { academicFormConfig } from '../config/fields';
 import { AcademicFormModal } from '../components/AcademicFormModal';
+
 
 export const AcademicHub = () => {
     const { user } = useAuth();
@@ -54,46 +56,11 @@ export const AcademicHub = () => {
     ];
 
     const getFieldsForTab = (tab: string) => {
-        switch (tab) {
-            case 'departments':
-                return [
-                    { name: 'name', label: 'Department Name', required: true, fullWidth: true },
-                    { name: 'code', label: 'Code', required: true },
-                    { name: 'head_email', label: 'HOD Email', type: 'email' },
-                    { name: 'description', label: 'Description', type: 'textarea', fullWidth: true }
-                ];
-            case 'programs':
-                return [
-                    { name: 'department', label: 'Department ID', required: true },
-                    { name: 'name', label: 'Program Name', required: true },
-                    { name: 'code', label: 'Code', required: true },
-                    { name: 'degree_type', label: 'Degree', type: 'select', options: [{ label: 'B.Tech', value: 'B.TECH' }, { label: 'MBA', value: 'MBA' }] },
-                    { name: 'duration_years', label: 'Years', type: 'number' }
-                ];
-            case 'subjects':
-                return [
-                    { name: 'name', label: 'Subject Name', required: true, fullWidth: true },
-                    { name: 'code', label: 'Code', required: true },
-                    { name: 'department', label: 'Dept ID', required: true },
-                    { name: 'program', label: 'Program ID', required: true },
-                    { name: 'semester_number', label: 'Semester', type: 'number' },
-                    { name: 'credits', label: 'Credits', type: 'number' },
-                    { name: 'max_marks', label: 'Max Marks', type: 'number' },
-                    { name: 'is_placement_relevant', label: 'Placement Relevant', type: 'checkbox' }
-                ];
-            case 'syllabus-units':
-                return [
-                    { name: 'subject', label: 'Subject ID', required: true },
-                    { name: 'unit_number', label: 'Unit Group', type: 'number' },
-                    { name: 'title', label: 'Unit Title', required: true, fullWidth: true },
-                    { name: 'ai_question_weight', label: 'AI Weight', type: 'number' }
-                ];
-            default:
-                return [{ name: 'name', label: 'Label', required: true }];
-        }
+        return academicFormConfig[tab] || [{ name: 'name', label: 'Label', required: true }];
     };
 
     const fetchData = async () => {
+
         const tab = tabs.find(t => t.id === activeTab);
         if (!tab) return;
 
@@ -219,8 +186,8 @@ export const AcademicHub = () => {
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
                         className={`px-6 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === tab.id
-                                ? 'bg-primary text-white shadow-2xl scale-105'
-                                : 'text-gray-500 hover:text-white hover:bg-white/5'
+                            ? 'bg-primary text-white shadow-2xl scale-105'
+                            : 'text-gray-500 hover:text-white hover:bg-white/5'
                             }`}
                     >
                         <tab.icon className="w-4 h-4 inline-block mr-2" /> {tab.label}

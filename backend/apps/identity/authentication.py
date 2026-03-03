@@ -125,11 +125,17 @@ class SafeJWTAuthentication(JWTAuthentication):
                 from apps.auip_institution.models import StudentAuthorizedAccount, FacultyAuthorizedAccount, AdminAuthorizedAccount
                 
                 # Determine which localized model to use
+                admin_variants = {'ADMIN', 'INST_ADMIN', 'INSTITUTION_ADMIN'}
+                faculty_variants = {'FACULTY', 'TEACHER'}
+
                 if role == 'STUDENT':
                     model = StudentAuthorizedAccount
-                elif role == 'FACULTY':
+                elif role in faculty_variants:
                     model = FacultyAuthorizedAccount
+                elif role in admin_variants:
+                    model = AdminAuthorizedAccount
                 else:
+                    # Fallback to admin for safety but alert if needed
                     model = AdminAuthorizedAccount
                 
                 # Use tenant-specific ID if available (v2 fix), fallback to user_id

@@ -29,17 +29,32 @@ class SessionListView(APIView):
         role = getattr(request.auth, 'get', lambda x, y: None)('role', None) or getattr(user, 'role', None)
         schema = getattr(request.auth, 'get', lambda x, y: '')('schema', '')
 
-        if hasattr(user, 'email') and not isinstance(user, User):
+        # 🛡️ NORMALIZATION: Match across variant naming conventions (legacy vs v2)
+        admin_variants = {'ADMIN', 'INST_ADMIN', 'INSTITUTION_ADMIN'}
+        role_variants = [role] if role else []
+        if role:
+            r_up = role.upper()
+            if r_up in admin_variants:
+                role_variants = list(admin_variants)
+            elif r_up in ('FACULTY', 'TEACHER'):
+                role_variants = ['FACULTY', 'TEACHER']
+
+        from apps.identity.models.core_models import User as GlobalUser
+        is_global_user = isinstance(user, GlobalUser)
+        
+        if hasattr(user, 'email') and not is_global_user:
             # Tenant isolated User (Student/Faculty/InstAdmin)
-            session_filter = Q(tenant_user_id=user.id, tenant_schema=schema, role=role)
+            session_filter = Q(tenant_user_id=user.id, tenant_schema=schema, role__in=role_variants)
         else:
-            # Global User (Super Admin/Inst Admin)
+            # Global User (Public table)
             # 🛡️ ISOLATION: Only show sessions belonging to the current ROLE and SCHEMA context.
-            session_filter = Q(user=user, role=role)
+            session_filter = Q(user=user)
+            if role_variants:
+                 session_filter &= Q(role__in=role_variants)
             if schema:
                 session_filter &= Q(tenant_schema=schema)
-            else:
-                # If no schema context (SuperAdmin portal), only show global sessions
+            # Match strictly against Global User if schema is global
+            elif not is_global_user: 
                 session_filter &= Q(tenant_schema='')
 
         # Deactivate expired sessions
@@ -84,19 +99,37 @@ class SessionLogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
     def delete(self, request, pk: int, *args, **kwargs) -> Any:
-        user: User = request.user
-
+        user = request.user
+        # Get current context from token
         role = getattr(request.auth, 'get', lambda x, y: None)('role', None) or getattr(user, 'role', None)
         schema = getattr(request.auth, 'get', lambda x, y: '')('schema', '')
 
+        # 🛡️ NORMALIZATION: Match across variant naming conventions
+        admin_variants = {'ADMIN', 'INST_ADMIN', 'INSTITUTION_ADMIN'}
+        role_variants = [role] if role else []
+        if role:
+            r_up = role.upper()
+            if r_up in admin_variants:
+                role_variants = list(admin_variants)
+            elif r_up in ('FACULTY', 'TEACHER'):
+                role_variants = ['FACULTY', 'TEACHER']
+
+        from apps.identity.models.core_models import User as GlobalUser
+        is_global_user = isinstance(user, GlobalUser)
+
         try:
-            if hasattr(user, 'email') and not isinstance(user, User):
-                 session = LoginSession.objects.get(pk=pk, tenant_user_id=user.id, tenant_schema=schema, role=role)
+            if hasattr(user, 'email') and not is_global_user:
+                 session = LoginSession.objects.get(pk=pk, tenant_user_id=user.id, tenant_schema=schema, role__in=role_variants)
             else:
                  # 🛡️ ISOLATION: Verify context ownership before allowing logout
-                 session = LoginSession.objects.get(pk=pk, user=user, role=role, tenant_schema=schema if schema else '')
+                 lookup_kwargs = {"pk": pk, "user": user}
+                 if role_variants:
+                     lookup_kwargs["role__in"] = role_variants
+                 if schema:
+                     lookup_kwargs["tenant_schema"] = schema
+                 session = LoginSession.objects.get(**lookup_kwargs)
         except LoginSession.DoesNotExist:
-            return success_response("Session not found", code=404)
+            return success_response("Session not found or access denied", code=404)
 
         # Even if inactive, we might want to delete/hide it, but logic here says "deactivate"
         if not session.is_active:

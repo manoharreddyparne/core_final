@@ -35,8 +35,19 @@ export const useLogoutHandler = (setUser: (user: User | null) => void) => {
    */
   const clearFrontendTokens = useCallback(() => {
     clearAccessToken();
-    // Aggressively clear JS-visible markers
-    document.cookie = "auip_logged_in=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;";
+    // Aggressively clear JS-visible markers for all roles
+    const markers = [
+      "auip_logged_in",
+      "auip_logged_in_STUDENT",
+      "auip_logged_in_ADMIN",
+      "auip_logged_in_INST_ADMIN",
+      "auip_logged_in_INSTITUTION_ADMIN",
+      "auip_logged_in_FACULTY",
+      "auip_logged_in_TEACHER"
+    ];
+    markers.forEach(name => {
+      document.cookie = `${name}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;`;
+    });
   }, []);
 
   /**

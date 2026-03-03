@@ -38,11 +38,15 @@ class LogoutView(APIView):
         refresh_token_str, _ = QuantumShieldService.reconstruct_token(request.COOKIES)
         access_jti = getattr(request, "access_jti", None)
 
+        # Extract schema from token if it exists (for multi-tenant sessions)
+        schema = getattr(request.auth, 'get', lambda x, y: None)('schema', None)
+
         try:
             logout_single_session_secure(
                 user=user,
                 refresh_token=refresh_token_str,
                 access_jti=access_jti,
+                schema=schema
             )
             logger.info(
                 f"[LOGOUT] user={user.id} email={user.email} ip={ip} -> OK"
@@ -56,6 +60,8 @@ class LogoutView(APIView):
 
         resp = success_response("Logged out")
         role = getattr(user, 'role', None) 
+        if not role:
+            role = getattr(request.auth, 'get', lambda x, y: None)('role', None)
         clear_session_cookies(resp, role=role)
         return resp
 
@@ -76,9 +82,12 @@ class LogoutAllView(APIView):
         ip = get_client_ip(request)
 
         try:
-            count = logout_all_sessions_secure(user)
+            # Extract schema from token if it exists (for multi-tenant sessions)
+            schema = getattr(request.auth, 'get', lambda x, y: None)('schema', None)
+            
+            count = logout_all_sessions_secure(user, schema=schema)
             logger.info(
-                f"[LOGOUT-ALL] user={user.id} email={user.email} ip={ip} count={count}"
+                f"[LOGOUT-ALL] user={user.id} email={user.email} ip={ip} count={count} schema={schema}"
             )
 
             resp = success_response(
@@ -96,5 +105,7 @@ class LogoutAllView(APIView):
             )
 
         role = getattr(user, 'role', None)
+        if not role:
+            role = getattr(request.auth, 'get', lambda x, y: None)('role', None)
         clear_session_cookies(resp, role=role)
         return resp

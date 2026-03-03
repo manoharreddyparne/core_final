@@ -82,18 +82,33 @@ def set_logged_in_cookie(response: Response, value: str = "true", max_age: int =
 
 
 def clear_logged_in_cookie(response: Response, role: str = None):
-    """Remove logged-in marker."""
-    key = LOGGED_IN_COOKIE_NAME
-    if role:
-        key = f"{key}_{role}"
+    """
+    Remove logged-in marker and its role variants aggressively.
+    """
+    # 1. Always wipe the primary generic marker
+    response.delete_cookie(LOGGED_IN_COOKIE_NAME, path=REFRESH_COOKIE_PATH)
     
-    response.delete_cookie(
-        key=key,
-        path=REFRESH_COOKIE_PATH,
-    )
-    # Also clear the generic one for safety during migration
     if role:
-        response.delete_cookie(LOGGED_IN_COOKIE_NAME, path=REFRESH_COOKIE_PATH)
+        r_up = role.upper()
+        # Define variant groups for comprehensive cleanup
+        admin_variants = {'ADMIN', 'INST_ADMIN', 'INSTITUTION_ADMIN'}
+        faculty_variants = {'FACULTY', 'TEACHER'}
+        
+        target_variants = {r_up}
+        if r_up in admin_variants:
+            target_variants.update(admin_variants)
+        elif r_up in faculty_variants:
+            target_variants.update(faculty_variants)
+            
+        # Wipe all relevant variant cookies from the browser
+        for v in target_variants:
+            response.delete_cookie(f"{LOGGED_IN_COOKIE_NAME}_{v}", path=REFRESH_COOKIE_PATH)
+            # Lowercase variant check just in case legacy code used it
+            response.delete_cookie(f"{LOGGED_IN_COOKIE_NAME}_{v.lower()}", path=REFRESH_COOKIE_PATH)
+    
+    # 2. Safety Sweep: If no role provided or as extra precaution, 
+    # we could list all roles but that's overkill. 
+    # The above covers the common overlap scenarios.
 
 
 def clear_session_cookies(response: Response, role: str = None):

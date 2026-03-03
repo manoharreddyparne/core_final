@@ -36,10 +36,10 @@ export const SessionManager = () => {
     user,
     logout,
     sessions,
-    loading,
+    loadingSessions: loading,
     loadSessions,
-    logoutOneSession,
-    logoutAllSessions,
+    killSession,
+    killAllSessions,
   } = useAuth();
 
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -52,14 +52,14 @@ export const SessionManager = () => {
 
     try {
       if (mode === "ALL") {
-        await logoutAllSessions(false);
+        await killAllSessions(false);
         await logout();
       } else if (mode === "OTHERS") {
-        await logoutAllSessions(true);
+        await killAllSessions(true);
       } else {
         if (typeof logoutTarget !== "string") {
           const wasCurrent = logoutTarget.is_current === true;
-          await logoutOneSession(logoutTarget.id);
+          await killSession(logoutTarget.id);
           // Only logout the entire app if the user terminated their OWN current session
           if (wasCurrent) {
             await logout();

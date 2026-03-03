@@ -35,13 +35,26 @@ def is_device_trusted(request, user=None, tenant_user_id=None, tenant_schema=Non
 
     hashed_cookie = hash_token(cookie_token)
     
+    # 🛡️ NORMALIZATION: Support role naming variants for device trust
+    admin_variants = {'ADMIN', 'INST_ADMIN', 'INSTITUTION_ADMIN'}
+    faculty_variants = {'FACULTY', 'TEACHER'}
+    
+    role_variants = [role] if role else []
+    if role and role.upper() in admin_variants:
+        role_variants = list(admin_variants)
+    elif role and role.upper() in faculty_variants:
+        role_variants = list(faculty_variants)
+
     query = RememberedDevice.objects.filter(
         trusted=True,
         trust_cookie_hash=hashed_cookie,
         trusted_until__gt=timezone.now(),
-        device_hash=device_hash,
-        role=role
+        device_hash=device_hash
     )
+    if role_variants:
+        query = query.filter(role__in=role_variants)
+    elif role:
+        query = query.filter(role=role)
     
     if user:
         query = query.filter(user=user)

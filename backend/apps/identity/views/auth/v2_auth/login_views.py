@@ -179,14 +179,36 @@ class FacultyMFAVerifyView(generics.GenericAPIView):
             
             # Resolve final role correctly based on model type or explicit property
             is_admin_model = isinstance(account, AdminAuthorizedAccount)
-            final_role = "INSTITUTION_ADMIN" if is_admin_model else "FACULTY"
+            final_role = "INST_ADMIN" if is_admin_model else "FACULTY"
             
             login_data = handle_login(
                 identity=account, password=None, ip=ip, user_agent=ua, request=request, role_context=final_role,
                 custom_claims={"schema": client.schema_name, "role": final_role, "email": account.email, "tenant_user_id": account.id}
             )
 
+            # ---------- Mark device trusted ----------
+            should_trust = request.data.get("remember_device", False)
+            trust_token = None
+            if should_trust:
+                from apps.identity.utils.trust_utils import trust_device
+                from apps.identity.utils.device_utils import get_device_hash
+                device_hash = get_device_hash(ip, ua)
+                trust_token = trust_device(
+                    tenant_user_id=account.id,
+                    tenant_schema=client.schema_name,
+                    tenant_email=account.email,
+                    device_hash=device_hash,
+                    ip=ip,
+                    user_agent=ua,
+                    role=final_role
+                )
+
             response = success_response("Login successful.", data={"access": login_data["access"], "role": final_role, "user": {"id": account.id, "email": account.email, "role": final_role}})
             set_quantum_shield(response, login_data["fragments"])
             set_logged_in_cookie(response, "true", role=final_role)
+
+            if should_trust and trust_token:
+                from apps.identity.utils.trust_utils import set_trust_cookie
+                set_trust_cookie(response, trust_token)
+
             return response
