@@ -23,12 +23,16 @@ class DispatchConsumer(AsyncWebsocketConsumer):
     """
 
     async def connect(self):
+        """Accept first, then authorize. Allows sending rich error messages back."""
+        await self.accept()
         self.user = self.scope.get("user")
+        
         if not self.user or not getattr(self.user, "is_authenticated", False):
-            logger.warning("[DISPATCH-WS] Rejected unauthenticated connection")
+            logger.warning("[DISPATCH-WS] Connect Attempt: Unauthenticated or None")
+            await self._send_error("Authentication required. Please refresh.")
             await self.close()
             return
-        await self.accept()
+
         logger.info(f"[DISPATCH-WS] Connected: user={self.user}")
 
     async def disconnect(self, close_code):

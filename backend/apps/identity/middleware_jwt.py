@@ -23,9 +23,12 @@ def get_user_tenant_aware(user_id, role, schema):
 
     try:
         user = None
-        if schema and role in ("INSTITUTION_ADMIN", "INST_ADMIN", "FACULTY", "STUDENT"):
+        # Normalize: both variants exist in current codebase due to legacy vs V2 transition
+        is_admin = role in ("INSTITUTION_ADMIN", "INST_ADMIN", "ADMIN")
+        
+        if schema and (is_admin or role in ("FACULTY", "STUDENT")):
             with schema_context(schema):
-                if role in ("INSTITUTION_ADMIN", "INST_ADMIN"):
+                if is_admin:
                     user = AdminAuthorizedAccount.objects.get(id=user_id)
                 elif role == "FACULTY":
                     user = FacultyAuthorizedAccount.objects.get(id=user_id)
@@ -41,7 +44,9 @@ def get_user_tenant_aware(user_id, role, schema):
             return user
             
         return User.objects.get(id=user_id)
-    except Exception:
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).debug(f"[WS-AUTH] get_user_tenant_aware failed: {e}")
         return None
 
 @database_sync_to_async
