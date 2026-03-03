@@ -34,6 +34,21 @@ const AdminPlacementHub = () => {
     const [manualRollNumber, setManualRollNumber] = useState("");
     const [addingStudent, setAddingStudent] = useState(false);
 
+    // ESC Support for Modals
+    useEffect(() => {
+        const handleEsc = (e: KeyboardEvent) => {
+            if (e.key === "Escape") {
+                setIsCreateModalOpen(false);
+                setStatsModalData(null);
+                setReviewModalData(null);
+            }
+        };
+        if (isCreateModalOpen || statsModalData || reviewModalData) {
+            window.addEventListener("keydown", handleEsc);
+        }
+        return () => window.removeEventListener("keydown", handleEsc);
+    }, [isCreateModalOpen, statsModalData, reviewModalData]);
+
     useEffect(() => {
         fetchDrives();
     }, []);
@@ -309,8 +324,10 @@ const AdminPlacementHub = () => {
 
             {/* CREATE/UPLOAD MODAL */}
             {isCreateModalOpen && (
-                <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-                    <div className="bg-[#1a1c23] border border-white/10 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300">
+                    {/* Ultra-light translucent backdrop */}
+                    <div className="absolute inset-0 bg-black/20 backdrop-blur-3xl" onClick={() => setIsCreateModalOpen(false)} />
+                    <div className="relative bg-[#1a1c23]/80 backdrop-blur-md border border-white/10 rounded-[3rem] w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-[0_0_120px_rgba(0,0,0,0.6)] animate-in zoom-in-95 duration-300">
                         <div className="sticky top-0 bg-[#1a1c23]/80 backdrop-blur-xl border-b border-white/10 p-5 flex items-center justify-between z-10">
                             <div>
                                 <h2 className="text-xl font-bold text-white">{editingDriveId ? "Edit Placement Request" : "Create Placement Request"}</h2>
@@ -403,8 +420,10 @@ const AdminPlacementHub = () => {
 
             {/* ANALYTICS & BROADCAST MODAL */}
             {statsModalData && (
-                <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-                    <div className="bg-[#1a1c23] border border-indigo-500/20 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300">
+                    {/* Ultra-light translucent backdrop */}
+                    <div className="absolute inset-0 bg-black/20 backdrop-blur-3xl" onClick={() => setStatsModalData(null)} />
+                    <div className="relative bg-[#1a1c23]/80 backdrop-blur-md border border-indigo-500/20 rounded-[3rem] w-full max-w-lg shadow-[0_0_120px_rgba(79,70,229,0.15)] overflow-hidden animate-in zoom-in-95 duration-300">
                         <div className="p-6 bg-gradient-to-b from-indigo-500/10 to-transparent">
                             <div className="w-16 h-16 bg-white flex items-center justify-center rounded-2xl mx-auto shadow-xl shadow-indigo-500/20 mb-4 overflow-hidden p-2">
                                 <span className="text-2xl font-black text-black">{statsModalData.drive.company_name[0]}</span>
@@ -516,8 +535,10 @@ const AdminPlacementHub = () => {
 
             {/* REVIEW APPLICATIONS MODAL */}
             {reviewModalData && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in zoom-in-95 duration-200">
-                    <div className="bg-[#1a1c23] w-full max-w-5xl rounded-2xl shadow-2xl border border-white/10 overflow-hidden max-h-[90vh] flex flex-col">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300">
+                    {/* Ultra-light translucent backdrop */}
+                    <div className="absolute inset-0 bg-black/20 backdrop-blur-3xl" onClick={() => setReviewModalData(null)} />
+                    <div className="relative bg-[#1a1c23]/80 backdrop-blur-md w-full max-w-5xl rounded-[3rem] shadow-[0_0_120px_rgba(0,0,0,0.6)] border border-white/10 overflow-hidden max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-300">
                         <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
                             <div>
                                 <h2 className="text-xl font-bold text-white flex items-center gap-2">

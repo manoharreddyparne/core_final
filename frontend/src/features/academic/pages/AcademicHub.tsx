@@ -39,6 +39,15 @@ export const AcademicHub = () => {
         totalStudents: 0
     });
 
+    // ESC Support for Bulk Modal
+    useEffect(() => {
+        const handleEsc = (e: KeyboardEvent) => {
+            if (e.key === "Escape") setIsBulkOpen(false);
+        };
+        if (isBulkOpen) window.addEventListener("keydown", handleEsc);
+        return () => window.removeEventListener("keydown", handleEsc);
+    }, [isBulkOpen]);
+
     const tabs = [
         { id: 'departments', label: 'Departments', icon: Building2, endpoint: 'departments' },
         { id: 'programs', label: 'Programs', icon: School, endpoint: 'programs' },
@@ -282,8 +291,10 @@ export const AcademicHub = () => {
 
             {/* Bulk Enrollment Modal */}
             {isBulkOpen && (
-                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl animate-in fade-in duration-300">
-                    <div className="bg-[#0c0c0e] border border-white/10 w-full max-w-2xl rounded-[3.5rem] p-10 shadow-[0_0_100px_rgba(20,110,245,0.1)]">
+                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 animate-in fade-in duration-300">
+                    {/* Ultra-light translucent backdrop */}
+                    <div className="absolute inset-0 bg-black/20 backdrop-blur-3xl" onClick={() => setIsBulkOpen(false)} />
+                    <div className="relative bg-[#0c0c0e]/80 backdrop-blur-md border border-white/10 w-full max-w-2xl rounded-[3.5rem] p-10 shadow-[0_0_120px_rgba(20,110,245,0.15)] animate-in zoom-in-95 duration-300">
                         <div className="flex justify-between items-center mb-10">
                             <div>
                                 <h2 className="text-3xl font-black text-white italic tracking-tighter uppercase">Bulk Registry Sync</h2>

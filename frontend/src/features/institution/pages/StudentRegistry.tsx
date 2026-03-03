@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { Users, Search, Plus, Upload, List, LayoutGrid, Zap, Activity } from "lucide-react";
 import { toast } from "react-hot-toast";
+import { createPortal } from "react-dom";
 
 import { useStudentRegistry, Student } from "../hooks/useStudentRegistry";
 import { useBulkOperations } from "../hooks/useBulkOperations";
@@ -81,15 +82,12 @@ export const StudentRegistry = () => {
         const id = toast.loading(isEditMode ? "Updating..." : "Seeding...");
         try {
             const res = await (isEditMode ? instApiClient.put(`students/${s.id}/`, s) : instApiClient.post("students/", s));
-
-            // 🚨 CONFLICT DETECTED
             if (!res.data.success && res.data.code === "DUPLICATE_IDENTITY") {
                 toast.dismiss(id);
-                setShowFormModal(false); // ✅ Close entry modal immediately
+                setShowFormModal(false);
                 setCollisionInfo({ student: res.data.student, originalData: s });
                 return;
             }
-
             if (res.data.success || [200, 201].includes(res.status)) {
                 toast.success(isEditMode ? "Updated" : "Seeded", { id });
                 if (currentFormIndex < formStudents.length - 1) setCurrentFormIndex(p => p + 1);
@@ -100,7 +98,7 @@ export const StudentRegistry = () => {
         } catch (err: any) {
             if (err.response?.data?.code === "DUPLICATE_IDENTITY") {
                 toast.dismiss(id);
-                setShowFormModal(false); // ✅ Close entry modal immediately
+                setShowFormModal(false);
                 setCollisionInfo({ student: err.response.data.student, originalData: s });
             } else toast.error(err.response?.data?.message || "Failed", { id });
         }
@@ -125,7 +123,6 @@ export const StudentRegistry = () => {
         setSelectedStudents([]);
     };
 
-    // Server handles search+filter — filteredStudents is just what server returns
     const filteredStudents = students;
     const seededCount = useMemo(() => filteredStudents.filter(s => s.status !== "ACTIVE").length, [filteredStudents]);
     const allSeededOnPage = filteredStudents.filter(s => s.status !== "ACTIVE").map(s => s.roll_number);
@@ -135,8 +132,6 @@ export const StudentRegistry = () => {
 
     return (
         <div className="space-y-6 md:space-y-10 p-2 md:p-6 min-h-screen bg-[#050505] text-white w-full overflow-x-hidden">
-
-            {/* ── Header ── */}
             <div className="glass p-6 md:p-8 rounded-3xl md:rounded-[2.5rem] border-white/5 shadow-2xl relative overflow-visible">
                 <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 blur-[100px] -z-10 rounded-full pointer-events-none" />
                 <div className="flex flex-wrap items-center justify-between gap-6 mb-8">
@@ -172,7 +167,6 @@ export const StudentRegistry = () => {
                     </div>
                 </div>
 
-                {/* Search + Filter */}
                 <div className="flex flex-wrap md:flex-nowrap items-center gap-6 pt-6 border-t border-white/5">
                     <div className="relative flex-1 group min-w-[200px]">
                         <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
@@ -199,7 +193,6 @@ export const StudentRegistry = () => {
                 </div>
             </div>
 
-            {/* ── Body ── */}
             {loading ? (
                 isCards ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
@@ -247,7 +240,6 @@ export const StudentRegistry = () => {
                 </div>
             )}
 
-            {/* ── Modals ── */}
             {showUpload && (
                 <UploadConsole
                     isOpen onClose={() => setShowUpload(false)}
@@ -275,41 +267,61 @@ export const StudentRegistry = () => {
                     onCancel={() => { ws.cancel(); setShowDispatch(false); }}
                 />
             )}
-            {collisionInfo && (
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-6 bg-black/95 backdrop-blur-2xl animate-in fade-in duration-300">
-                    <div className="glass w-full max-w-md rounded-[2.5rem] border border-red-500/30 p-10 text-center space-y-6 shadow-[0_0_100px_rgba(239,68,68,0.1)]">
-                        <div className="w-20 h-20 bg-red-500/10 rounded-3xl flex items-center justify-center text-red-500 mx-auto animate-pulse border border-red-500/20">
-                            <Activity className="w-10 h-10" />
+
+            {collisionInfo && createPortal(
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300">
+                    <div className="absolute inset-0 bg-black/20 backdrop-blur-3xl" onClick={() => setCollisionInfo(null)} />
+                    <div className="relative bg-[#0a0a0c]/80 backdrop-blur-md w-full max-w-md rounded-[3rem] border border-red-500/20 p-10 text-center space-y-8 shadow-[0_0_120px_rgba(239,68,68,0.2)] animate-in zoom-in-95 duration-300">
+                        <div className="w-24 h-24 bg-red-500/10 rounded-[2rem] flex items-center justify-center text-red-500 mx-auto animate-pulse border border-red-500/20">
+                            <Activity className="w-12 h-12" />
                         </div>
                         <div>
-                            <h3 className="text-2xl font-black text-white italic tracking-tighter uppercase">Identity Collision</h3>
-                            <p className="text-[10px] font-black text-red-400 uppercase tracking-widest mt-1">Registry Conflict Detected</p>
+                            <h3 className="text-3xl font-black text-white italic tracking-tighter uppercase">Identity <span className="text-red-500 not-italic">Conflict</span></h3>
+                            <p className="text-[10px] font-black text-red-400/60 uppercase tracking-[0.3em] mt-2">Neural Registry Exception</p>
                         </div>
-                        <p className="text-sm text-muted-foreground leading-relaxed px-4">
-                            Roll <strong className="text-white font-black italic">{collisionInfo.student.roll_number}</strong> is already mapped to <span className="text-white font-medium">{collisionInfo.student.full_name}</span>.
+                        <p className="text-sm text-gray-400 leading-relaxed px-4">
+                            Identifier <strong className="text-white font-black italic">{collisionInfo.student.roll_number}</strong> is already provisioned to <span className="text-white font-black">{collisionInfo.student.full_name}</span>.
                         </p>
                         <div className="pt-4 space-y-3">
                             <button
                                 onClick={resolveCollision}
-                                className="w-full h-14 bg-white text-black rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-primary hover:text-white transition-all shadow-2xl active:scale-95"
+                                className="w-full h-16 bg-white text-black rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-primary hover:text-white transition-all shadow-2xl active:scale-95"
                             >
-                                Update Existing Identity
+                                Force Registry Update
                             </button>
                             <button
                                 onClick={() => {
                                     setCollisionInfo(null);
-                                    setShowFormModal(true); // ✅ Re-open entry modal to fix details
+                                    setShowFormModal(true);
                                 }}
-                                className="w-full h-14 bg-white/5 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all active:scale-95"
+                                className="w-full h-16 bg-white/5 text-white rounded-2xl text-[10px].font-black uppercase tracking-widest hover:bg-white/10 transition-all active:scale-95"
                             >
-                                Cancel & Review
+                                Cancel & Review Entry
                             </button>
                         </div>
+                        {/* 🎹 ESC to close */}
+                        <CollisionEscListener onEsc={() => setCollisionInfo(null)} />
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );
+};
+
+const CollisionEscListener = ({ onEsc }: { onEsc: () => void }) => {
+    useEffect(() => {
+        const h = (e: KeyboardEvent) => {
+            if (e.key === "Escape") onEsc();
+        };
+        document.body.style.overflow = "hidden";
+        window.addEventListener("keydown", h);
+        return () => {
+            document.body.style.overflow = "unset";
+            window.removeEventListener("keydown", h);
+        };
+    }, [onEsc]);
+    return null;
 };
 
 export default StudentRegistry;

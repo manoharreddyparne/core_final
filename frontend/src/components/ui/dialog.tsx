@@ -37,9 +37,9 @@ export const Dialog = ({ open, onOpenChange, children }: DialogProps) => {
 
     return createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 lg:p-8">
-            {/* Blurred backdrop — click to close */}
+            {/* Ultra-light translucent backdrop */}
             <div
-                className="absolute inset-0 bg-black/60 backdrop-blur-xl animate-in fade-in duration-300"
+                className="absolute inset-0 bg-black/20 backdrop-blur-3xl animate-in fade-in duration-300"
                 onClick={() => onOpenChange(false)}
             />
             {/* Modal content sits on top — centered */}

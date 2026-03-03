@@ -84,8 +84,10 @@ export const GlobalSearch = ({ isOpen, onClose }: { isOpen: boolean, onClose: ()
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[15vh] px-4 backdrop-blur-sm bg-black/20 animate-in fade-in duration-200">
-            <div className="w-full max-w-2xl bg-white rounded-[32px] shadow-2xl border border-gray-100 overflow-hidden animate-in slide-in-from-top-4 duration-300">
+        <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[15vh] px-4 animate-in fade-in duration-300">
+            {/* Ultra-light translucent backdrop */}
+            <div className="absolute inset-0 bg-black/20 backdrop-blur-3xl" onClick={onClose} />
+            <div className="relative z-10 w-full max-w-2xl bg-white/80 backdrop-blur-md rounded-[32px] shadow-[0_0_120px_rgba(0,0,0,0.1)] border border-white/20 overflow-hidden animate-in slide-in-from-top-4 duration-300">
                 <div className="relative group">
                     <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
                     <input

@@ -1,10 +1,11 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useSecurity } from "../hooks/useSecurity";
 import { toast } from "react-hot-toast";
 import {
   Laptop, Smartphone, Globe, MapPin, Clock, Shield,
   LogOut, RefreshCw, ChevronDown, ChevronUp, Wifi, AlertTriangle,
 } from "lucide-react";
+import { createPortal } from "react-dom";
 
 function timeAgo(dateString: string): string {
   const date = new Date(dateString);
@@ -246,43 +247,67 @@ export default function SecuritySessions() {
       )}
 
       {/* Confirm All Dialog */}
-      {confirmAll && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      {confirmAll && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300">
+          <div className="absolute inset-0 bg-black/20 backdrop-blur-3xl" onClick={() => setConfirmAll(false)} />
           <div
-            className="w-full max-w-md rounded-3xl border p-8 space-y-6 shadow-2xl"
-            style={{ background: "var(--bg-elevated)", borderColor: "var(--border)" }}
+            className="relative w-full max-w-md rounded-[3rem] border border-white/10 p-10 space-y-8 shadow-[0_0_120px_rgba(0,0,0,0.6)] animate-in zoom-in-95 duration-300 overflow-hidden"
+            style={{ background: "var(--bg-elevated)" }}
           >
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-red-500/10 flex items-center justify-center">
-                <AlertTriangle className="w-6 h-6 text-red-400" />
+            {/* Ambient */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 blur-[60px] rounded-full -mr-16 -mt-16 pointer-events-none" />
+
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-red-500/10 flex items-center justify-center border border-red-500/20">
+                <AlertTriangle className="w-7 h-7 text-red-400" />
               </div>
               <div>
-                <h3 className="text-lg font-black" style={{ color: "var(--text-primary)" }}>Terminate All Sessions?</h3>
-                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                  This will log you out from every device immediately.
-                </p>
+                <h3 className="text-xl font-black italic tracking-tighter uppercase" style={{ color: "var(--text-primary)" }}>Revoke All <span className="text-red-500 not-italic">Sessions</span></h3>
+                <p className="text-[10px] font-black text-red-400/60 uppercase tracking-widest mt-1">Institutional Security Protocol</p>
               </div>
             </div>
-            <div className="flex items-center gap-3 justify-end">
+
+            <p className="text-sm text-gray-400 leading-relaxed">
+              This action will immediately terminate every active handshake associated with your identity. Every device will be forced to re-authenticate.
+            </p>
+
+            <div className="flex items-center gap-4 pt-2">
               <button
                 onClick={() => setConfirmAll(false)}
-                className="px-5 py-2.5 text-xs font-black uppercase tracking-widest rounded-xl border transition-all hover:scale-105"
-                style={{ borderColor: "var(--border)", color: "var(--text-primary)" }}
+                className="flex-1 h-14 text-[10px] font-black uppercase tracking-widest rounded-2xl border border-white/10 transition-all hover:bg-white/5 active:scale-95"
+                style={{ color: "var(--text-primary)" }}
               >
                 Cancel
               </button>
               <button
                 onClick={handleLogoutAll}
                 disabled={actionLoading === "all"}
-                className="flex items-center gap-2 px-5 py-2.5 text-xs font-black uppercase tracking-widest rounded-xl bg-red-500 text-white transition-all hover:bg-red-600 hover:scale-105 disabled:opacity-50"
+                className="flex-1 h-14 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest rounded-2xl bg-red-500 text-white shadow-xl shadow-red-500/20 transition-all hover:bg-red-600 active:scale-95 disabled:opacity-50"
               >
                 {actionLoading === "all" ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <LogOut className="w-3.5 h-3.5" />}
-                {actionLoading === "all" ? "Terminating..." : "Terminate All"}
+                {actionLoading === "all" ? "Syncing..." : "Authorize Revoke"}
               </button>
             </div>
+            <SecurityEscListener onEsc={() => setConfirmAll(false)} />
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
 }
+
+const SecurityEscListener = ({ onEsc }: { onEsc: () => void }) => {
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onEsc();
+    };
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", h);
+    return () => {
+      document.body.style.overflow = "unset";
+      window.removeEventListener("keydown", h);
+    };
+  }, [onEsc]);
+  return null;
+};

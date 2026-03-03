@@ -9,6 +9,8 @@ interface BrainHistoryItem {
     nodes_synced: number;
 }
 
+import { createPortal } from "react-dom";
+
 export const GovernanceBrainModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
     const [history, setHistory] = useState<BrainHistoryItem[]>([]);
     const [retraining, setRetraining] = useState(false);
@@ -22,6 +24,20 @@ export const GovernanceBrainModal: React.FC<{ isOpen: boolean; onClose: () => vo
             ]);
         }
     }, [isOpen]);
+
+    useEffect(() => {
+        const h = (e: KeyboardEvent) => {
+            if (e.key === "Escape") onClose();
+        };
+        if (isOpen) {
+            window.addEventListener("keydown", h);
+            document.body.style.overflow = "hidden";
+        }
+        return () => {
+            window.removeEventListener("keydown", h);
+            document.body.style.overflow = "unset";
+        };
+    }, [isOpen, onClose]);
 
     if (!isOpen) return null;
 
@@ -48,9 +64,11 @@ export const GovernanceBrainModal: React.FC<{ isOpen: boolean; onClose: () => vo
         }
     };
 
-    return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
-            <div className="glass w-full max-w-2xl p-10 rounded-[4rem] relative overflow-hidden border-indigo-500/20">
+    return createPortal(
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 animate-in fade-in duration-300">
+            {/* Ultra-light translucent backdrop */}
+            <div className="absolute inset-0 bg-[#050505]/20 backdrop-blur-3xl" onClick={onClose} />
+            <div className="relative glass w-full max-w-2xl p-10 rounded-[4rem] overflow-hidden border border-indigo-500/10 bg-[#0a0a0c]/80 backdrop-blur-md shadow-[0_0_120px_rgba(79,70,229,0.2)] animate-in zoom-in-95 duration-300">
                 <div className="absolute top-0 right-0 p-8">
                     <button onClick={onClose} className="text-white/40 hover:text-white transition-colors">
                         <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -62,45 +80,45 @@ export const GovernanceBrainModal: React.FC<{ isOpen: boolean; onClose: () => vo
                         <svg className="w-10 h-10 text-indigo-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L1 21h22L12 2zm0 3.45l8.15 14.1H3.85L12 5.45z" /></svg>
                     </div>
                     <div>
-                        <h2 className="text-3xl font-black text-white italic tracking-tight">Governance <span className="text-indigo-400 NOT-italic">Brain</span></h2>
-                        <p className="text-indigo-100/60 font-bold uppercase tracking-[0.2em] text-[10px]">Neural Policy Matrix Engine v2.0</p>
+                        <h2 className="text-3xl font-black text-white italic tracking-tight uppercase">Brain <span className="text-indigo-400 tracking-normal not-italic">Matrix</span></h2>
+                        <p className="text-indigo-100/60 font-black uppercase tracking-[0.2em] text-[10px] mt-1">Neural Policy Governance Engine</p>
                     </div>
                 </div>
 
                 <div className="space-y-8">
                     {/* Status Card */}
-                    <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8">
+                    <div className="bg-white/5 border border-white/5 rounded-[2.5rem] p-8">
                         <div className="flex justify-between items-end">
                             <div>
-                                <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">Current State</p>
-                                <p className="text-white font-bold">SYNERGETIC_ACTIVE</p>
+                                <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2">Cognitive State</p>
+                                <p className="text-white font-black tracking-widest text-sm uppercase">Synergetic_Active</p>
                             </div>
                             <button
                                 onClick={handleRetrain}
                                 disabled={retraining}
-                                className={`px-6 py-2 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${retraining ? 'bg-indigo-500/20 text-indigo-400 animate-pulse' : 'bg-white text-indigo-900 shadow-xl'}`}
+                                className={`px-8 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${retraining ? 'bg-indigo-500/20 text-indigo-400 animate-pulse' : 'bg-primary text-white shadow-xl shadow-primary/20 hover:scale-105'}`}
                             >
-                                {retraining ? "Processing Neural Growth..." : "Trigger Manual Retrain"}
+                                {retraining ? "Calibrating..." : "Retrain Matrix"}
                             </button>
                         </div>
                     </div>
 
                     {/* Training History */}
                     <div>
-                        <h3 className="text-white font-bold mb-4 flex items-center gap-3">
-                            <div className="w-2 h-6 bg-indigo-500 rounded-full"></div>
-                            Log of Historical Training
+                        <h3 className="text-white font-black text-[10px] uppercase tracking-widest mb-6 flex items-center gap-3">
+                            <span className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse" />
+                            Propagation History
                         </h3>
                         <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
                             {history.map(item => (
-                                <div key={item.id} className="bg-white/5 border border-white/5 p-5 rounded-3xl flex justify-between items-center group hover:border-indigo-500/30 transition-all">
+                                <div key={item.id} className="bg-white/[0.02] border border-white/5 p-6 rounded-[2rem] flex justify-between items-center group hover:bg-white/5 hover:border-indigo-500/30 transition-all">
                                     <div className="space-y-1">
-                                        <p className="text-white font-black text-sm">{item.version}</p>
-                                        <p className="text-[9px] text-indigo-400/60 font-medium">{item.training_date}</p>
+                                        <p className="text-white font-black text-xs uppercase tracking-tighter">{item.version}</p>
+                                        <p className="text-[8px] text-indigo-400/60 font-black uppercase tracking-widest">{item.training_date}</p>
                                     </div>
                                     <div className="text-right">
-                                        <p className="text-white/80 font-mono text-xs">{item.metrics_delta}</p>
-                                        <p className="text-[9px] text-muted-foreground">{item.nodes_synced} weights updated</p>
+                                        <p className="text-white font-mono text-[10px] font-bold">{item.metrics_delta}</p>
+                                        <p className="text-[8px] text-gray-500 font-bold uppercase tracking-widest mt-1">{item.nodes_synced} weights updated</p>
                                     </div>
                                 </div>
                             ))}
@@ -110,11 +128,12 @@ export const GovernanceBrainModal: React.FC<{ isOpen: boolean; onClose: () => vo
 
                 {/* Footer Insight */}
                 <div className="mt-10 pt-8 border-t border-white/5">
-                    <p className="text-indigo-100/40 text-[10px] italic leading-relaxed">
-                        The Governance Brain automatically retrains as your data footprints grow. Every click, search, and submission refines your professional readiness matrix.
+                    <p className="text-indigo-100/40 text-[9px] font-bold uppercase tracking-widest leading-relaxed">
+                        End-to-End Encrypted Neural Synchronization // AES-256 Multi-Segment Lattice
                     </p>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };

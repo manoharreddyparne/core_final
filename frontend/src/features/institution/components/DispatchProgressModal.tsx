@@ -54,10 +54,24 @@ const ProgressRing = ({ pct, size = 120 }: { pct: number; size?: number }) => {
     );
 };
 
+import { createPortal } from "react-dom";
+
 export const DispatchProgressModal: React.FC<Props> = ({
     state, events, summary, errorMsg, pct, current, total, onClose, onCancel
 }) => {
     const logRef = useRef<HTMLDivElement>(null);
+
+    // 🎹 Keyboard Support: ESC to close
+    useEffect(() => {
+        const handleEsc = (e: KeyboardEvent) => {
+            if (e.key === "Escape") {
+                if (state === "running" || state === "connecting") onCancel();
+                else onClose();
+            }
+        };
+        window.addEventListener("keydown", handleEsc);
+        return () => window.removeEventListener("keydown", handleEsc);
+    }, [onClose, onCancel, state]);
 
     // Auto-scroll log to top (newest events at top)
     useEffect(() => {
@@ -68,9 +82,12 @@ export const DispatchProgressModal: React.FC<Props> = ({
     const isDone = state === "done";
     const isError = state === "error";
 
-    return (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/95 backdrop-blur-3xl animate-in fade-in duration-200">
-            <div className="relative w-full max-w-lg bg-[#0a0a0f] border border-white/8 rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]">
+    const content = (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 animate-in fade-in duration-300">
+            {/* Ultra-light translucent backdrop */}
+            <div className="absolute inset-0 bg-black/20 backdrop-blur-3xl" onClick={isRunning ? undefined : onClose} />
+
+            <div className="relative w-full max-w-lg bg-[#0a0a0f]/80 backdrop-blur-md border border-white/10 rounded-[2.5rem] shadow-[0_0_120px_rgba(0,0,0,0.6)] overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]">
 
                 {/* Ambient */}
                 <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 blur-[100px] rounded-full -mr-32 -mt-32 pointer-events-none" />
@@ -203,6 +220,8 @@ export const DispatchProgressModal: React.FC<Props> = ({
             </div>
         </div>
     );
+
+    return createPortal(content, document.body);
 };
 
 const StatChip = ({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: number; color: string }) => (

@@ -1,20 +1,17 @@
-
 import { useState, useEffect, useRef } from "react";
 import {
     Users,
     Search,
     Plus,
-    ChevronRight,
     MoreVertical,
     Upload,
-    ArrowUpDown,
     Mail,
     X,
     Briefcase,
     Building2,
     Calendar,
-    GraduationCap
 } from "lucide-react";
+import { createPortal } from "react-dom";
 import { instApiClient } from "../../auth/api/base";
 import { academicApi } from "../../academic/api/academicApi";
 import { toast } from "react-hot-toast";
@@ -52,13 +49,11 @@ export const FacultyRegistry = () => {
 
     const fetchDepartments = async () => {
         try {
-            // 🧬 Switch to Academic Governance API
             const res = await academicApi.list("departments");
             if (res.data.success) {
                 const names = res.data.data.map((d: any) => d.code);
                 setDepartments(["ALL", ...names]);
             } else {
-                // Fallback to existing strings if registry is empty
                 const legacyRes = await instApiClient.get("faculty/departments/");
                 if (legacyRes.data.success) setDepartments(["ALL", ...legacyRes.data.data]);
             }
@@ -72,9 +67,7 @@ export const FacultyRegistry = () => {
         try {
             const url = activeDept === "ALL" ? "faculty/" : `faculty/?department=${activeDept}`;
             const res = await instApiClient.get(url);
-            if (res.data.success) {
-                setFaculty(res.data.data);
-            }
+            if (res.data.success) setFaculty(res.data.data);
         } catch (err) {
             toast.error("Failed to load faculty registry");
         } finally {
@@ -100,8 +93,7 @@ export const FacultyRegistry = () => {
     };
 
     const handleDelete = async (empId: string) => {
-        if (!window.confirm(`Are you sure you want to remove educator ${empId}? This will also delete their pre-seeded activation record if not yet activated.`)) return;
-
+        if (!window.confirm(`Are you sure you want to remove educator ${empId}?`)) return;
         const loadingToast = toast.loading("Removing record...");
         try {
             const res = await instApiClient.delete(`faculty/${empId}/`);
@@ -132,11 +124,7 @@ export const FacultyRegistry = () => {
 
     const handleBulkInvite = async () => {
         const toInvite = faculty.filter(f => f.status === "SEEDED").map(f => f.employee_id);
-        if (toInvite.length === 0) {
-            toast.error("No pending faculty to invite.");
-            return;
-        }
-
+        if (toInvite.length === 0) return toast.error("No pending faculty to invite.");
         const loadingToast = toast.loading(`Sending ${toInvite.length} activation links...`);
         try {
             const res = await instApiClient.post("faculty/bulk_invite/", {
@@ -168,7 +156,6 @@ export const FacultyRegistry = () => {
             const res = isEditMode
                 ? await instApiClient.patch(`faculty/${editingEmpId}/`, newFaculty)
                 : await instApiClient.post("faculty/", newFaculty);
-
             if (res.data.success) {
                 toast.success(isEditMode ? "Record updated" : "Educator provisioned successfully", { id: loadingToast });
                 setIsAddModalOpen(false);
@@ -178,41 +165,25 @@ export const FacultyRegistry = () => {
                 fetchDepartments();
             }
         } catch (err: any) {
-            const errorData = err.response?.data;
-            let errorMsg = "Failed to add educator";
-            if (errorData && typeof errorData === 'object') {
-                // If it's a field-level error dictionary from DRF
-                const firstErrorKey = Object.keys(errorData)[0];
-                if (firstErrorKey && Array.isArray(errorData[firstErrorKey])) {
-                    errorMsg = `${firstErrorKey}: ${errorData[firstErrorKey][0]}`;
-                } else if (errorData.message) {
-                    errorMsg = errorData.message;
-                }
-            }
-            toast.error(errorMsg, { id: loadingToast });
+            toast.error(err.response?.data?.message || "Failed to add educator", { id: loadingToast });
         }
     };
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, isPreview: boolean = true) => {
         const file = e.target.files?.[0];
         if (!file) return;
-
         const formData = new FormData();
         formData.append("file", file);
         formData.append("preview", isPreview ? "true" : "false");
-
         const loadingToast = toast.loading(isPreview ? "Analyzing CSV..." : "Applying faculty changes...");
-
         try {
             const res = await instApiClient.post("bulk-seed-faculty/", formData, {
                 headers: { "Content-Type": "multipart/form-data" }
             });
-
             if (res.data.success) {
                 toast.success(isPreview ? "Analysis complete" : "Faculty Registry updated", { id: loadingToast });
-                if (isPreview) {
-                    setPreviewData({ ...res.data.data, file });
-                } else {
+                if (isPreview) setPreviewData({ ...res.data.data, file });
+                else {
                     setShowUpload(false);
                     setPreviewData(null);
                     fetchFaculty();
@@ -232,7 +203,6 @@ export const FacultyRegistry = () => {
 
     return (
         <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500 w-full overflow-hidden">
-            {/* 🧬 Premium Fluid Header */}
             <div className="glass p-6 md:p-8 rounded-3xl md:rounded-[2.5rem] border-white/5 shadow-2xl relative overflow-visible flex flex-wrap items-center justify-between gap-6">
                 <div className="min-w-0">
                     <h1 className="text-2xl md:text-3xl lg:text-4xl font-black text-white italic tracking-tighter uppercase leading-none truncate flex items-center gap-3">
@@ -244,39 +214,18 @@ export const FacultyRegistry = () => {
                         Staff Provisioning & Academic Governance
                     </p>
                 </div>
-
                 <div className="flex flex-wrap items-center gap-3 md:gap-4 shrink-0">
-                    <button
-                        onClick={handleBulkInvite}
-                        className="glass px-5 py-2.5 md:px-7 md:py-3.5 rounded-2xl border-white/5 text-[9px] md:text-[10px] font-black uppercase tracking-widest text-white flex items-center gap-2.5 hover:bg-white/5 transition-all group"
-                    >
+                    <button onClick={handleBulkInvite} className="glass px-5 py-2.5 md:px-7 md:py-3.5 rounded-2xl border-white/5 text-[9px] md:text-[10px] font-black uppercase tracking-widest text-white flex items-center gap-2.5 hover:bg-white/5 transition-all group">
                         <Mail className="w-4 h-4 text-primary group-hover:scale-110 transition-transform" />
                         <span className="hidden sm:inline">Send All Invites</span>
                         <span className="sm:hidden">Invites</span>
                     </button>
-                    <button
-                        onClick={() => setShowUpload(true)}
-                        className="glass px-5 py-2.5 md:px-7 md:py-3.5 rounded-2xl border-white/5 text-[9px] md:text-[10px] font-black uppercase tracking-widest text-white flex items-center gap-2.5 hover:bg-white/5 transition-all group"
-                    >
+                    <button onClick={() => setShowUpload(true)} className="glass px-5 py-2.5 md:px-7 md:py-3.5 rounded-2xl border-white/5 text-[9px] md:text-[10px] font-black uppercase tracking-widest text-white flex items-center gap-2.5 hover:bg-white/5 transition-all group">
                         <Upload className="w-4 h-4 text-primary group-hover:scale-110 transition-transform" />
                         <span className="hidden sm:inline">Bulk Seed</span>
                         <span className="sm:hidden">Seed</span>
                     </button>
-                    <button
-                        onClick={() => {
-                            setIsEditMode(false);
-                            setNewFaculty({
-                                employee_id: "",
-                                full_name: "",
-                                email: "",
-                                designation: "Assistant Professor",
-                                department: "",
-                                joining_date: new Date().toISOString().split('T')[0]
-                            });
-                            setIsAddModalOpen(true);
-                        }}
-                        className="bg-primary px-6 py-2.5 md:px-8 md:py-3.5 rounded-2xl text-[9px] md:text-[10px] font-black uppercase tracking-widest text-white flex items-center gap-2.5 hover:scale-105 transition-all shadow-xl shadow-primary/20"
-                    >
+                    <button onClick={() => { setIsEditMode(false); setNewFaculty({ employee_id: "", full_name: "", email: "", designation: "Assistant Professor", department: "", joining_date: new Date().toISOString().split('T')[0] }); setIsAddModalOpen(true); }} className="bg-primary px-6 py-2.5 md:px-8 md:py-3.5 rounded-2xl text-[9px] md:text-[10px] font-black uppercase tracking-widest text-white flex items-center gap-2.5 hover:scale-105 transition-all shadow-xl shadow-primary/20">
                         <Plus className="w-4 h-4 text-white" />
                         <span className="hidden sm:inline">Add Educator</span>
                         <span className="sm:hidden">Add</span>
@@ -284,38 +233,18 @@ export const FacultyRegistry = () => {
                 </div>
             </div>
 
-            {/* Filters */}
             <div className="flex flex-col lg:flex-row gap-4">
                 <div className="flex-1 glass p-2 rounded-2xl border-white/5 flex items-center gap-2 pr-4">
-                    <div className="bg-white/5 p-2.5 rounded-xl">
-                        <Search className="w-5 h-5 text-muted-foreground" />
-                    </div>
-                    <input
-                        type="text"
-                        placeholder="Search by ID, Name or Email..."
-                        className="bg-transparent border-none focus:ring-0 text-white font-medium flex-1 text-sm outline-none"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
+                    <div className="bg-white/5 p-2.5 rounded-xl"><Search className="w-5 h-5 text-muted-foreground" /></div>
+                    <input type="text" placeholder="Search by ID, Name or Email..." className="bg-transparent border-none focus:ring-0 text-white font-medium flex-1 text-sm outline-none" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                 </div>
-
                 <div className="flex items-center gap-2 overflow-x-auto pb-2 lg:pb-0 scrollbar-hide">
                     {departments.map(dept => (
-                        <button
-                            key={dept}
-                            onClick={() => setActiveDept(dept)}
-                            className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeDept === dept
-                                ? 'bg-primary text-white shadow-xl'
-                                : 'glass border-white/5 text-muted-foreground hover:text-white'
-                                }`}
-                        >
-                            {dept}
-                        </button>
+                        <button key={dept} onClick={() => setActiveDept(dept)} className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeDept === dept ? 'bg-primary text-white shadow-xl' : 'glass border-white/5 text-muted-foreground hover:text-white'}`}>{dept}</button>
                     ))}
                 </div>
             </div>
 
-            {/* Table */}
             <div className="glass rounded-[2rem] border-white/5 overflow-hidden">
                 <table className="w-full text-left border-collapse">
                     <thead>
@@ -329,23 +258,15 @@ export const FacultyRegistry = () => {
                     <tbody>
                         {loading ? (
                             Array(3).fill(0).map((_, i) => (
-                                <tr key={i} className="animate-pulse">
-                                    <td colSpan={4} className="p-8"><div className="h-4 bg-white/5 rounded-full w-full"></div></td>
-                                </tr>
+                                <tr key={i} className="animate-pulse"><td colSpan={4} className="p-8"><div className="h-4 bg-white/5 rounded-full w-full"></div></td></tr>
                             ))
                         ) : filteredFaculty.length === 0 ? (
-                            <tr>
-                                <td colSpan={4} className="p-20 text-center text-muted-foreground">
-                                    No faculty records found.
-                                </td>
-                            </tr>
+                            <tr><td colSpan={4} className="p-20 text-center text-muted-foreground">No faculty records found.</td></tr>
                         ) : filteredFaculty.map((f) => (
                             <tr key={f.id} className="hover:bg-white/[0.02] transition-all group">
                                 <td className="p-6">
                                     <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400 font-black text-xs">
-                                            {f.full_name.charAt(0)}
-                                        </div>
+                                        <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400 font-black text-xs">{f.full_name.charAt(0)}</div>
                                         <div>
                                             <p className="text-white font-bold text-sm tracking-tight">{f.full_name}</p>
                                             <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mt-0.5">{f.employee_id} • {f.email}</p>
@@ -354,58 +275,28 @@ export const FacultyRegistry = () => {
                                 </td>
                                 <td className="p-6">
                                     <div className="flex items-center gap-3">
-                                        <div className="px-3 py-1 bg-primary/10 rounded-lg text-primary text-[10px] font-black uppercase tracking-tighter">
-                                            {f.designation}
-                                        </div>
+                                        <div className="px-3 py-1 bg-primary/10 rounded-lg text-primary text-[10px] font-black uppercase tracking-tighter">{f.designation}</div>
                                         <Building2 className="w-3 h-3 text-white/20" />
                                         <div className="text-[10px] font-medium text-gray-300">{f.department}</div>
                                     </div>
                                 </td>
                                 <td className="p-6">
                                     <div className="flex flex-col gap-1">
-                                        <div className="flex items-center gap-2">
-                                            <Calendar className="w-3 h-3 text-muted-foreground" />
-                                            <span className="text-[10px] text-gray-400">Joined {f.joining_date || "N/A"}</span>
-                                        </div>
-                                        <div className={`flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest ${f.status === 'ACTIVE' ? 'text-green-400' : 'text-amber-500'}`}>
-                                            <span className={`w-1 h-1 rounded-full ${f.status === 'ACTIVE' ? 'bg-green-400' : 'bg-amber-500 animate-pulse'}`} />
-                                            {f.status} Account
-                                        </div>
+                                        <div className="flex items-center gap-2"><Calendar className="w-3 h-3 text-muted-foreground" /><span className="text-[10px] text-gray-400">Joined {f.joining_date || "N/A"}</span></div>
+                                        <div className={`flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest ${f.status === 'ACTIVE' ? 'text-green-400' : 'text-amber-500'}`}><span className={`w-1 h-1 rounded-full ${f.status === 'ACTIVE' ? 'bg-green-400' : 'bg-amber-500 animate-pulse'}`} />{f.status} Account</div>
                                     </div>
                                 </td>
-                                <td className="p-6">
-                                    <div className="flex items-center justify-center gap-2 relative">
+                                <td className="p-6 text-center">
+                                    <div className="flex items-center justify-center gap-2">
                                         {f.status === 'SEEDED' && (
-                                            <button
-                                                onClick={() => handleInvite(f.employee_id)}
-                                                title="Send Activation Link"
-                                                className="p-2.5 bg-primary/10 hover:bg-primary/20 rounded-xl text-primary transition-all"
-                                            >
-                                                <Mail className="w-4 h-4" />
-                                            </button>
+                                            <button onClick={() => handleInvite(f.employee_id)} className="p-2.5 bg-primary/10 hover:bg-primary/20 rounded-xl text-primary transition-all"><Mail className="w-4 h-4" /></button>
                                         )}
                                         <div className="relative">
-                                            <button
-                                                onClick={() => setActiveMenu(activeMenu === f.id ? null : f.id)}
-                                                className="p-2.5 hover:bg-white/5 rounded-xl text-muted-foreground hover:text-white transition-all"
-                                            >
-                                                <MoreVertical className="w-4 h-4" />
-                                            </button>
-
+                                            <button onClick={() => setActiveMenu(activeMenu === f.id ? null : f.id)} className="p-2.5 hover:bg-white/5 rounded-xl text-muted-foreground hover:text-white transition-all"><MoreVertical className="w-4 h-4" /></button>
                                             {activeMenu === f.id && (
-                                                <div className="absolute right-0 bottom-full mb-2 w-48 glass rounded-2xl border border-white/10 shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-bottom-2">
-                                                    <button
-                                                        onClick={() => openEditModal(f)}
-                                                        className="w-full px-5 py-3 text-left text-xs font-bold text-white hover:bg-white/5 transition-all flex items-center gap-3"
-                                                    >
-                                                        <Plus className="w-4 h-4 text-blue-400 rotate-45" /> Edit Record
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDelete(f.employee_id)}
-                                                        className="w-full px-5 py-3 text-left text-xs font-bold text-red-400 hover:bg-red-500/10 transition-all flex items-center gap-3"
-                                                    >
-                                                        <X className="w-4 h-4" /> Remove Educator
-                                                    </button>
+                                                <div className="absolute right-0 bottom-full mb-2 w-48 bg-[#0a0a0c]/90 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-bottom-2">
+                                                    <button onClick={() => openEditModal(f)} className="w-full px-5 py-3 text-left text-[10px] font-black uppercase tracking-widest text-white hover:bg-white/5 transition-all">Edit Record</button>
+                                                    <button onClick={() => handleDelete(f.employee_id)} className="w-full px-5 py-3 text-left text-[10px] font-black uppercase tracking-widest text-red-400 hover:bg-red-500/10 transition-all">Remove educator</button>
                                                 </div>
                                             )}
                                         </div>
@@ -417,158 +308,123 @@ export const FacultyRegistry = () => {
                 </table>
             </div>
 
-            {/* Manual Add Modal */}
-            {isAddModalOpen && (
-                <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-black/95 backdrop-blur-2xl animate-in fade-in duration-300" onClick={() => { setIsAddModalOpen(false); setIsEditMode(false); }} />
-                    <div className="relative w-full max-w-xl glass rounded-[3rem] border border-white/10 overflow-hidden flex flex-col animate-in zoom-in-95 duration-300 shadow-3xl">
-                        <div className="p-8 flex items-center justify-between border-b border-white/5">
+            {isAddModalOpen && createPortal(
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300">
+                    <div className="absolute inset-0 bg-black/20 backdrop-blur-3xl" onClick={() => { setIsAddModalOpen(false); setIsEditMode(false); }} />
+                    <div className="relative w-full max-w-xl bg-[#0a0a0f]/80 backdrop-blur-md rounded-[3rem] border border-white/10 overflow-hidden flex flex-col animate-in zoom-in-95 duration-300 shadow-[0_0_120px_rgba(0,0,0,0.6)]">
+                        <div className="p-8 flex items-center justify-between border-b border-white/5 bg-white/5">
                             <div>
-                                <h2 className="text-xl font-black text-white uppercase tracking-tight">{isEditMode ? 'Edit' : 'Manual'} <span className="text-primary italic">Provisioning</span></h2>
-                                <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest mt-0.5">{isEditMode ? 'Update educator information' : 'Seed individual educator record'}</p>
+                                <h2 className="text-2xl font-black text-white italic tracking-tighter uppercase">{isEditMode ? 'Update' : 'Seed'} <span className="text-primary not-italic">{isEditMode ? 'Record' : 'Educator'}</span></h2>
+                                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-[0.2em] mt-1">Institutional Identity Provisioning</p>
                             </div>
-                            <button onClick={() => { setIsAddModalOpen(false); setIsEditMode(false); }} className="p-2 rounded-full hover:bg-white/5 text-gray-500 transition-all"><X /></button>
+                            <button onClick={() => { setIsAddModalOpen(false); setIsEditMode(false); }} className="p-3 rounded-xl hover:bg-white/5 text-gray-500 transition-all"><X className="w-6 h-6" /></button>
                         </div>
-                        <form onSubmit={handleManualAdd} className="p-8 space-y-5">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1">
+                        <form onSubmit={handleManualAdd} className="p-10 space-y-6">
+                            <div className="grid grid-cols-2 gap-6">
+                                <div className="space-y-2">
                                     <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-2">Employee ID *</label>
-                                    <input
-                                        required
-                                        disabled={isEditMode}
-                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white outline-none focus:ring-2 focus:ring-primary/50 text-sm disabled:opacity-50"
-                                        value={newFaculty.employee_id}
-                                        onChange={e => setNewFaculty({ ...newFaculty, employee_id: e.target.value })}
-                                        placeholder="EMP001"
-                                    />
+                                    <input required disabled={isEditMode} className="w-full px-5 py-4 bg-white/5 border border-white/10 rounded-2xl text-white outline-none focus:border-primary/50 transition-all text-sm disabled:opacity-50" value={newFaculty.employee_id} onChange={e => setNewFaculty({ ...newFaculty, employee_id: e.target.value })} placeholder="EMP-001" />
                                 </div>
-                                <div className="space-y-1">
+                                <div className="space-y-2">
                                     <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-2">Full Name *</label>
-                                    <input
-                                        required
-                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white outline-none focus:ring-2 focus:ring-primary/50 text-sm"
-                                        value={newFaculty.full_name}
-                                        onChange={e => setNewFaculty({ ...newFaculty, full_name: e.target.value })}
-                                        placeholder="Dr. John Doe"
-                                    />
+                                    <input required className="w-full px-5 py-4 bg-white/5 border border-white/10 rounded-2xl text-white outline-none focus:border-primary/50 transition-all text-sm" value={newFaculty.full_name} onChange={e => setNewFaculty({ ...newFaculty, full_name: e.target.value })} placeholder="Dr. Manohar Reddy" />
                                 </div>
                             </div>
-
-                            <div className="space-y-1">
+                            <div className="space-y-2">
                                 <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-2">Official Email *</label>
-                                <input
-                                    required
-                                    type="email"
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white outline-none focus:ring-2 focus:ring-primary/50 text-sm"
-                                    value={newFaculty.email}
-                                    onChange={e => setNewFaculty({ ...newFaculty, email: e.target.value })}
-                                    placeholder="john.doe@university.edu"
-                                />
+                                <input required type="email" className="w-full px-5 py-4 bg-white/5 border border-white/10 rounded-2xl text-white outline-none focus:border-primary/50 transition-all text-sm" value={newFaculty.email} onChange={e => setNewFaculty({ ...newFaculty, email: e.target.value })} placeholder="educator@auip.edu" />
                             </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1">
+                            <div className="grid grid-cols-2 gap-6">
+                                <div className="space-y-2">
                                     <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-2">Designation</label>
-                                    <input
-                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white outline-none focus:ring-2 focus:ring-primary/50 text-sm"
-                                        value={newFaculty.designation}
-                                        onChange={e => setNewFaculty({ ...newFaculty, designation: e.target.value })}
-                                        placeholder="Assistant Professor"
-                                    />
+                                    <input className="w-full px-5 py-4 bg-white/5 border border-white/10 rounded-2xl text-white outline-none focus:border-primary/50 transition-all text-sm" value={newFaculty.designation} onChange={e => setNewFaculty({ ...newFaculty, designation: e.target.value })} placeholder="Assistant Professor" />
                                 </div>
-                                <div className="space-y-1">
+                                <div className="space-y-2">
                                     <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-2">Department</label>
-                                    <select
-                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white outline-none focus:ring-2 focus:ring-primary/50 text-sm appearance-none"
-                                        value={newFaculty.department}
-                                        onChange={e => setNewFaculty({ ...newFaculty, department: e.target.value })}
-                                    >
-                                        <option value="" className="bg-black">Select Registry</option>
-                                        {departments.filter(d => d !== "ALL").map(d => (
-                                            <option key={d} value={d} className="bg-black">{d}</option>
-                                        ))}
+                                    <select className="w-full px-5 py-4 bg-white/5 border border-white/10 rounded-2xl text-white outline-none focus:border-primary/50 transition-all text-sm appearance-none" value={newFaculty.department} onChange={e => setNewFaculty({ ...newFaculty, department: e.target.value })}>
+                                        <option value="" className="bg-black">Sync with Registry</option>
+                                        {departments.filter(d => d !== "ALL").map(d => <option key={d} value={d} className="bg-black">{d}</option>)}
                                     </select>
                                 </div>
                             </div>
-
-                            <button
-                                type="submit"
-                                className="w-full py-4 bg-primary text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all"
-                            >
-                                {isEditMode ? 'Update Record' : 'Provision Educator'}
-                            </button>
+                            <button type="submit" className="w-full py-5 bg-primary text-white rounded-[1.5rem] font-black uppercase tracking-[0.2em] text-[10px] shadow-2xl shadow-primary/20 hover:scale-[1.02] transition-all mt-4">{isEditMode ? 'Authorize Update' : 'Initialize Provisioning'}</button>
                         </form>
+                        <FacultyEscListener onEsc={() => { setIsAddModalOpen(false); setIsEditMode(false); }} />
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
-            {/* Bulk Upload Modal */}
-            {showUpload && (
-                <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-black/95 backdrop-blur-2xl animate-in fade-in duration-300" onClick={() => setShowUpload(false)} />
-                    <div className="relative glass w-full max-w-4xl rounded-[3rem] border border-white/10 overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-300 shadow-3xl">
-                        <div className="p-10 flex items-center justify-between border-b border-white/5">
+            {showUpload && createPortal(
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300">
+                    <div className="absolute inset-0 bg-black/20 backdrop-blur-3xl" onClick={() => setShowUpload(false)} />
+                    <div className="relative bg-[#0a0a0f]/80 backdrop-blur-md w-full max-w-4xl rounded-[3rem] border border-white/10 overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-300 shadow-[0_0_120px_rgba(0,0,0,0.6)]">
+                        <div className="p-10 flex items-center justify-between border-b border-white/5 bg-white/5">
                             <div>
-                                <h2 className="text-2xl font-black text-white">Faculty <span className="text-primary italic">Seeding</span></h2>
-                                <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest mt-0.5">Bulk provision from academic archives</p>
+                                <h2 className="text-3xl font-black text-white italic tracking-tighter uppercase">Batch <span className="text-primary not-italic">Seeding</span></h2>
+                                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-[0.2em] mt-1">High-Volume Staff Provisioning</p>
                             </div>
-                            <button onClick={() => setShowUpload(false)} className="text-white/50 hover:text-white"><X /></button>
+                            <button onClick={() => setShowUpload(false)} className="p-3 rounded-xl hover:bg-white/5 text-gray-500 transition-all"><X className="w-8 h-8" /></button>
                         </div>
-                        <div className="p-10 overflow-y-auto">
+                        <div className="p-10 overflow-y-auto custom-scrollbar">
                             {!previewData ? (
-                                <div
-                                    onClick={() => fileInputRef.current?.click()}
-                                    className="border-2 border-dashed border-white/10 rounded-[2.5rem] p-20 flex flex-col items-center text-center cursor-pointer hover:bg-primary/5 hover:border-primary/50 transition-all group"
-                                >
-                                    <div className="w-20 h-20 rounded-[2rem] bg-primary/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-all">
-                                        <Upload className="w-10 h-10 text-primary" />
+                                <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-white/10 rounded-[3rem] p-24 flex flex-col items-center text-center cursor-pointer hover:bg-primary/5 hover:border-primary/50 transition-all group">
+                                    <div className="w-24 h-24 rounded-[2.5rem] bg-primary/10 flex items-center justify-center mb-8 group-hover:scale-110 transition-all">
+                                        <Upload className="w-12 h-12 text-primary" />
                                     </div>
-                                    <p className="text-white font-black text-lg">Select Faculty CSV</p>
-                                    <p className="text-muted-foreground text-xs mt-2 max-w-xs uppercase tracking-widest font-bold">
-                                        Columns: employee_id, full_name, email, designation, department
-                                    </p>
+                                    <p className="text-white font-black text-xl italic uppercase tracking-tighter">Select Registry CSV</p>
+                                    <p className="text-muted-foreground text-[10px] mt-4 max-w-xs uppercase tracking-[0.2em] font-black leading-relaxed">Required: ID, Name, Email, Role, Dept</p>
                                     <input type="file" ref={fileInputRef} className="hidden" onChange={(e) => handleFileUpload(e, true)} />
                                 </div>
                             ) : (
-                                <div className="space-y-6 animate-in fade-in duration-500">
-                                    <div className="grid grid-cols-3 gap-4">
-                                        <div className="glass p-6 rounded-2xl bg-green-500/5 border-green-500/10">
-                                            <p className="text-[10px] font-black text-green-500 uppercase tracking-widest mb-1">New Records</p>
-                                            <p className="text-2xl font-black text-white">{previewData.summary.new_count}</p>
+                                <div className="space-y-10 animate-in fade-in duration-500">
+                                    <div className="grid grid-cols-3 gap-6">
+                                        <div className="glass p-8 rounded-3xl bg-green-500/[0.03] border-green-500/10 text-center">
+                                            <p className="text-[10px] font-black text-green-500 uppercase tracking-widest mb-2">New Identity Seeds</p>
+                                            <p className="text-4xl font-black text-white tracking-tighter">{previewData.summary.new_count}</p>
                                         </div>
-                                        <div className="glass p-6 rounded-2xl bg-primary/5 border-primary/10">
-                                            <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-1">Updates</p>
-                                            <p className="text-2xl font-black text-white">{previewData.summary.update_count}</p>
+                                        <div className="glass p-8 rounded-3xl bg-primary/[0.03] border-primary/10 text-center">
+                                            <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-2">Registry Updates</p>
+                                            <p className="text-4xl font-black text-white tracking-tighter">{previewData.summary.update_count}</p>
                                         </div>
-                                        <div className="glass p-6 rounded-2xl bg-red-500/5 border-red-500/10">
-                                            <p className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-1">Conflicts</p>
-                                            <p className="text-2xl font-black text-white">{previewData.summary.error_count}</p>
+                                        <div className="glass p-8 rounded-3xl bg-red-500/[0.03] border-red-500/10 text-center">
+                                            <p className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-2">Protocol Conflicts</p>
+                                            <p className="text-4xl font-black text-white tracking-tighter">{previewData.summary.error_count}</p>
                                         </div>
                                     </div>
-
-                                    <div className="p-6 bg-white/5 rounded-3xl border border-white/5">
-                                        <p className="text-sm text-gray-300 font-medium">
-                                            Verified payload. Ready to synchronize with institutional database.
-                                        </p>
+                                    <div className="p-8 bg-blue-500/[0.02] rounded-[2rem] border border-blue-500/10 flex items-center gap-4">
+                                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+                                        <p className="text-[11px] text-gray-400 font-bold uppercase tracking-widest leading-relaxed">Checked payload against institutional neural lattice. Ready for synchronization.</p>
                                     </div>
-
-                                    <div className="flex justify-end gap-3 pt-6 border-t border-white/5">
-                                        <button onClick={() => setPreviewData(null)} className="px-8 py-3 glass rounded-xl text-white font-bold text-xs uppercase tracking-widest">Cancel</button>
-                                        <button
-                                            onClick={() => handleFileUpload({ target: { files: [previewData.file] } } as any, false)}
-                                            className="px-10 py-3 bg-primary rounded-xl text-white font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-105 transition-all"
-                                        >
-                                            SYNC REGISTRY
-                                        </button>
+                                    <div className="flex justify-end gap-4 pt-10 border-t border-white/5">
+                                        <button onClick={() => setPreviewData(null)} className="px-10 py-4 glass rounded-2xl text-gray-500 hover:text-white font-black text-[10px] uppercase tracking-widest transition-all">Discard Buffer</button>
+                                        <button onClick={() => handleFileUpload({ target: { files: [previewData.file] } } as any, false)} className="px-12 py-4 bg-primary rounded-2xl text-white font-black text-[10px] uppercase tracking-[0.25em] shadow-2xl shadow-primary/20 hover:scale-105 transition-all">Commit to Registry</button>
                                     </div>
                                 </div>
                             )}
                         </div>
+                        <FacultyEscListener onEsc={() => setShowUpload(false)} />
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );
+};
+
+const FacultyEscListener = ({ onEsc }: { onEsc: () => void }) => {
+    useEffect(() => {
+        const h = (e: KeyboardEvent) => {
+            if (e.key === "Escape") onEsc();
+        };
+        document.body.style.overflow = "hidden";
+        window.addEventListener("keydown", h);
+        return () => {
+            document.body.style.overflow = "unset";
+            window.removeEventListener("keydown", h);
+        };
+    }, [onEsc]);
+    return null;
 };
 
 export default FacultyRegistry;

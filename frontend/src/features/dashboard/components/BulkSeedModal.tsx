@@ -1,9 +1,11 @@
 // ✅ src/features/dashboard/components/BulkSeedModal.tsx
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, Upload, FileText, AlertCircle, CheckCircle2, Loader2, Download } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { bulkUploadStudents } from "../../auth/api/institutionAdminApi";
+
+import { createPortal } from "react-dom";
 
 interface BulkSeedModalProps {
     isOpen: boolean;
@@ -15,6 +17,20 @@ export function BulkSeedModal({ isOpen, onClose, onSuccess }: BulkSeedModalProps
     const [file, setFile] = useState<File | null>(null);
     const [uploading, setUploading] = useState(false);
     const [result, setResult] = useState<any | null>(null);
+
+    useEffect(() => {
+        const h = (e: KeyboardEvent) => {
+            if (e.key === "Escape") onClose();
+        };
+        if (isOpen) {
+            window.addEventListener("keydown", h);
+            document.body.style.overflow = "hidden";
+        }
+        return () => {
+            window.removeEventListener("keydown", h);
+            document.body.style.overflow = "unset";
+        };
+    }, [isOpen, onClose]);
 
     if (!isOpen) return null;
 
@@ -63,18 +79,18 @@ export function BulkSeedModal({ isOpen, onClose, onSuccess }: BulkSeedModalProps
         window.URL.revokeObjectURL(url);
     };
 
-    return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
-            {/* Backdrop */}
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={onClose} />
+    return createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300">
+            {/* Ultra-light translucent backdrop */}
+            <div className="absolute inset-0 bg-black/20 backdrop-blur-3xl" onClick={onClose} />
 
             {/* Modal */}
-            <div className="relative w-full max-w-2xl bg-[#0a0a0b] border border-white/10 rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+            <div className="relative z-10 w-full max-w-2xl bg-[#0a0a0b]/80 backdrop-blur-md border border-white/10 rounded-[2.5rem] shadow-[0_0_120px_rgba(0,0,0,0.6)] overflow-hidden animate-in zoom-in-95 duration-300">
                 {/* Header */}
                 <div className="p-8 border-b border-white/5 flex justify-between items-center bg-white/5">
                     <div>
-                        <h2 className="text-2xl font-black text-white">Seed <span className="text-primary">Student Batch</span></h2>
-                        <p className="text-sm text-gray-500 mt-1">Upload CSV to provision institutional identities.</p>
+                        <h2 className="text-2xl font-black text-white italic tracking-tighter uppercase">Batch <span className="text-primary tracking-normal not-italic">Seeding</span></h2>
+                        <p className="text-[10px] text-gray-500 font-bold uppercase tracking-[0.2em] mt-1">Institutional Identity Provisioning</p>
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-xl transition-colors">
                         <X className="w-6 h-6 text-gray-500" />
@@ -131,22 +147,22 @@ export function BulkSeedModal({ isOpen, onClose, onSuccess }: BulkSeedModalProps
                             <div className="flex gap-4 pt-4">
                                 <button
                                     onClick={onClose}
-                                    className="flex-1 py-4 px-6 border border-white/10 text-white font-bold rounded-2xl hover:bg-white/5 transition-all"
+                                    className="flex-1 py-4 px-6 border border-white/10 text-white font-bold rounded-2xl hover:bg-white/5 transition-all text-xs uppercase tracking-widest"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     onClick={handleUpload}
                                     disabled={!file || uploading}
-                                    className="flex-[2] py-4 px-6 premium-gradient text-white font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-primary/20 disabled:opacity-50 disabled:grayscale transition-all flex items-center justify-center gap-3"
+                                    className="flex-[2] py-4 px-6 premium-gradient text-white font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-primary/20 disabled:opacity-50 disabled:grayscale transition-all flex items-center justify-center gap-3 text-xs"
                                 >
                                     {uploading ? (
                                         <>
                                             <Loader2 className="w-5 h-5 animate-spin" />
-                                            Processing...
+                                            Syncing...
                                         </>
                                     ) : (
-                                        "Start Seeding"
+                                        "Initialize Seeding"
                                     )}
                                 </button>
                             </div>
@@ -159,11 +175,11 @@ export function BulkSeedModal({ isOpen, onClose, onSuccess }: BulkSeedModalProps
                                     <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1">Total</p>
                                     <p className="text-2xl font-black text-white">{result.total || 0}</p>
                                 </div>
-                                <div className="glass p-4 rounded-2xl border-green-500/20 text-center">
+                                <div className="glass p-4 rounded-2xl border-green-500/10 bg-green-500/5 text-center">
                                     <p className="text-[10px] font-black text-green-500 uppercase tracking-widest mb-1">Success</p>
                                     <p className="text-2xl font-black text-white">{result.success || 0}</p>
                                 </div>
-                                <div className="glass p-4 rounded-2xl border-red-500/20 text-center">
+                                <div className="glass p-4 rounded-2xl border-red-500/10 bg-red-500/5 text-center">
                                     <p className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-1">Failed</p>
                                     <p className="text-2xl font-black text-white">{result.failed || 0}</p>
                                 </div>
@@ -172,15 +188,15 @@ export function BulkSeedModal({ isOpen, onClose, onSuccess }: BulkSeedModalProps
                             {/* Error Details */}
                             {result.errors.length > 0 && (
                                 <div className="space-y-4">
-                                    <h3 className="text-xs font-black text-red-500 uppercase tracking-widest flex items-center gap-2">
+                                    <h3 className="text-[10px] font-black text-red-500 uppercase tracking-widest flex items-center gap-2">
                                         <AlertCircle className="w-4 h-4" />
-                                        Error Logs ({result.errors.length})
+                                        Protocol Error Logs ({result.errors.length})
                                     </h3>
                                     <div className="max-h-48 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
                                         {result.errors.map((err: any, idx: number) => (
-                                            <div key={idx} className="p-4 bg-red-500/5 border border-red-500/10 rounded-xl text-xs">
-                                                <p className="text-red-400 font-bold mb-1">Row {err.row}: {typeof err.error === 'object' ? JSON.stringify(err.error) : err.error}</p>
-                                                <p className="text-gray-600 font-mono">Ref: {err.data?.stu_ref || 'N/A'} | Roll: {err.data?.roll_number || 'N/A'}</p>
+                                            <div key={idx} className="p-4 bg-red-500/5 border border-red-500/10 rounded-xl text-[10px]">
+                                                <p className="text-red-400 font-bold mb-1 uppercase tracking-wider">Row {err.row}: {typeof err.error === 'object' ? JSON.stringify(err.error) : err.error}</p>
+                                                <p className="text-gray-600 font-mono">Ref Identifier: {err.data?.stu_ref || 'N/A'}</p>
                                             </div>
                                         ))}
                                     </div>
@@ -190,21 +206,22 @@ export function BulkSeedModal({ isOpen, onClose, onSuccess }: BulkSeedModalProps
                             {result.failed === 0 && (
                                 <div className="flex flex-col items-center justify-center p-12 bg-green-500/5 border border-green-500/10 rounded-[2rem] text-center">
                                     <CheckCircle2 className="w-16 h-16 text-green-500 mb-4 animate-bounce" />
-                                    <h3 className="text-xl font-black text-white">All Identity Seeds Planted!</h3>
-                                    <p className="text-gray-500 mt-2 text-sm">Every identity in the CSV was correctly provisioned.</p>
+                                    <h3 className="text-xl font-black text-white uppercase tracking-tighter">Handshake Complete</h3>
+                                    <p className="text-gray-500 mt-2 text-xs uppercase tracking-widest font-bold">Every identity was correctly provisioned.</p>
                                 </div>
                             )}
 
                             <button
                                 onClick={onClose}
-                                className="w-full py-4 premium-gradient text-white font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-primary/20"
+                                className="w-full py-4 premium-gradient text-white font-black uppercase tracking-[0.2em] rounded-2xl shadow-xl shadow-primary/20 text-xs"
                             >
-                                Done
+                                Finalize Sync
                             </button>
                         </div>
                     )}
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }

@@ -41,10 +41,11 @@ export const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
     const currentForm = formStudents[currentFormIndex];
 
     const content = (
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/98 backdrop-blur-3xl animate-in fade-in duration-500" onClick={onClose} />
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 animate-in fade-in duration-300">
+            {/* Ultra-light translucent backdrop */}
+            <div className="absolute inset-0 bg-black/20 backdrop-blur-3xl" onClick={onClose} />
 
-            <div className="relative w-full max-w-4xl glass flex flex-col max-h-[95vh] rounded-[3rem] border border-white/10 shadow-[0_0_100px_rgba(0,0,0,1)] animate-in zoom-in-95 duration-300 overflow-hidden">
+            <div className="relative z-10 w-full max-w-4xl glass flex flex-col max-h-[95vh] rounded-[3rem] border border-white/10 shadow-[0_0_100px_rgba(0,0,0,1)] animate-in zoom-in-95 duration-300 overflow-hidden">
                 <div className="px-10 py-7 border-b border-white/5 flex items-center justify-between bg-white/[0.02] flex-shrink-0">
                     <div className="flex items-center gap-4">
                         <div className="w-12 h-12 bg-primary/10 rounded-2xl border border-primary/20 flex items-center justify-center text-primary">
