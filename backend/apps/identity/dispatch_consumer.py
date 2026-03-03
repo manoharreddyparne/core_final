@@ -108,14 +108,22 @@ class DispatchConsumer(AsyncWebsocketConsumer):
                 preseeded_map = {s.identifier.upper(): s for s in StudentPreSeededRegistry.objects.filter(identifier__in=query_rolls)}
                 name_map = {a.roll_number.upper(): a.full_name.title() for a in StudentAcademicRegistry.objects.filter(roll_number__in=query_rolls).only('roll_number', 'full_name')}
 
-                # Ensure all students have identity records
-                missing = [r for r in query_rolls if r.upper() not in preseeded_map]
-                if missing:
-                    for acad in StudentAcademicRegistry.objects.filter(roll_number__in=missing):
-                        try: acad.sync_to_preseeded()
-                        except: pass
-                    for s in StudentPreSeededRegistry.objects.filter(identifier__in=missing):
-                        preseeded_map[s.identifier.upper()] = s
+                # ⚡ Optimized Bulk Sync: Ensure all students have identity records in 1-2 queries
+                missing_rolls = [r for r in query_rolls if r.upper() not in preseeded_map]
+                if missing_rolls:
+                    acads = StudentAcademicRegistry.objects.filter(roll_number__in=missing_rolls).only('roll_number', 'official_email', 'personal_email')
+                    new_identities = []
+                    for a in acads:
+                        email = a.official_email or a.personal_email
+                        if email:
+                            new_identities.append(StudentPreSeededRegistry(identifier=a.roll_number, email=email))
+                    
+                    if new_identities:
+                        # Use bulk_create with ignore_conflicts to handle race conditions safely
+                        StudentPreSeededRegistry.objects.bulk_create(new_identities, ignore_conflicts=True)
+                        # Refresh map
+                        for s in StudentPreSeededRegistry.objects.filter(identifier__in=missing_rolls):
+                            preseeded_map[s.identifier.upper()] = s
 
                 # Categorize: Instant (Skip) vs Active (Dispatch)
                 to_invite = []
