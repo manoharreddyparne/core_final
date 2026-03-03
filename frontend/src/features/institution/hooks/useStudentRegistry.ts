@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { instApiClient } from "../../auth/api/base";
 import { academicApi } from "../../academic/api/academicApi";
 import { toast } from "react-hot-toast";
@@ -34,10 +34,27 @@ export interface SectionStat {
     activated: number;
 }
 
+interface PaginatedState {
+    students: Student[];
+    count: number;        // total from server
+    page: number;
+    pageSize: number;
+}
+
+/**
+ * Server-side paginated student registry.
+ * - Never fetches more than one page at a time (no parallel page blasting)
+ * - page_size=100, max_page_size=500 (set on backend)
+ * - Exposes goToPage() for navigation
+ */
 export const useStudentRegistry = (activeSection: string | null, viewMode: "CARDS" | "LIST") => {
     const [students, setStudents] = useState<Student[]>([]);
+    const [totalCount, setTotalCount] = useState(0);
+    const [page, setPage] = useState(1);
+    const PAGE_SIZE = 100;
+
     const [sectionStats, setSectionStats] = useState<SectionStat[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     const [registryDepts, setRegistryDepts] = useState<any[]>([]);
     const [registryProgs, setRegistryProgs] = useState<any[]>([]);
     const [registrySections, setRegistrySections] = useState<any[]>([]);
@@ -58,74 +75,69 @@ export const useStudentRegistry = (activeSection: string | null, viewMode: "CARD
     };
 
     const fetchSections = async () => {
-        setLoading(true);
         try {
             const res = await instApiClient.get("students/sections/");
             setSectionStats(res.data);
         } catch (err) {
             console.error("Failed to fetch sections", err);
-        } finally {
-            setLoading(false);
         }
     };
 
-    const fetchStudents = async () => {
+    const fetchStudents = useCallback(async (targetPage = 1) => {
+        // Only fetch if we're in list mode or have a section drill-down
+        if (viewMode === "CARDS" && !activeSection) return;
         setLoading(true);
         try {
-            let url = "students/";
-            if (activeSection) url += `?section=${activeSection}`;
+            let url = `students/?page_size=${PAGE_SIZE}&page=${targetPage}`;
+            if (activeSection) url += `&section=${activeSection}`;
 
             const res = await instApiClient.get(url);
 
-            // Handle paginated DRF response
-            if (res.data?.results) {
-                let allStudents = [...res.data.results];
-                const totalCount = res.data.count || allStudents.length;
-                const pageSize = allStudents.length;
-
-                // If there are more pages, fetch them in parallel
-                if (totalCount > pageSize && pageSize > 0) {
-                    const totalPages = Math.ceil(totalCount / pageSize);
-                    const pagePromises = [];
-                    for (let p = 2; p <= totalPages; p++) {
-                        const sep = url.includes('?') ? '&' : '?';
-                        pagePromises.push(instApiClient.get(`${url}${sep}page=${p}`));
-                    }
-                    const pages = await Promise.all(pagePromises);
-                    for (const pg of pages) {
-                        if (pg.data?.results) allStudents = [...allStudents, ...pg.data.results];
-                    }
-                }
-
-                // Map status field for compatibility
-                setStudents(allStudents.map((s: any) => ({
-                    ...s,
-                    status: s.status || (s.is_active_account ? "ACTIVE" : "SEEDED"),
-                })));
+            if (res.data?.results !== undefined) {
+                const count = res.data.count ?? 0;
+                setTotalCount(count);
+                setStudents(
+                    res.data.results.map((s: any) => ({
+                        ...s,
+                        status: s.status || (s.is_active_account ? "ACTIVE" : "SEEDED"),
+                    }))
+                );
             } else if (res.data?.success) {
-                // Fallback: non-paginated response
+                // Non-paginated fallback
                 setStudents(res.data.data);
+                setTotalCount(res.data.data.length);
             }
         } catch (err) {
             toast.error("Failed to load records");
         } finally {
             setLoading(false);
         }
-    };
+    }, [viewMode, activeSection]);
 
+    // Sections + academic meta: load once
     useEffect(() => {
         fetchSections();
         fetchAcademicRegistry();
     }, []);
 
+    // Re-fetch when section/view changes — reset to page 1
     useEffect(() => {
-        if (viewMode === "LIST" || activeSection) {
-            fetchStudents();
-        }
+        setPage(1);
+        fetchStudents(1);
     }, [viewMode, activeSection]);
+
+    const goToPage = (newPage: number) => {
+        setPage(newPage);
+        fetchStudents(newPage);
+    };
 
     return {
         students,
+        totalCount,
+        page,
+        pageSize: PAGE_SIZE,
+        totalPages: Math.max(1, Math.ceil(totalCount / PAGE_SIZE)),
+        goToPage,
         sectionStats,
         loading,
         registryDepts,
@@ -133,7 +145,7 @@ export const useStudentRegistry = (activeSection: string | null, viewMode: "CARD
         registrySections,
         refresh: () => {
             fetchSections();
-            fetchStudents();
+            fetchStudents(page);
         }
     };
 };

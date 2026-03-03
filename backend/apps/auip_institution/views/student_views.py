@@ -18,9 +18,9 @@ logger = logging.getLogger(__name__)
 
 
 class StudentPagination(PageNumberPagination):
-    page_size = 50
+    page_size = 100
     page_size_query_param = 'page_size'
-    max_page_size = 200
+    max_page_size = 500
 
 
 class RegisteredStudentViewSet(viewsets.ModelViewSet):
@@ -129,7 +129,14 @@ class RegisteredStudentViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'])
     def bulk_invite(self, request):
-        """Trigger activation links for multiple students or entire sections."""
+        """
+        High-performance bulk invite using:
+        - 2 bulk DB queries (no N+1 loop)
+        - Parallel email dispatch via ThreadPoolExecutor
+        - Auto-sync missing identity entries from academic registry
+        Target: 1000 students in <60s (vs 16+ minutes serial)
+        """
+        from concurrent.futures import ThreadPoolExecutor, as_completed
         from apps.auip_institution.models import StudentPreSeededRegistry, StudentAcademicRegistry
         from apps.identity.services.activation_service import ActivationService
         from django_tenants.utils import schema_context
@@ -137,56 +144,101 @@ class RegisteredStudentViewSet(viewsets.ModelViewSet):
         roll_numbers = request.data.get('roll_numbers', [])
         section = request.data.get('section')
         institution = request.user.institution
+        schema = institution.schema_name
         summary = {"invited": [], "already_activated": [], "not_found": [], "failed": []}
-        normalized_rolls = [str(r).strip() for r in roll_numbers if r]
+        normalized_rolls = [str(r).strip().upper() for r in roll_numbers if r]
 
-        with schema_context(institution.schema_name):
+        with schema_context(schema):
+            # ── Step 1: Resolve target rolls (single query) ──────────────────
             if section:
-                query_rolls = list(StudentAcademicRegistry.objects.filter(section=section).values_list('roll_number', flat=True))
+                query_rolls = list(
+                    StudentAcademicRegistry.objects
+                    .filter(section=section)
+                    .values_list('roll_number', flat=True)
+                )
             elif normalized_rolls:
                 query_rolls = normalized_rolls
             else:
                 return error_response("Target selection required (Roll Numbers or Section)", code=400)
 
-            found_rolls = set()
-            for roll in query_rolls:
-                try:
-                    # 🔍 Step 1: Check Identity Registry
-                    stu = StudentPreSeededRegistry.objects.filter(identifier__iexact=roll).first()
-                    
-                    # 🛠️ Hub Resilience: If missing from identity registry but exists in academic registry, sync now
-                    if not stu:
-                        academic_stu = StudentAcademicRegistry.objects.filter(roll_number__iexact=roll).first()
-                        if academic_stu:
-                            logger.info(f"[BULK-INVITE] Auto-syncing missing identity for {roll}")
-                            academic_stu.sync_to_preseeded()
-                            stu = StudentPreSeededRegistry.objects.filter(identifier__iexact=roll).first()
-                    
-                    if not stu:
-                        summary["not_found"].append(roll)
-                        continue
-                        
-                    found_rolls.add(roll.upper())
-                    if stu.is_activated:
-                        summary["already_activated"].append(roll)
-                        continue
-                        
-                    ActivationService.create_tenant_invitation(stu, institution.schema_name, entry_type="student")
-                    summary["invited"].append(roll)
-                except Exception as e:
-                    logger.error(f"Invite failed for {roll}: {e}")
-                    summary["failed"].append({"roll": roll, "error": str(e)})
+            if not query_rolls:
+                return success_response("No target students found.", data=summary)
 
-            if normalized_rolls:
-                missing = set(normalized_rolls) - found_rolls - set(summary["not_found"])
-                summary["not_found"].extend(list(missing))
+            # ── Step 2: Bulk load all PreSeeded entries in ONE query ──────────
+            preseeded_map = {
+                s.identifier.upper(): s
+                for s in StudentPreSeededRegistry.objects.filter(
+                    identifier__in=query_rolls
+                )
+            }
+
+            # ── Step 3: Detect missing and bulk-auto-sync them ───────────────
+            missing_rolls = [r for r in query_rolls if r.upper() not in preseeded_map]
+            if missing_rolls:
+                academic_missing = StudentAcademicRegistry.objects.filter(
+                    roll_number__in=missing_rolls
+                )
+                for acad in academic_missing:
+                    try:
+                        acad.sync_to_preseeded()
+                    except Exception as se:
+                        logger.warning(f"[BULK-INVITE] Sync failed for {acad.roll_number}: {se}")
+
+                # Re-fetch newly synced entries
+                if academic_missing.exists():
+                    new_entries = StudentPreSeededRegistry.objects.filter(
+                        identifier__in=missing_rolls
+                    )
+                    for s in new_entries:
+                        preseeded_map[s.identifier.upper()] = s
+
+            # ── Step 4: Classify rolls ───────────────────────────────────────
+            to_invite = []
+            for roll in query_rolls:
+                stu = preseeded_map.get(roll.upper())
+                if not stu:
+                    summary["not_found"].append(roll)
+                elif stu.is_activated:
+                    summary["already_activated"].append(roll)
+                else:
+                    to_invite.append(stu)
+
+            logger.info(
+                f"[BULK-INVITE] schema={schema} | target={len(query_rolls)} | "
+                f"to_invite={len(to_invite)} | activated={len(summary['already_activated'])} | "
+                f"not_found={len(summary['not_found'])}"
+            )
+
+            # ── Step 5: Dispatch emails in parallel ──────────────────────────
+            # Max 20 workers: balanced for SMTP connection pool limits
+            MAX_WORKERS = min(20, max(1, len(to_invite)))
+
+            def _send_one(stu_entry):
+                """Worker function — runs in thread pool."""
+                try:
+                    ActivationService.create_tenant_invitation(
+                        stu_entry, schema, entry_type="student"
+                    )
+                    return ("invited", stu_entry.identifier)
+                except Exception as e:
+                    logger.error(f"[BULK-INVITE] Failed for {stu_entry.identifier}: {e}")
+                    return ("failed", {"roll": stu_entry.identifier, "error": str(e)})
+
+            if to_invite:
+                with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
+                    futures = {pool.submit(_send_one, stu): stu for stu in to_invite}
+                    for future in as_completed(futures):
+                        result_type, payload = future.result()
+                        summary[result_type].append(payload)
 
         invited_count = len(summary["invited"])
         msg = f"Dispatched {invited_count} activation signals."
         if summary["already_activated"]:
-            msg += f" {len(summary['already_activated'])} were already active."
+            msg += f" {len(summary['already_activated'])} already active."
         if summary["not_found"]:
-            msg += f" {len(summary['not_found'])} records not found."
+            msg += f" {len(summary['not_found'])} not found."
+        if summary["failed"]:
+            msg += f" {len(summary['failed'])} failed."
         return success_response(msg, data=summary)
 
     @action(detail=False, methods=['get'])

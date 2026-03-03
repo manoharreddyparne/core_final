@@ -109,7 +109,8 @@ export const StudentRegistry = () => {
     const [activeSection, setActiveSection] = useState<string | null>(null);
 
     const {
-        students, sectionStats, loading,
+        students, totalCount, page, totalPages, goToPage,
+        sectionStats, loading,
         registryDepts, registryProgs, registrySections, refresh
     } = useStudentRegistry(activeSection, viewMode);
 
@@ -124,8 +125,6 @@ export const StudentRegistry = () => {
     // UI State
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState("ALL");
-    const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 20;
     const [showUpload, setShowUpload] = useState(false);
     const [showFormModal, setShowFormModal] = useState(false);
     const [isEditMode, setIsEditMode] = useState(false);
@@ -241,7 +240,7 @@ export const StudentRegistry = () => {
         }
     };
 
-    // Filtered data
+    // Filtered data (client-side search on current page)
     const filteredStudents = useMemo(() => students.filter(s =>
         (searchTerm === "" ||
             s.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -251,10 +250,10 @@ export const StudentRegistry = () => {
     ), [students, searchTerm, statusFilter]);
 
     const seededStudents = useMemo(() => filteredStudents.filter(s => s.status !== "ACTIVE"), [filteredStudents]);
-    const totalPages = Math.max(1, Math.ceil(filteredStudents.length / itemsPerPage));
-    const paginatedStudents = filteredStudents.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-    // Select-all (only SEEDED)
+    // Server handles total pagination; we display what the server returned
+    const paginatedStudents = filteredStudents; // already one page from server
+
     const allSeededOnPage = paginatedStudents.filter(s => s.status !== "ACTIVE").map(s => s.roll_number);
     const allSelected = allSeededOnPage.length > 0 && allSeededOnPage.every(r => selectedStudents.includes(r));
     const toggleSelectAll = () => {
@@ -488,12 +487,12 @@ export const StudentRegistry = () => {
                             {/* Pagination */}
                             <div className="border-t border-white/5 p-4 flex items-center justify-between bg-[#111]">
                                 <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                                    {filteredStudents.length === 0 ? "No records" : `${(currentPage - 1) * itemsPerPage + 1}–${Math.min(currentPage * itemsPerPage, filteredStudents.length)} of ${filteredStudents.length}`}
+                                    {totalCount === 0 ? "No records" : `Page ${page} of ${totalPages} · ${totalCount} total`}
                                 </span>
                                 <div className="flex items-center gap-2">
-                                    <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="p-2 glass rounded-lg text-white/50 hover:text-white disabled:opacity-30 transition-all cursor-pointer"><ChevronLeft className="w-4 h-4" /></button>
-                                    <span className="text-[10px] font-black uppercase tracking-widest px-4">Page {currentPage} / {totalPages}</span>
-                                    <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="p-2 glass rounded-lg text-white/50 hover:text-white disabled:opacity-30 transition-all cursor-pointer"><ChevronRight className="w-4 h-4" /></button>
+                                    <button onClick={() => goToPage(Math.max(1, page - 1))} disabled={page === 1} className="p-2 glass rounded-lg text-white/50 hover:text-white disabled:opacity-30 transition-all cursor-pointer"><ChevronLeft className="w-4 h-4" /></button>
+                                    <span className="text-[10px] font-black uppercase tracking-widest px-4">Page {page} / {totalPages}</span>
+                                    <button onClick={() => goToPage(Math.min(totalPages, page + 1))} disabled={page === totalPages} className="p-2 glass rounded-lg text-white/50 hover:text-white disabled:opacity-30 transition-all cursor-pointer"><ChevronRight className="w-4 h-4" /></button>
                                 </div>
                             </div>
 

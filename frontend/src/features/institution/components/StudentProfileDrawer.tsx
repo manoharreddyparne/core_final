@@ -26,9 +26,9 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({ stud
     const statusActive = student.status === "ACTIVE";
 
     return (
-        // Backdrop
+        // Backdrop — z-[999] beats all layout headers/sidebars
         <div
-            className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-8 bg-black/80 backdrop-blur-2xl animate-in fade-in duration-200"
+            className="fixed inset-0 z-[999] flex items-center justify-center p-4 sm:p-8 bg-black/95 backdrop-blur-2xl animate-in fade-in duration-200"
             onClick={onClose}  // click outside = close
         >
             {/* Card — stop propagation so clicking inside doesn't close */}
