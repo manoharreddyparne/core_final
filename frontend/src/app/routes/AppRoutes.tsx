@@ -13,6 +13,7 @@ import ActivatePage from "../../features/auth/pages/Activate";
 import InstAdminLogin from "../../features/auth/pages/InstAdminLogin";
 import InstAdminActivate from "../../features/auth/pages/InstAdminActivate";
 import SuperAdminDashboard from "../../features/dashboard/pages/SuperAdminDashboard";
+import StudentDashboard from "../../features/dashboard/pages/StudentDashboard";
 
 // Removed FacultyLogin import to centralize login
 import AdminRecovery from "../../features/auth/pages/AdminRecovery";
@@ -216,7 +217,7 @@ export const AppRoutes = () => {
           path="/student-dashboard"
           element={
             <ProtectedRoute allowedRoles={["student"]}>
-              <CoreStudentAdmin />
+              <StudentDashboard />
             </ProtectedRoute>
           }
         />
