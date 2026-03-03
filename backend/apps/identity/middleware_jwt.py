@@ -22,14 +22,24 @@ def get_user_tenant_aware(user_id, role, schema):
     )
 
     try:
+        user = None
         if schema and role in ("INSTITUTION_ADMIN", "INST_ADMIN", "FACULTY", "STUDENT"):
             with schema_context(schema):
                 if role in ("INSTITUTION_ADMIN", "INST_ADMIN"):
-                    return AdminAuthorizedAccount.objects.get(id=user_id)
+                    user = AdminAuthorizedAccount.objects.get(id=user_id)
                 elif role == "FACULTY":
-                    return FacultyAuthorizedAccount.objects.get(id=user_id)
+                    user = FacultyAuthorizedAccount.objects.get(id=user_id)
                 else:
-                    return StudentAuthorizedAccount.objects.get(id=user_id)
+                    user = StudentAuthorizedAccount.objects.get(id=user_id)
+            
+            # 🏢 Attach Institution context (needed for Dispatch and other tenant-isolated WS services)
+            from apps.identity.models.institution import Institution
+            with schema_context('public'):
+                institution = Institution.objects.filter(schema_name=schema).first()
+                if user and institution:
+                    user.institution = institution
+            return user
+            
         return User.objects.get(id=user_id)
     except Exception:
         return None

@@ -81,110 +81,92 @@ class DispatchConsumer(AsyncWebsocketConsumer):
         }))
 
     async def _run_dispatch(self, schema, institution, roll_numbers, section):
-        """Run the dispatch and stream progress events."""
+        """Run the dispatch and stream progress events in true real-time."""
+        from apps.auip_institution.models import StudentPreSeededRegistry, StudentAcademicRegistry
+        from apps.identity.services.activation_service import ActivationService
+        from django_tenants.utils import schema_context
+        import asyncio
 
+        # 1. PREPARATION: Resolve IDs and classify status (Sync)
         @sync_to_async
-        def _resolve_and_dispatch():
-            from apps.auip_institution.models import StudentPreSeededRegistry, StudentAcademicRegistry
-            from apps.identity.services.activation_service import ActivationService
-            from django_tenants.utils import schema_context
-            import threading
-
-            results = []  # list of (roll, name, status)
-            lock = threading.Lock()
-
+        def _get_batch_data():
             with schema_context(schema):
-                # Resolve rolls
                 if section:
-                    query_rolls = list(
-                        StudentAcademicRegistry.objects
-                        .filter(section=section)
-                        .values_list('roll_number', flat=True)
-                    )
+                    query_rolls = list(StudentAcademicRegistry.objects.filter(section=section).values_list('roll_number', flat=True))
                 elif roll_numbers:
                     query_rolls = [str(r).strip().upper() for r in roll_numbers if r]
                 else:
-                    return []
+                    return None
 
-                if not query_rolls:
-                    return []
+                if not query_rolls: return None
 
-                # Bulk preload identity records (2 queries max)
-                preseeded_map = {
-                    s.identifier.upper(): s
-                    for s in StudentPreSeededRegistry.objects.filter(identifier__in=query_rolls)
-                }
-                name_map = {
-                    a.roll_number.upper(): a.full_name.title()
-                    for a in StudentAcademicRegistry.objects.filter(roll_number__in=query_rolls)
-                    .only('roll_number', 'full_name')
-                }
+                # Preload data to avoid N+1 queries in threads
+                preseeded_map = {s.identifier.upper(): s for s in StudentPreSeededRegistry.objects.filter(identifier__in=query_rolls)}
+                name_map = {a.roll_number.upper(): a.full_name.title() for a in StudentAcademicRegistry.objects.filter(roll_number__in=query_rolls).only('roll_number', 'full_name')}
 
-                # Auto-sync missing
+                # Ensure all students have identity records
                 missing = [r for r in query_rolls if r.upper() not in preseeded_map]
                 if missing:
-                    acads = StudentAcademicRegistry.objects.filter(roll_number__in=missing)
-                    for acad in acads:
-                        try:
-                            acad.sync_to_preseeded()
-                        except Exception:
-                            pass
-                    new_entries = StudentPreSeededRegistry.objects.filter(identifier__in=missing)
-                    for s in new_entries:
+                    for acad in StudentAcademicRegistry.objects.filter(roll_number__in=missing):
+                        try: acad.sync_to_preseeded()
+                        except: pass
+                    for s in StudentPreSeededRegistry.objects.filter(identifier__in=missing):
                         preseeded_map[s.identifier.upper()] = s
 
-                # Classify
+                # Categorize: Instant (Skip) vs Active (Dispatch)
                 to_invite = []
+                already_done = []
                 for roll in query_rolls:
-                    stu = preseeded_map.get(roll.upper())
+                    roll_up = roll.upper()
+                    stu = preseeded_map.get(roll_up)
+                    name = name_map.get(roll_up, "")
                     if not stu:
-                        results.append((roll, name_map.get(roll.upper(), ""), "not_found"))
+                        already_done.append((roll, name, "not_found"))
                     elif stu.is_activated:
-                        results.append((roll, name_map.get(roll.upper(), ""), "already_active"))
+                        already_done.append((roll, name, "already_active"))
                     else:
-                        to_invite.append(stu)
+                        to_invite.append((stu, name))
+                return to_invite, already_done, len(query_rolls)
 
-                static_results = list(results)  # capture non-invite results
-
-                # Parallel dispatch
-                MAX_WORKERS = min(20, max(1, len(to_invite)))
-
-                def _send_one(stu_entry):
-                    name = name_map.get(stu_entry.identifier.upper(), "")
-                    try:
-                        ActivationService.create_tenant_invitation(
-                            stu_entry, schema, entry_type="student"
-                        )
-                        return (stu_entry.identifier, name, "sent")
-                    except Exception as e:
-                        logger.error(f"[DISPATCH-WS] Failed for {stu_entry.identifier}: {e}")
-                        return (stu_entry.identifier, name, "failed")
-
-                invite_results = []
-                if to_invite:
-                    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
-                        futures = {pool.submit(_send_one, s): s for s in to_invite}
-                        for future in as_completed(futures):
-                            invite_results.append(future.result())
-
-                return static_results + invite_results
-
-        # Run sync work off the event loop
-        try:
-            all_results = await _resolve_and_dispatch()
-        except Exception as e:
-            await self._send_error(str(e))
+        batch_result = await _get_batch_data()
+        if not batch_result:
+            await self._send_done({"invited": 0, "already_active": 0, "not_found": 0, "failed": 0})
             return
 
-        total = len(all_results)
+        to_invite, already_done, total = batch_result
         summary = {"invited": 0, "already_active": 0, "not_found": 0, "failed": 0}
+        current = 0
 
-        for i, (roll, name, status) in enumerate(all_results, 1):
-            await self._send_progress(i, total, roll, status, name)
-            summary[status] = summary.get(status, 0) + 1
+        # Send instant non-dispatchable updates
+        for roll, name, status in already_done:
+            current += 1
+            summary[status] += 1
+            await self._send_progress(current, total, roll, status, name)
 
-            # Small yield to keep WS alive for rapid sends
-            import asyncio
-            await asyncio.sleep(0)
+        # 2. DISPATCH: Parallel Email Sending with Real-time Progress
+        if to_invite:
+            def _dispatch_task(item):
+                stu, name = item
+                with schema_context(schema):
+                    try:
+                        ActivationService.create_tenant_invitation(stu, schema, entry_type="student")
+                        return (stu.identifier, name, "sent")
+                    except Exception as e:
+                        logger.error(f"[DISPATCH-WS] Failed for {stu.identifier}: {e}")
+                        return (stu.identifier, name, "failed")
+
+            # Gmail SMTP is slow (2s/send), SES is fast (0.1s/send)
+            # 20 workers is a safe balance for both
+            MAX_WORKERS = min(20, len(to_invite))
+            loop = asyncio.get_event_loop()
+
+            with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
+                tasks = [loop.run_in_executor(pool, _dispatch_task, s) for s in to_invite]
+                for future in asyncio.as_completed(tasks):
+                    roll, name, status = await future
+                    current += 1
+                    key = "invited" if status == "sent" else "failed"
+                    summary[key] += 1
+                    await self._send_progress(current, total, roll, status, name)
 
         await self._send_done(summary)
