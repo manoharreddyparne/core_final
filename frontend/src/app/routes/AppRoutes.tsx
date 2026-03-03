@@ -14,11 +14,11 @@ import InstAdminLogin from "../../features/auth/pages/InstAdminLogin";
 import InstAdminActivate from "../../features/auth/pages/InstAdminActivate";
 import SuperAdminDashboard from "../../features/dashboard/pages/SuperAdminDashboard";
 import StudentDashboard from "../../features/dashboard/pages/StudentDashboard";
+import ActivationRequest from "../../features/auth/pages/ActivationRequest";
 
 // Removed FacultyLogin import to centralize login
 import AdminRecovery from "../../features/auth/pages/AdminRecovery";
 import { PageNotFound } from "../../components/PageNotFound";
-import CoreStudentAdmin from "../../features/dashboard/pages/CoreStudentAdmin";
 import InstitutionAdmin from "../../features/dashboard/pages/InstitutionAdmin";
 import FacultyAdmin from "../../features/dashboard/pages/FacultyAdmin";
 import { RegisterUniversity } from "../../features/auth/pages/RegisterUniversity";
@@ -138,6 +138,14 @@ export const AppRoutes = () => {
         element={
           <PublicRoute>
             <AdminRecovery />
+          </PublicRoute>
+        }
+      />
+      <Route
+        path="/activate-request"
+        element={
+          <PublicRoute>
+            <ActivationRequest />
           </PublicRoute>
         }
       />

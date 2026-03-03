@@ -4,10 +4,7 @@ import { toast } from 'react-hot-toast';
 
 export function useInstitutions() {
     const [institutions, setInstitutions] = useState<Institution[]>([]);
-    const [selectedInstitution, setSelectedInstitution] = useState<Institution | null>(() => {
-        const saved = localStorage.getItem('selected_institution');
-        return saved ? JSON.parse(saved) : null;
-    });
+    const [selectedInstitution, setSelectedInstitution] = useState<Institution | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
@@ -28,11 +25,6 @@ export function useInstitutions() {
 
     const handleSelect = (inst: Institution | null) => {
         setSelectedInstitution(inst);
-        if (inst) {
-            localStorage.setItem('selected_institution', JSON.stringify(inst));
-        } else {
-            localStorage.removeItem('selected_institution');
-        }
     };
 
     return {

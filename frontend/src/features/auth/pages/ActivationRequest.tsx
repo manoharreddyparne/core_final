@@ -47,6 +47,9 @@ export default function ActivationRequest() {
         setTurnstileToken(null);
     }, []);
 
+    const [alreadyActivated, setAlreadyActivated] = useState(false);
+    const [verifiedEmail, setVerifiedEmail] = useState("");
+
     const handleRequest = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedInstitution) {
@@ -59,30 +62,98 @@ export default function ActivationRequest() {
         }
 
         setIsSubmitting(true);
+        setAlreadyActivated(false);
         try {
             const res = await v2AuthApi.checkIdentity({
                 institution_id: selectedInstitution.id,
-                identifier,
-                email,
+                identifier: identifier.trim(),
+                email: email.trim(),
                 // @ts-ignore - Backend expects role
                 role,
                 turnstile_token: turnstileToken
             });
 
             if (res.success) {
-                setIsSuccess(true);
-                toast.success("Identity verified! Link sent.");
+                if (res.data?.already_activated) {
+                    setAlreadyActivated(true);
+                    toast.success("Account already active!");
+                } else {
+                    setVerifiedEmail(res.data?.email || email.trim());
+                    setIsSuccess(true);
+                    toast.success("Identity verified! Link sent.");
+                }
             } else {
-                toast.error(res.detail || "Identity verification failed.");
+                // Check if the message indicates already active even if success is false
+                const detail = res.detail || "";
+                if (String(detail).toLowerCase().includes("already active") || res.data?.already_activated) {
+                    setAlreadyActivated(true);
+                } else {
+                    toast.error(String(detail) || "No user match available.");
+                }
             }
         } catch (err: any) {
-            toast.error(err.response?.data?.detail || "Something went wrong.");
+            const data = err.response?.data;
+
+            // 1. Prioritize Security Lockout Message
+            if (data?.message) {
+                toast.error(String(data.message));
+                return;
+            }
+
+            // 2. Safe Message Extraction
+            const getErrorMessage = (obj: any): string => {
+                if (!obj) return "";
+                if (typeof obj === 'string') return obj;
+                if (Array.isArray(obj)) return getErrorMessage(obj[0]);
+                if (typeof obj === 'object') {
+                    // Check for common keys
+                    const val = obj.detail || obj.message || obj.non_field_errors || Object.values(obj)[0];
+                    return getErrorMessage(val);
+                }
+                return String(obj);
+            };
+
+            const errorMsg = getErrorMessage(data);
+            const lowerMsg = errorMsg.toLowerCase();
+
+            if (lowerMsg.includes("already active") || lowerMsg.includes("already activated") || data?.code === "ALREADY_ACTIVATED" || data?.data?.already_activated) {
+                setAlreadyActivated(true);
+            } else {
+                toast.error(errorMsg || "No user match available.");
+            }
         } finally {
             setIsSubmitting(false);
             setTurnstileToken(null);
             setTurnstileKey(prev => prev + 1);
         }
     };
+
+    if (alreadyActivated) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-screen bg-[#0a0a0b] p-4 text-white">
+                <div className="w-full max-w-md glass p-10 text-center rounded-[3rem] space-y-8 animate-in zoom-in-95 duration-500">
+                    <div className="flex justify-center">
+                        <div className="w-24 h-24 rounded-[2.5rem] bg-green-500/10 border border-green-500/20 flex items-center justify-center text-green-400 shadow-2xl shadow-green-500/10">
+                            <CheckCircle2 className="w-12 h-12" />
+                        </div>
+                    </div>
+                    <div>
+                        <h1 className="text-3xl font-black mb-2">Account <span className="text-green-400 italic">Active</span></h1>
+                        <p className="text-gray-400 text-sm">
+                            The account for <span className="font-bold text-white">{identifier}</span> is already activated. You can proceed directly to the login portal.
+                        </p>
+                    </div>
+                    <Link
+                        to="/login"
+                        className="flex items-center justify-center gap-2 w-full py-4 premium-gradient text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-primary/25 hover:scale-105 transition-all"
+                    >
+                        Go to Login
+                        <ArrowRight className="w-5 h-5" />
+                    </Link>
+                </div>
+            </div>
+        );
+    }
 
     if (isSuccess) {
         return (
@@ -95,8 +166,13 @@ export default function ActivationRequest() {
                     </div>
                     <div>
                         <h1 className="text-3xl font-black mb-2">Check Your <span className="text-primary italic">Email</span></h1>
-                        <p className="text-gray-400 text-sm">
-                            An activation link has been sent to <span className="font-bold text-white">{email}</span>. Please click the link to set your password and access the platform.
+                        <p className="text-gray-400 text-sm leading-relaxed">
+                            An activation link has been sent to:<br />
+                            <span className="font-bold text-white text-base block mt-2 border-b border-primary/20 pb-1 inline-block">
+                                {verifiedEmail || "your registered institutional email"}
+                            </span>
+                            <br /><br />
+                            Please click the link to set your password and access the platform.
                         </p>
                     </div>
                     <Link
@@ -172,18 +248,28 @@ export default function ActivationRequest() {
                             </div>
 
                             <div className="space-y-1 px-1">
-                                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-2 flex items-center gap-2">
-                                    <Mail className="w-3 h-3" />
-                                    Registered Email
+                                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-2 flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <Mail className="w-3 h-3" />
+                                        Registered Email
+                                    </div>
+                                    {role === 'STUDENT' && (
+                                        <span className="text-[9px] text-primary/60 lowercase italic font-medium tracking-normal">optional for students</span>
+                                    )}
                                 </label>
                                 <input
                                     type="email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     className="w-full px-5 py-4 bg-white/5 border border-white/10 rounded-2xl text-white outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium placeholder:text-gray-700"
-                                    placeholder="The email registered with institution"
-                                    required
+                                    placeholder={role === 'STUDENT' ? "Enter email or leave blank" : "Official individual email address"}
+                                    required={role !== 'STUDENT'}
                                 />
+                                {role === 'FACULTY' && (
+                                    <p className="text-[9px] text-gray-600 px-2 mt-1 leading-tight">
+                                        Faculty/Staff must provide both ID and Email for dual-layer identity verification.
+                                    </p>
+                                )}
                             </div>
                         </div>
 

@@ -43,14 +43,20 @@ class IdentityCheckView(generics.GenericAPIView):
         serializer = self.get_serializer(data=request.data)
         if not serializer.is_valid():
             errors = serializer.errors
+            logger.debug(f"[ACTIVATION] Serializer errors: {errors}")
             is_already_active = False
             if isinstance(errors, dict):
-                if errors.get('code') == ["ALREADY_ACTIVATED"] or errors.get('code') == "ALREADY_ACTIVATED":
+                # DRF wraps values as ErrorDetail — must use str() for comparison
+                code_val = str(errors.get('code', ''))
+                if code_val == 'ALREADY_ACTIVATED':
                     is_already_active = True
                 err_list = errors.get('non_field_errors', [])
-                if not isinstance(err_list, list): err_list = [err_list]
+                if not isinstance(err_list, list):
+                    err_list = [err_list]
                 for err in err_list:
-                    if isinstance(err, dict) and err.get('code') == "ALREADY_ACTIVATED":
+                    if isinstance(err, dict) and str(err.get('code', '')) == 'ALREADY_ACTIVATED':
+                        is_already_active = True
+                    elif hasattr(err, 'code') and str(err.code) == 'ALREADY_ACTIVATED':
                         is_already_active = True
 
             if is_already_active:
@@ -60,6 +66,7 @@ class IdentityCheckView(generics.GenericAPIView):
                 )
             
             register_global_failure(ip, request.META.get('HTTP_USER_AGENT', 'unknown'), request.data.get('identifier', 'unknown'))
+            logger.warning(f"[ACTIVATION] Request failed with errors: {errors}")
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
         client = serializer.validated_data['client']
@@ -73,7 +80,10 @@ class IdentityCheckView(generics.GenericAPIView):
                 schema=client.schema_name,
                 entry_type=role.lower()
             )
-            return success_response("Identity verified. Physical activation link dispatched to registered email.")
+            return success_response(
+                "Identity verified. Physical activation link dispatched to registered email.",
+                data={"email": serializer.validated_data.get('email')}
+            )
         except ValueError as ve:
             return error_response(str(ve), code=429)
         except Exception as e:

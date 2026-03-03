@@ -6,13 +6,13 @@ from django.shortcuts import get_object_or_404
 class IdentityCheckSerializer(serializers.Serializer):
     institution_id = serializers.IntegerField()
     identifier = serializers.CharField()
-    email = serializers.EmailField()
+    email = serializers.EmailField(required=False, allow_blank=True, allow_null=True)
     role = serializers.ChoiceField(choices=['STUDENT', 'FACULTY', 'ADMIN'])
 
     def validate(self, data):
         institution_id = data.get('institution_id')
         identifier = data.get('identifier')
-        email = data.get('email')
+        email = data.get('email') or None  # treat blank string as None
         role = data.get('role')
 
         from apps.identity.models.institution import Institution
@@ -28,24 +28,33 @@ class IdentityCheckSerializer(serializers.Serializer):
         with schema_context(client.schema_name):
             try:
                 if role == 'STUDENT':
-                    registry_model = StudentPreSeededRegistry
+                    # ✅ Students: email is optional — look up by roll number only
+                    registry_entry = StudentPreSeededRegistry.objects.get(
+                        identifier__iexact=identifier
+                    )
                 elif role == 'FACULTY':
-                    registry_model = FacultyPreSeededRegistry
-                else:
-                    registry_model = AdminPreSeededRegistry
+                    if not email:
+                        raise serializers.ValidationError("Email is required for faculty activation.")
+                    registry_entry = FacultyPreSeededRegistry.objects.get(
+                        identifier__iexact=identifier,
+                        email__iexact=email
+                    )
+                else:  # ADMIN
+                    registry_entry = AdminPreSeededRegistry.objects.get(
+                        identifier__iexact=identifier
+                    )
 
-                # ✅ Case-Insensitive Lookup (__iexact)
-                registry_entry = registry_model.objects.get(
-                    identifier__iexact=identifier,
-                    email__iexact=email if role != 'ADMIN' else identifier
-                )
                 if registry_entry.is_activated:
                     # ✅ Return a response that the view can catch to return 200 already_activated
                     raise serializers.ValidationError({"detail": "Account already activated.", "code": "ALREADY_ACTIVATED"})
                 
                 data['registry_entry'] = registry_entry
                 data['client'] = client
-            except registry_model.DoesNotExist:
+                # ✅ Always carry the actual email from the registry record
+                data['email'] = registry_entry.email
+            except (StudentPreSeededRegistry.DoesNotExist,
+                    FacultyPreSeededRegistry.DoesNotExist,
+                    AdminPreSeededRegistry.DoesNotExist):
                 raise serializers.ValidationError(f"No user record found for {identifier}. Please contact your institution.")
         
         return data

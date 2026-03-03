@@ -198,14 +198,26 @@ export default function MyProfile() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {Object.entries(roleInfo)
                   .filter(([key]) => !['read_only', 'intelligence_mode', 'cgpa', 'full_name', 'roll_number', 'employee_id'].includes(key))
-                  .map(([key, attr]: [string, any]) => (
-                    <AcademicStatCard
-                      key={key}
-                      icon={<Building2 />}
-                      label={attr.label || key}
-                      value={attr.value}
-                    />
-                  ))
+                  .map(([key, attr]: [string, any]) => {
+                    // Smart Icon Selection
+                    let Icon = Building2;
+                    const k = key.toLowerCase();
+                    if (k.includes('email')) Icon = Mail;
+                    if (k.includes('semester')) Icon = Hash;
+                    if (k.includes('phone')) Icon = Hash;
+                    if (k.includes('birth') || k.includes('date')) Icon = Calendar;
+                    if (k.includes('program') || k.includes('branch') || k.includes('dept')) Icon = GraduationCap;
+                    if (k.includes('section')) Icon = Users;
+
+                    return (
+                      <AcademicStatCard
+                        key={key}
+                        icon={<Icon />}
+                        label={attr.label || key.replace(/_/g, ' ')}
+                        value={attr.value}
+                      />
+                    );
+                  })
                 }
               </div>
             </div>
@@ -339,13 +351,13 @@ const ConnectionsModal = ({ isOpen, onClose, type, list, loading, onDisconnect }
 };
 
 const AcademicStatCard = ({ icon, label, value }: { icon: React.ReactNode, label: string, value: any }) => (
-  <div className="glass p-8 rounded-[2.5rem] border-white/5 hover:border-white/10 transition-all flex flex-col justify-between h-full bg-white/[0.01]">
+  <div className="glass p-6 md:p-8 rounded-[2.5rem] border-white/5 hover:border-white/10 transition-all flex flex-col justify-between h-full bg-white/[0.01] min-w-0">
     <div className="flex items-center justify-between mb-4 opacity-30">
-      <p className="text-[10px] font-black text-white uppercase tracking-widest">{label}</p>
-      {React.cloneElement(icon as React.ReactElement, { className: "w-4 h-4" })}
+      <p className="text-[10px] font-black text-white uppercase tracking-widest truncate mr-2" title={label}>{label}</p>
+      {React.cloneElement(icon as React.ReactElement, { className: "w-4 h-4 shrink-0" })}
     </div>
-    <p className="text-xl font-bold text-white uppercase tracking-tight">
-      {typeof value === 'object' ? value?.value : (value || 'Not Assigned')}
+    <p className="text-sm md:text-base lg:text-xl font-bold text-white uppercase tracking-tight break-all">
+      {typeof value === 'object' ? value?.value : (value || 'N/A')}
     </p>
   </div>
 );

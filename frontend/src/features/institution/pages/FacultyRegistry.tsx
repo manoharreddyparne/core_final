@@ -347,6 +347,10 @@ export const FacultyRegistry = () => {
                                     </select>
                                 </div>
                             </div>
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-2">Joining Date</label>
+                                <input type="date" className="w-full px-5 py-4 bg-white/5 border border-white/10 rounded-2xl text-white outline-none focus:border-primary/50 transition-all text-sm" value={newFaculty.joining_date} onChange={e => setNewFaculty({ ...newFaculty, joining_date: e.target.value })} />
+                            </div>
                             <button type="submit" className="w-full py-5 bg-primary text-white rounded-[1.5rem] font-black uppercase tracking-[0.2em] text-[10px] shadow-2xl shadow-primary/20 hover:scale-[1.02] transition-all mt-4">{isEditMode ? 'Authorize Update' : 'Initialize Provisioning'}</button>
                         </form>
                         <FacultyEscListener onEsc={() => { setIsAddModalOpen(false); setIsEditMode(false); }} />
@@ -373,7 +377,7 @@ export const FacultyRegistry = () => {
                                         <Upload className="w-12 h-12 text-primary" />
                                     </div>
                                     <p className="text-white font-black text-xl italic uppercase tracking-tighter">Select Registry CSV</p>
-                                    <p className="text-muted-foreground text-[10px] mt-4 max-w-xs uppercase tracking-[0.2em] font-black leading-relaxed">Required: ID, Name, Email, Role, Dept</p>
+                                    <p className="text-muted-foreground text-[10px] mt-4 max-w-xs uppercase tracking-[0.2em] font-black leading-relaxed">Required: employee_id, full_name, email, designation, department</p>
                                     <input type="file" ref={fileInputRef} className="hidden" onChange={(e) => handleFileUpload(e, true)} />
                                 </div>
                             ) : (
@@ -392,6 +396,48 @@ export const FacultyRegistry = () => {
                                             <p className="text-4xl font-black text-white tracking-tighter">{previewData.summary.error_count}</p>
                                         </div>
                                     </div>
+
+                                    {previewData.updates.length > 0 && (
+                                        <div className="space-y-4">
+                                            <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-2">Identity Update Preview</h3>
+                                            <div className="glass rounded-2xl border-white/5 overflow-hidden">
+                                                <table className="w-full text-left text-[10px]">
+                                                    <thead className="bg-white/5">
+                                                        <tr>
+                                                            <th className="p-4 font-black text-gray-400 uppercase">Educator</th>
+                                                            <th className="p-4 font-black text-gray-400 uppercase">Modifications</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-white/5">
+                                                        {previewData.updates.map((u: any, i: number) => (
+                                                            <tr key={i} className="hover:bg-white/[0.02]">
+                                                                <td className="p-4">
+                                                                    <p className="text-white font-bold">{u.full_name}</p>
+                                                                    <p className="text-gray-500 uppercase tracking-widest">{u.employee_id}</p>
+                                                                </td>
+                                                                <td className="p-4">
+                                                                    {u.is_new ? (
+                                                                        <span className="text-green-400 font-black uppercase tracking-widest">New Identity</span>
+                                                                    ) : u.is_unchanged ? (
+                                                                        <span className="text-gray-600 font-black uppercase tracking-widest">No Changes Detected</span>
+                                                                    ) : (
+                                                                        <div className="flex flex-wrap gap-2">
+                                                                            {Object.entries(u.diff).map(([field, d]: any) => (
+                                                                                <span key={field} className="px-2 py-1 bg-primary/10 border border-primary/20 rounded-lg text-primary text-[8px] font-bold">
+                                                                                    {field}: {d.old || 'none'} → {d.new}
+                                                                                </span>
+                                                                            ))}
+                                                                        </div>
+                                                                    )}
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    )}
+
                                     <div className="p-8 bg-blue-500/[0.02] rounded-[2rem] border border-blue-500/10 flex items-center gap-4">
                                         <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
                                         <p className="text-[11px] text-gray-400 font-bold uppercase tracking-widest leading-relaxed">Checked payload against institutional neural lattice. Ready for synchronization.</p>

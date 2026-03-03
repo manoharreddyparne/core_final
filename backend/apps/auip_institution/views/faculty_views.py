@@ -1,8 +1,10 @@
+from django.db import models
+from django.db import transaction
 from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.parsers import MultiPartParser
+from rest_framework.parsers import MultiPartParser, JSONParser
 import logging
 import csv
 import io
@@ -143,97 +145,173 @@ class TenantBulkFacultyUploadView(APIView):
     """
     authentication_classes = [TenantAuthentication]
     permission_classes = [IsTenantAdmin]
-    parser_classes = [MultiPartParser]
+    parser_classes = [MultiPartParser, JSONParser]
 
     def post(self, request):
+        preview_mode = (
+            request.data.get('preview', 'false').lower() == 'true'
+            or request.data.get('preview') is True
+        )
+        
+        # JSON Commit Support (from frontend DataGrid)
+        if not preview_mode and 'faculty' in request.data:
+            return self._commit_json(request, request.data['faculty'])
+
         if 'file' not in request.FILES:
             return error_response("CSV file required", code=400)
 
-        preview_mode = request.data.get('preview', 'false').lower() == 'true'
         csv_file = request.FILES['file']
-        
         try:
-            decoded_file = csv_file.read().decode('utf-8')
-            io_string = io.StringIO(decoded_file)
-            reader = csv.DictReader(io_string)
+            decoded = csv_file.read().decode('utf-8')
+            rows = list(csv.DictReader(io.StringIO(decoded)))
         except Exception as e:
             return error_response(f"File process error: {str(e)}", code=400)
         
+        if preview_mode:
+            return self._preview(request, rows)
+        else:
+            return self._commit_csv(request, rows)
+
+    def _preview(self, request, rows):
         institution = request.user.institution
-        new_faculty = []
         updates = []
         errors = []
+        valid_records = []
 
         with schema_context(institution.schema_name):
-            for row in reader:
-                emp_id = row.get('employee_id')
+            # Caches for O(1) lookups
+            depts = {d.code.lower(): d for d in Department.objects.all()}
+            depts.update({d.name.lower(): d for d in Department.objects.all()})
+            
+            existing_ids = set(FacultyAcademicRegistry.objects.values_list('employee_id', flat=True))
+            existing_objs = {
+                obj.employee_id.lower(): obj 
+                for obj in FacultyAcademicRegistry.objects.filter(
+                    employee_id__in=[r.get('employee_id', '').strip() for r in rows if r.get('employee_id')]
+                )
+            }
+
+            for row in rows:
+                emp_id = row.get('employee_id', '').strip()
                 if not emp_id: continue
                 
                 try:
-                    existing = FacultyAcademicRegistry.objects.filter(employee_id=emp_id).first()
-                    incoming_data = self._clean_row(row)
+                    incoming_data = self._clean_row(row, depts)
+                    existing = existing_objs.get(emp_id.lower())
                     
                     if existing:
-                        # 🔍 Compute Diff
                         diff = {}
                         for key, val in incoming_data.items():
+                            if key == 'department_ref': continue
                             old_val = getattr(existing, key, None)
                             if str(old_val) != str(val):
                                 diff[key] = {"old": old_val, "new": val}
                         
-                        if diff:
-                            updates.append({
-                                "employee_id": emp_id,
-                                "full_name": existing.full_name,
-                                "diff": diff
-                            })
-                            if not preview_mode:
-                                for key, val in incoming_data.items():
-                                    setattr(existing, key, val)
-                                existing.save()
-                    else:
-                        new_faculty.append({
+                        updates.append({
                             "employee_id": emp_id,
-                            "full_name": incoming_data.get('full_name')
+                            "full_name": existing.full_name,
+                            "diff": diff,
+                            "is_new": False,
+                            "is_unchanged": not bool(diff)
                         })
-                        if not preview_mode:
-                            FacultyAcademicRegistry.objects.create(employee_id=emp_id, **incoming_data)
-                            FacultyPreSeededRegistry.objects.get_or_create(identifier=emp_id, defaults={"email": incoming_data.get('email')})
-                
+                    else:
+                        updates.append({
+                            "employee_id": emp_id,
+                            "full_name": incoming_data.get('full_name'),
+                            "is_new": True,
+                            "diff": {},
+                            "is_unchanged": False
+                        })
+                    valid_records.append(row)
                 except Exception as e:
                     errors.append({"employee_id": emp_id, "error": str(e)})
 
-        return success_response(
-            "Preview generated" if preview_mode else "Faculty processing complete",
-            data={
-                "preview": preview_mode,
-                "summary": {
-                    "new_count": len(new_faculty),
-                    "update_count": len(updates),
-                    "error_count": len(errors)
-                },
-                "new_faculty": new_faculty if preview_mode else [],
-                "updates": updates if preview_mode else [],
-                "errors": errors
-            }
-        )
+        new_count = len([u for u in updates if u.get('is_new')])
+        update_count = len([u for u in updates if not u.get('is_new')])
 
-    def _clean_row(self, row):
+        return success_response("Preview generated", data={
+            "preview": True,
+            "summary": {
+                "new_count": new_count,
+                "update_count": update_count,
+                "error_count": len(errors)
+            },
+            "updates": updates,
+            "valid_records": valid_records,
+            "errors": errors
+        })
+
+    def _commit_csv(self, request, rows):
+        institution = request.user.institution
+        with schema_context(institution.schema_name):
+            depts = {d.code.lower(): d for d in Department.objects.all()}
+            depts.update({d.name.lower(): d for d in Department.objects.all()})
+            
+            created_count = 0
+            errors = []
+            
+            with transaction.atomic():
+                for row in rows:
+                    emp_id = row.get('employee_id', '').strip()
+                    if not emp_id: continue
+                    try:
+                        data = self._clean_row(row, depts)
+                        obj, created = FacultyAcademicRegistry.objects.update_or_create(
+                            employee_id=emp_id,
+                            defaults=data
+                        )
+                        if created:
+                            created_count += 1
+                        FacultyPreSeededRegistry.objects.get_or_create(
+                            identifier=emp_id, 
+                            defaults={"email": data.get('email')}
+                        )
+                    except Exception as e:
+                        errors.append({"employee_id": emp_id, "error": str(e)})
+
+            return success_response("Faculty processing complete", data={
+                "summary": {"new_count": created_count, "error_count": len(errors)},
+                "errors": errors
+            })
+
+    def _commit_json(self, request, faculty_data):
+        institution = request.user.institution
+        with schema_context(institution.schema_name):
+            depts = {d.code.lower(): d for d in Department.objects.all()}
+            depts.update({d.name.lower(): d for d in Department.objects.all()})
+            created = 0
+            errors = []
+            with transaction.atomic():
+                for row in faculty_data:
+                    emp_id = row.get('employee_id', '').strip()
+                    if not emp_id: continue
+                    try:
+                        data = self._clean_row(row, depts)
+                        obj, is_new = FacultyAcademicRegistry.objects.update_or_create(
+                            employee_id=emp_id,
+                            defaults=data
+                        )
+                        if is_new: created += 1
+                        FacultyPreSeededRegistry.objects.get_or_create(
+                            identifier=emp_id, 
+                            defaults={"email": data.get('email')}
+                        )
+                    except Exception as e:
+                        errors.append({"employee_id": emp_id, "error": str(e)})
+            return success_response("Faculty JSON commit complete", data={"new_count": created, "errors": errors})
+
+    def _clean_row(self, row, dept_cache):
         data = {
-            "full_name": row.get('full_name', ''),
-            "email": row.get('email', ''),
-            "designation": row.get('designation', ''),
-            "department": row.get('department', ''),
+            "full_name": row.get('full_name', '').strip(),
+            "email": row.get('email', '').strip(),
+            "designation": row.get('designation', '').strip(),
+            "department": row.get('department', '').strip(),
             "joining_date": row.get('joining_date') if row.get('joining_date') else None,
         }
         
-        # 🧬 Governance Mapping
-        try:
-            from apps.academic.models import Department
-            dept = Department.objects.filter(models.Q(code=data['department']) | models.Q(name=data['department'])).first()
-            if dept:
-                data['department_ref'] = dept
-        except Exception as e:
-            logger.warning(f"Faculty Department resolution failed: {e}")
+        dept_str = data['department'].lower()
+        if dept_str in dept_cache:
+            data['department_ref'] = dept_cache[dept_str]
             
         return data
+

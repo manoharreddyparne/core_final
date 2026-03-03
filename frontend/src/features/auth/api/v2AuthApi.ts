@@ -13,6 +13,7 @@ export interface IdentityCheckResponse {
     success: boolean;
     data?: {
         already_activated?: boolean;
+        email?: string;
     };
 }
 

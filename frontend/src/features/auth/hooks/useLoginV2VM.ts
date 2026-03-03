@@ -199,7 +199,9 @@ export const useLoginV2VM = () => {
                 toast.error(res.message || "Invalid credentials.");
             }
         } catch (err: any) {
-            toast.error(err.response?.data?.message || err.response?.data?.detail || "Login failed.");
+            const data = err.response?.data;
+            const msg = data?.message || data?.detail || data?.data?.message || "Login failed.";
+            toast.error(msg);
             resetTurnstile(); // 🛡️ Burned token: Force fresh human verification
         } finally {
             setIsLoading(false);
@@ -264,7 +266,9 @@ export const useLoginV2VM = () => {
                 toast.error(res.message || "Login failed.");
             }
         } catch (err: any) {
-            toast.error(err.response?.data?.message || err.response?.data?.detail || "Invalid credentials.");
+            const data = err.response?.data;
+            const msg = data?.message || data?.detail || data?.data?.message || "Invalid credentials.";
+            toast.error(msg);
             resetTurnstile(); // 🛡️ Burned token: Force fresh human verification
         } finally {
             setIsLoading(false);

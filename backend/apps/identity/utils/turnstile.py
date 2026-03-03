@@ -19,8 +19,13 @@ def verify_turnstile_token(token: str) -> bool:
     secret_key = settings.TURNSTILE_SECRET_KEY
         
     try:
-        # If token is the global testing token, use the global testing secret
+        # ⚡ Optimization: Short-circuit testing keys in DEBUG mode (no network call)
+        if settings.DEBUG and token.startswith("1x00000000"):
+            logger.info(f"[TURNSTILE] Development dummy token detected. Short-circuiting verification.")
+            return True
+
         active_secret = secret_key
+        # If token is the global testing token, use the global testing secret
         if token.startswith("1x00000000"):
             active_secret = "1x000000000000000000000000000000AA"
 
