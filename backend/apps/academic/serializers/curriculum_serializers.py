@@ -34,7 +34,7 @@ class SubjectSerializer(serializers.ModelSerializer):
 class SubjectListSerializer(serializers.ModelSerializer):
     """Lightweight serializer for list views."""
     department_code = serializers.CharField(source='department.code', read_only=True)
-    syllabus_units_count = serializers.SerializerMethodField()
+    syllabus_units_count = serializers.IntegerField(source='_syllabus_units_count', read_only=True)
     syllabus_ai_ready = serializers.SerializerMethodField()
 
     class Meta:
@@ -44,9 +44,6 @@ class SubjectListSerializer(serializers.ModelSerializer):
             'semester_number', 'is_placement_relevant', 'placement_tags',
             'department_code', 'is_active', 'syllabus_units_count', 'syllabus_ai_ready'
         ]
-
-    def get_syllabus_units_count(self, obj):
-        return obj.syllabus_units.count()
 
     def get_syllabus_ai_ready(self, obj):
         return obj.syllabus_units.filter(ai_question_weight__gt=0).exists()

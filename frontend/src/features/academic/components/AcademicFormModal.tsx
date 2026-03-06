@@ -15,6 +15,7 @@ interface Props {
 
 export const AcademicFormModal = ({ isOpen, onClose, onSave, activeTab, initialData, formDataFields }: Props) => {
     const [formData, setFormData] = useState<any>(initialData || {});
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
         setFormData(initialData || {});
@@ -36,9 +37,14 @@ export const AcademicFormModal = ({ isOpen, onClose, onSave, activeTab, initialD
 
     if (!isOpen) return null;
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        onSave(formData);
+        setIsSubmitting(true);
+        try {
+            await onSave(formData);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return createPortal(
@@ -59,8 +65,8 @@ export const AcademicFormModal = ({ isOpen, onClose, onSave, activeTab, initialD
                     </button>
                 </div>
 
-                {/* Body */}
-                <form onSubmit={handleSubmit} className="p-10 space-y-8 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                {/* Body - Added padding bottom to prevent footer overlap */}
+                <form onSubmit={handleSubmit} className="p-10 pb-20 space-y-8 max-h-[70vh] overflow-y-auto custom-scrollbar relative">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {formDataFields.map((field) => (
                             <div key={field.name} className={field.fullWidth ? 'md:col-span-2' : ''}>
@@ -70,7 +76,29 @@ export const AcademicFormModal = ({ isOpen, onClose, onSave, activeTab, initialD
                                 {field.type === 'select' ? (
                                     <select
                                         value={formData[field.name] || ''}
-                                        onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            const newFormData = { ...formData, [field.name]: val };
+
+                                            // Auto-fill related names for convenience if backend needs them
+                                            if (field.name === 'employee_id' && field.options) {
+                                                const selectedOpt = field.options.find((opt: any) => opt.value === val);
+                                                if (selectedOpt && selectedOpt.original?.full_name) {
+                                                    newFormData.faculty_name = selectedOpt.original.full_name;
+                                                } else if (selectedOpt) {
+                                                    // Fallback to extracting name from label e.g., "Dr. John (EMP1)"
+                                                    newFormData.faculty_name = selectedOpt.label.split(' (')[0];
+                                                }
+                                            } else if (field.name === 'roll_number' && field.options) {
+                                                const selectedOpt = field.options.find((opt: any) => opt.value === val);
+                                                if (selectedOpt) {
+                                                    // Options label is "First Last (Roll)", we split by generic delimiter
+                                                    newFormData.student_name = selectedOpt.label.split(' (')[0].trim();
+                                                }
+                                            }
+
+                                            setFormData(newFormData);
+                                        }}
                                         className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 px-4 text-sm text-white focus:outline-none focus:border-primary/50 transition-all appearance-none"
                                         required={field.required}
                                     >
@@ -128,10 +156,15 @@ export const AcademicFormModal = ({ isOpen, onClose, onSave, activeTab, initialD
                     <button
                         type="submit"
                         onClick={handleSubmit}
-                        className="px-10 py-3 bg-primary text-white rounded-2xl text-[10px] font-black flex items-center gap-2 shadow-[0_0_40px_rgba(20,110,245,0.3)] hover:scale-105 transition-all uppercase tracking-widest"
+                        disabled={isSubmitting}
+                        className="px-10 py-3 bg-primary text-white rounded-2xl text-[10px] font-black flex items-center gap-2 shadow-[0_0_40px_rgba(20,110,245,0.3)] hover:scale-105 transition-all uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                     >
-                        <Save className="w-4 h-4" />
-                        Synchronize Entry
+                        {isSubmitting ? (
+                            <div className="w-4 h-4 rounded-full border-2 border-white/20 border-t-white animate-spin shrink-0" />
+                        ) : (
+                            <Save className="w-4 h-4 shrink-0" />
+                        )}
+                        {isSubmitting ? 'Synchronizing...' : 'Synchronize Entry'}
                     </button>
                 </div>
             </div>

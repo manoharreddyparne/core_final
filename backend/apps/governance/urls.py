@@ -5,7 +5,8 @@ from .views import (
     GovernancePolicyViewSet,
     BlogViewSet,
     NewsletterViewSet,
-    DocumentTemplateViewSet
+    DocumentTemplateViewSet,
+    GovernanceBrainView,
 )
 
 router = DefaultRouter()
@@ -17,4 +18,6 @@ router.register(r'templates', DocumentTemplateViewSet, basename='governance-temp
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('brain/dashboard/', GovernanceBrainView.as_view(), name='governance-brain-dashboard'),
+    path('brain/recompute/', GovernanceBrainView.as_view(), name='governance-brain-recompute'),
 ]

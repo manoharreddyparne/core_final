@@ -50,6 +50,7 @@ class DispatchConsumer(AsyncWebsocketConsumer):
 
         roll_numbers = data.get("roll_numbers", [])
         section = data.get("section")
+        user_type = data.get("user_type", "student")
 
         # Resolve institution from user context
         institution = getattr(self.user, "institution", None)
@@ -58,7 +59,7 @@ class DispatchConsumer(AsyncWebsocketConsumer):
             return
 
         schema = institution.schema_name
-        await self._run_dispatch(schema, institution, roll_numbers, section)
+        await self._run_dispatch(schema, institution, roll_numbers, section, user_type)
 
     async def _send_progress(self, current, total, roll, status, name=""):
         pct = round((current / total) * 100) if total > 0 else 0
@@ -84,9 +85,12 @@ class DispatchConsumer(AsyncWebsocketConsumer):
             "message": message,
         }))
 
-    async def _run_dispatch(self, schema, institution, roll_numbers, section):
+    async def _run_dispatch(self, schema, institution, roll_numbers, section, user_type="student"):
         """Run the dispatch and stream progress events in true real-time."""
-        from apps.auip_institution.models import StudentPreSeededRegistry, StudentAcademicRegistry
+        from apps.auip_institution.models import (
+            StudentPreSeededRegistry, StudentAcademicRegistry,
+            FacultyPreSeededRegistry, FacultyAcademicRegistry
+        )
         from apps.identity.services.activation_service import ActivationService
         from django_tenants.utils import schema_context
         import asyncio
@@ -95,37 +99,47 @@ class DispatchConsumer(AsyncWebsocketConsumer):
         @sync_to_async
         def _get_batch_data():
             with schema_context(schema):
-                if section:
-                    query_rolls = list(StudentAcademicRegistry.objects.filter(section=section).values_list('roll_number', flat=True))
-                elif roll_numbers:
-                    query_rolls = [str(r).strip().upper() for r in roll_numbers if r]
+                # Routing logic based on user_type
+                if user_type == "faculty":
+                    id_field = 'employee_id'
+                    ident_field = 'identifier'
+                    AcademicModel = FacultyAcademicRegistry
+                    PreSeededModel = FacultyPreSeededRegistry
+                    # Faculty don't have sections for dispatch usually, but we support roll_numbers
+                    query_rolls = [str(r).strip() for r in roll_numbers if r]
                 else:
-                    return None
+                    id_field = 'roll_number'
+                    ident_field = 'identifier'
+                    AcademicModel = StudentAcademicRegistry
+                    PreSeededModel = StudentPreSeededRegistry
+                    if section:
+                        query_rolls = list(AcademicModel.objects.filter(section=section).values_list(id_field, flat=True))
+                    else:
+                        query_rolls = [str(r).strip().upper() for r in roll_numbers if r]
 
                 if not query_rolls: return None
 
                 # Preload data to avoid N+1 queries in threads
-                preseeded_map = {s.identifier.upper(): s for s in StudentPreSeededRegistry.objects.filter(identifier__in=query_rolls)}
-                name_map = {a.roll_number.upper(): a.full_name.title() for a in StudentAcademicRegistry.objects.filter(roll_number__in=query_rolls).only('roll_number', 'full_name')}
+                preseeded_map = {getattr(s, ident_field).upper(): s for s in PreSeededModel.objects.filter(**{f"{ident_field}__in": query_rolls})}
+                name_map = {getattr(a, id_field).upper(): a.full_name.title() for a in AcademicModel.objects.filter(**{f"{id_field}__in": query_rolls}).only(id_field, 'full_name')}
 
-                # ⚡ Optimized Bulk Sync: Ensure all students have identity records in 1-2 queries
+                # ⚡ Optimized Bulk Sync: Ensure all have identity records
                 missing_rolls = [r for r in query_rolls if r.upper() not in preseeded_map]
                 if missing_rolls:
-                    acads = StudentAcademicRegistry.objects.filter(roll_number__in=missing_rolls).only('roll_number', 'official_email', 'personal_email')
+                    acads = AcademicModel.objects.filter(**{f"{id_field}__in": missing_rolls})
                     new_identities = []
                     for a in acads:
-                        email = a.official_email or a.personal_email
+                        # Faculty uses email field, Student uses official_email/personal_email
+                        email = getattr(a, 'email', None) or getattr(a, 'official_email', None) or getattr(a, 'personal_email', None)
                         if email:
-                            new_identities.append(StudentPreSeededRegistry(identifier=a.roll_number, email=email))
+                            new_identities.append(PreSeededModel(identifier=getattr(a, id_field), email=email))
                     
                     if new_identities:
-                        # Use bulk_create with ignore_conflicts to handle race conditions safely
-                        StudentPreSeededRegistry.objects.bulk_create(new_identities, ignore_conflicts=True)
-                        # Refresh map
-                        for s in StudentPreSeededRegistry.objects.filter(identifier__in=missing_rolls):
-                            preseeded_map[s.identifier.upper()] = s
+                        PreSeededModel.objects.bulk_create(new_identities, ignore_conflicts=True)
+                        for s in PreSeededModel.objects.filter(**{f"{ident_field}__in": missing_rolls}):
+                            preseeded_map[getattr(s, ident_field).upper()] = s
 
-                # Categorize: Instant (Skip) vs Active (Dispatch)
+                # Categorize
                 to_invite = []
                 already_done = []
                 for roll in query_rolls:
@@ -161,7 +175,7 @@ class DispatchConsumer(AsyncWebsocketConsumer):
                 stu, name = item
                 with schema_context(schema):
                     try:
-                        ActivationService.create_tenant_invitation(stu, schema, entry_type="student")
+                        ActivationService.create_tenant_invitation(stu, schema, entry_type=user_type)
                         return (stu.identifier, name, "sent")
                     except Exception as e:
                         logger.error(f"[DISPATCH-WS] Failed for {stu.identifier}: {e}")

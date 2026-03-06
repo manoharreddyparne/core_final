@@ -43,7 +43,7 @@ export const useDispatchSocket = () => {
         setTotal(0);
     }, []);
 
-    const dispatch = useCallback((rollNumbers: string[], section?: string) => {
+    const dispatch = useCallback((rollNumbers: string[], section?: string, userType: "student" | "faculty" = "student") => {
         reset();
         setState("connecting");
 
@@ -59,6 +59,7 @@ export const useDispatchSocket = () => {
             ws.send(JSON.stringify({
                 action: "start",
                 roll_numbers: rollNumbers,
+                user_type: userType,
                 ...(section ? { section } : {}),
             }));
         };

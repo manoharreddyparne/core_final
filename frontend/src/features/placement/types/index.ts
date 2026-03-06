@@ -59,4 +59,8 @@ export interface PlacementDrive {
     chat_session_id?: string;
     created_at?: string;
     jd_document?: string | null;
+    excluded_rolls?: string[];
+    manual_students?: string[];
+    neural_metadata?: Record<string, any>;
 }
+

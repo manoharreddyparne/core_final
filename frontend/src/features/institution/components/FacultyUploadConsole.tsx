@@ -60,26 +60,6 @@ export const FacultyUploadConsole: React.FC<FacultyUploadConsoleProps> = ({
         return () => window.removeEventListener("keydown", handleEsc);
     }, [isOpen, onClose]);
 
-    if (!isOpen) return null;
-
-    const handleUpdateField = (index: number, field: string, value: any) => {
-        const updated = [...localData];
-        updated[index] = { ...updated[index], [field]: value };
-        setLocalData(updated);
-    };
-
-    const handleDeleteRow = (index: number) => {
-        setLocalData(prev => prev.filter((_, i) => i !== index));
-    };
-
-    const requestSort = (key: string) => {
-        let direction: 'asc' | 'desc' = 'asc';
-        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
-            direction = 'desc';
-        }
-        setSortConfig({ key, direction });
-    };
-
     const filteredData = useMemo(() => {
         let result = [...localData];
         if (statusFilter === "INVALID") result = result.filter(u => u._status === 'INVALID');
@@ -108,6 +88,26 @@ export const FacultyUploadConsole: React.FC<FacultyUploadConsoleProps> = ({
         }
         return result;
     }, [localData, searchTerm, statusFilter, sortConfig]);
+
+    const handleUpdateField = (index: number, field: string, value: any) => {
+        const updated = [...localData];
+        updated[index] = { ...updated[index], [field]: value };
+        setLocalData(updated);
+    };
+
+    const handleDeleteRow = (index: number) => {
+        setLocalData(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const requestSort = (key: string) => {
+        let direction: 'asc' | 'desc' = 'asc';
+        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    if (!isOpen) return null;
 
     const totalPages = Math.max(1, Math.ceil(filteredData.length / itemsPerPage));
     const displayData = filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -201,12 +201,13 @@ export const FacultyUploadConsole: React.FC<FacultyUploadConsoleProps> = ({
                                 <thead className="sticky top-0 z-20 bg-[#111111] shadow-md border-b border-white/10">
                                     <tr>
                                         <th className="w-12 p-3 text-[9px] font-black uppercase tracking-widest text-muted-foreground text-center border-r border-white/5">#</th>
-                                        <th className={`w-48 ${thClass}`} onClick={() => requestSort('employee_id')}>Employee ID <SortIcon columnKey="employee_id" /></th>
+                                        <th className={`w-48 ${thClass}`} onClick={() => requestSort('employee_id')}>ID <SortIcon columnKey="employee_id" /></th>
                                         <th className={`w-64 ${thClass}`} onClick={() => requestSort('full_name')}>Full Name <SortIcon columnKey="full_name" /></th>
-                                        <th className={`w-64 ${thClass}`} onClick={() => requestSort('email')}>Official Email <SortIcon columnKey="email" /></th>
-                                        <th className={`w-48 ${thClass}`} onClick={() => requestSort('designation')}>Designation <SortIcon columnKey="designation" /></th>
-                                        <th className={`w-48 ${thClass}`} onClick={() => requestSort('department')}>Department <SortIcon columnKey="department" /></th>
-                                        <th className={`w-36 ${thClass}`} onClick={() => requestSort('joining_date')}>Joining Date <SortIcon columnKey="joining_date" /></th>
+                                        <th className={`w-64 ${thClass}`} onClick={() => requestSort('official_email')}>Inst. Email <SortIcon columnKey="official_email" /></th>
+                                        <th className={`w-64 ${thClass}`} onClick={() => requestSort('personal_email')}>Pers. Email <SortIcon columnKey="personal_email" /></th>
+                                        <th className={`w-48 ${thClass}`} onClick={() => requestSort('designation')}>Role <SortIcon columnKey="designation" /></th>
+                                        <th className={`w-48 ${thClass}`} onClick={() => requestSort('department')}>Dept <SortIcon columnKey="department" /></th>
+                                        <th className={`w-36 ${thClass}`} onClick={() => requestSort('joining_date')}>Date <SortIcon columnKey="joining_date" /></th>
                                         {isEditing && <th className="w-16 p-3 text-center">Ops</th>}
                                     </tr>
                                 </thead>
@@ -224,7 +225,10 @@ export const FacultyUploadConsole: React.FC<FacultyUploadConsoleProps> = ({
                                                     {isEditing ? <CellInput value={u.full_name} onChange={(v: any) => handleUpdateField(originalIndex, 'full_name', v)} /> : <CellDisplay value={u.full_name} diffInfo={u._diff?.full_name} isNew={u._isNew} className="text-[10px] font-bold text-white/70 capitalize" />}
                                                 </td>
                                                 <td className="p-1 px-2 border-r border-white/5">
-                                                    {isEditing ? <CellInput value={u.email} onChange={(v: any) => handleUpdateField(originalIndex, 'email', v)} /> : <CellDisplay value={u.email} diffInfo={u._diff?.email} isNew={u._isNew} className="text-[10px] font-mono text-white/40 lowercase" />}
+                                                    {isEditing ? <CellInput value={u.official_email} onChange={(v: any) => handleUpdateField(originalIndex, 'official_email', v)} /> : <CellDisplay value={u.official_email} diffInfo={u._diff?.official_email} isNew={u._isNew} className="text-[10px] font-mono text-white/40 lowercase" />}
+                                                </td>
+                                                <td className="p-1 px-2 border-r border-white/5">
+                                                    {isEditing ? <CellInput value={u.personal_email} onChange={(v: any) => handleUpdateField(originalIndex, 'personal_email', v)} /> : <CellDisplay value={u.personal_email} diffInfo={u._diff?.personal_email} isNew={u._isNew} className="text-[10px] font-mono text-white/40 lowercase" />}
                                                 </td>
                                                 <td className="p-1 px-2 border-r border-white/5">
                                                     {isEditing ? <CellInput value={u.designation} onChange={(v: any) => handleUpdateField(originalIndex, 'designation', v)} /> : <CellDisplay value={u.designation} diffInfo={u._diff?.designation} isNew={u._isNew} className="text-[10px] font-bold text-white/60" />}

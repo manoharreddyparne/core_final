@@ -126,14 +126,39 @@ export const socialApi = {
         return response.data.data;
     },
 
+    getSessionDetail: async (sessionId: string) => {
+        const response = await socialClient.get(`social/chat/session_detail/?session_id=${sessionId}`);
+        return response.data.data;
+    },
+
     startChat: async (userId: number, role: string = 'STUDENT') => {
         const response = await socialClient.post("social/chat/start_chat/", { user_id: userId, role });
         return response.data.data;
     },
 
     startGroupChat: async (peers: any[], name: string) => {
-        const response = await socialClient.post("social/chat/start_group_chat/", { peers, name });
+        const response = await socialClient.post("social/chat/start_group_chat/", { 
+            peers: peers.map(p => ({ id: p.id, role: p.role })), 
+            name 
+        });
         return response.data.data;
+    },
+
+    updateGroupSettings: async (sessionId: string, readOnly: boolean) => {
+        const response = await socialClient.post("social/chat/update_group_settings/", {
+            session_id: sessionId,
+            read_only: readOnly
+        });
+        return response.data;
+    },
+
+    removeParticipant: async (sessionId: string, userId: number, role: string) => {
+        const response = await socialClient.post("social/chat/remove_participant/", {
+            session_id: sessionId,
+            user_id: userId,
+            role: role
+        });
+        return response.data;
     },
 
     deleteChatSession: async (sessionId: string) => {

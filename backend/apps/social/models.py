@@ -25,6 +25,10 @@ class SocialPost(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # Link to Placement (AI Alerts)
+    drive_id = models.IntegerField(null=True, blank=True, db_index=True)
+    post_type = models.CharField(max_length=20, choices=[('GENERAL', 'General'), ('PLACEMENT', 'Placement')], default='GENERAL')
+
 class SocialLike(models.Model):
     post = models.ForeignKey(SocialPost, on_delete=models.CASCADE, related_name='likes')
     user_id = models.IntegerField()

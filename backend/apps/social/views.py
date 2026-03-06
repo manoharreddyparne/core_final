@@ -566,6 +566,32 @@ class ChatViewSet(viewsets.ViewSet):
         return success_response("Secure sessions retrieved", data=results)
 
     @action(detail=False, methods=['get'])
+    def session_detail(self, request):
+        """Retrieve rich metadata for a specific chat orchestrator session."""
+        session_id = request.query_params.get('session_id')
+        session = ChatSession.objects.filter(session_id=session_id).first()
+        if not session:
+            return error_response("Session orchestrator not found.", code=404)
+        
+        my_id = SocialFeedViewSet._get_my_profile_id(self, request.user)
+        my_role = request.user.role
+        
+        # Verify access
+        is_participant = any(int(p['id']) == int(my_id) and p['role'] == my_role for p in session.participants)
+        if not is_participant and my_role not in ('INST_ADMIN', 'ADMIN', 'FACULTY'):
+             return error_response("Shield Violation: You are not authorized to view this session.", code=403)
+
+        return success_response("Neural session details synchronized.", data={
+            "session_id": str(session.session_id),
+            "is_group": session.is_group,
+            "name": session.name,
+            "participants": session.participants,
+            "participants_metadata": session.participants_metadata,
+            "invite_link_token": session.invite_link_token,
+            "created_at": session.created_at
+        })
+
+    @action(detail=False, methods=['get'])
     def messages(self, request):
         """Fetch history with E2EE Vault decryption."""
         session_id = request.query_params.get('session_id')
@@ -714,3 +740,114 @@ class ChatViewSet(viewsets.ViewSet):
                 session.save()
             return success_response("Conversation removed from your view.")
         return error_response("Session not found.")
+
+    @action(detail=False, methods=['post'])
+    def join_gate(self, request):
+        """
+        Secure entrance for placement/broadcast groups.
+        Verifies eligibility or application status before adding student to participants.
+        """
+        session_id = request.data.get('session_id')
+        my_id = SocialFeedViewSet._get_my_profile_id(self, request.user)
+        my_role = request.user.role
+        
+        session = ChatSession.objects.filter(session_id=session_id, is_group=True).first()
+        if not session:
+            return error_response("Group session not found.", code=404)
+            
+        # Check if already a participant
+        is_member = any(int(p['id']) == int(my_id) and p['role'] == my_role for p in session.participants)
+        if is_member:
+            return success_response("Access granted.", data={"session_id": session.session_id})
+            
+        # PLACEMENT GATE LOGIC
+        drive_id = session.participants_metadata.get('drive_id')
+        if drive_id:
+            from apps.placement.models import PlacementDrive, PlacementApplication
+            drive = PlacementDrive.objects.filter(id=drive_id).first()
+            if not drive:
+                return error_response("Associated placement drive not found.")
+                
+            # Access allowed if:
+            # 1. Admin/Faculty
+            # 2. Student who is eligible (matched by Neural Core)
+            # 3. Student who has applied
+            if my_role in ('INST_ADMIN', 'ADMIN', 'FACULTY'):
+                allowed = True
+            else:
+                applied = PlacementApplication.objects.filter(drive=drive, student_id=my_id).exists()
+                if applied:
+                    allowed = True
+                else:
+                    # Check live eligibility
+                    from apps.placement.services.eligibility_engine import EligibilityEngine
+                    allowed = EligibilityEngine.get_eligible_students_qs(drive).filter(id=my_id).exists()
+            
+            if not allowed:
+                return error_response("Restricted Access: You are not eligible for this placement drive's secure group.", code=403)
+        else:
+            # General group - currently gate is open if you have the ID? Or should we need an invite token?
+            # Supporting 'invite_link_token' verification
+            token = request.data.get('token')
+            if session.invite_link_token and session.invite_link_token != token:
+                return error_response("Invalid invite token.", code=403)
+
+        # ADD TO PARTICIPANTS
+        from apps.auip_institution.models import StudentAcademicRegistry, FacultyAcademicRegistry, AdminAuthorizedAccount
+        def resolve_name(uid, role):
+            if role == 'STUDENT':
+                p = StudentAcademicRegistry.objects.filter(id=uid).first()
+                return p.full_name if p else "Student"
+            elif role == 'FACULTY':
+                p = FacultyAcademicRegistry.objects.filter(id=uid).first()
+                return p.full_name if p else "Faculty"
+            else:
+                p = AdminAuthorizedAccount.objects.filter(id=uid).first()
+                return f"{p.first_name} {p.last_name}".strip() if p else "Admin"
+
+        session.participants.append({
+            "id": int(my_id), 
+            "role": my_role, 
+            "name": resolve_name(my_id, my_role)
+        })
+        session.save()
+        
+        return success_response("Successfully joined group.", data={"session_id": session.session_id})
+
+    @action(detail=False, methods=['post'])
+    def update_group_settings(self, request):
+        """Allows group admins (Admins/Faculty) to set 'Read-Only' or 'Admin-Only' modes."""
+        session_id = request.data.get('session_id')
+        read_only = request.data.get('read_only', False)
+        my_id = SocialFeedViewSet._get_my_profile_id(self, request.user)
+        my_role = request.user.role
+        
+        if my_role not in ('INST_ADMIN', 'ADMIN', 'FACULTY'):
+            return error_response("Only Faculty or Admins can modify group orchestration settings.", code=403)
+            
+        session = ChatSession.objects.filter(session_id=session_id, is_group=True).first()
+        if not session:
+            return error_response("Group not found.")
+            
+        session.participants_metadata['read_only_for_students'] = read_only
+        session.save()
+        return success_response(f"Group settings updated. Read-only: {read_only}")
+
+    @action(detail=False, methods=['post'])
+    def remove_participant(self, request):
+        """Administrative purge of a participant from a group orchestrator."""
+        session_id = request.data.get('session_id')
+        uid = request.data.get('user_id')
+        role = request.data.get('role')
+        
+        my_role = request.user.role
+        if my_role not in ('INST_ADMIN', 'ADMIN', 'FACULTY'):
+            return error_response("Unauthorized moderation attempt.", code=403)
+            
+        session = ChatSession.objects.filter(session_id=session_id, is_group=True).first()
+        if not session:
+            return error_response("Group Session link broken.", code=404)
+            
+        session.participants = [p for p in session.participants if not (int(p['id']) == int(uid) and p['role'] == role)]
+        session.save()
+        return success_response("Participant purged from neural channel.")

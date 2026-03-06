@@ -13,6 +13,8 @@ from apps.academic.models import AttendanceSession, AttendanceRecord, Subject, S
 from apps.academic.serializers import AttendanceSessionSerializer
 from ._permissions import IsTenantFacultyOrAdmin
 
+from .pagination import AcademicPagination
+
 logger = logging.getLogger(__name__)
 
 
@@ -20,6 +22,7 @@ class AttendanceSessionViewSet(viewsets.ModelViewSet):
     """Faculty marks attendance per session. Admin and students can view reports."""
     authentication_classes = [TenantAuthentication]
     serializer_class = AttendanceSessionSerializer
+    pagination_class = AcademicPagination
 
     def get_queryset(self):
         qs = AttendanceSession.objects.select_related('subject', 'section', 'semester').prefetch_related('records')

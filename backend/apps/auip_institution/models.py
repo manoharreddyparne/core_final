@@ -216,7 +216,10 @@ class FacultyAcademicRegistry(models.Model):
     """
     employee_id = models.CharField(max_length=50, unique=True, db_index=True)
     full_name = models.CharField(max_length=255)
-    email = models.EmailField(unique=True)
+    email = models.EmailField(unique=True) # Primary Contact/Login
+    
+    personal_email = models.EmailField(null=True, blank=True)
+    official_email = models.EmailField(null=True, blank=True)
     
     designation = models.CharField(max_length=100, blank=True, default='')
     department = models.CharField(max_length=100, blank=True, default='')

@@ -59,9 +59,25 @@ class RegisteredFacultyViewSet(viewsets.ModelViewSet):
     ordering_fields = ['employee_id', 'full_name', 'department', 'joining_date']
 
     def get_queryset(self):
+        from apps.auip_institution.models import FacultyAuthorizedAccount
+        from django.db.models import Exists, OuterRef
         institution = self.request.user.institution
+
         with schema_context(institution.schema_name):
-            return FacultyAcademicRegistry.objects.all()
+            active_account_subquery = FacultyAuthorizedAccount.objects.filter(
+                email=OuterRef('email')
+            )
+            qs = FacultyAcademicRegistry.objects.select_related('department_ref').annotate(
+                is_active_account=Exists(active_account_subquery)
+            )
+
+            status_filter = self.request.query_params.get('status')
+            if status_filter == 'ACTIVE':
+                qs = qs.filter(is_active_account=True)
+            elif status_filter == 'SEEDED':
+                qs = qs.filter(is_active_account=False)
+
+            return qs
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
@@ -90,7 +106,10 @@ class RegisteredFacultyViewSet(viewsets.ModelViewSet):
                 identifier=instance.employee_id,
                 defaults={"email": instance.email}
             )
-            return success_response("Educator provisioned successfully", data=serializer.data)
+            # Re-read with annotation for UI status
+            instance.is_active_account = False 
+            data = self.get_serializer(instance).data
+            return success_response("Educator provisioned successfully", data=data)
 
     def update(self, request, *args, **kwargs):
         institution = self.request.user.institution
@@ -102,7 +121,10 @@ class RegisteredFacultyViewSet(viewsets.ModelViewSet):
             instance = serializer.save()
             # 🔄 Sync Registry
             FacultyPreSeededRegistry.objects.filter(identifier=instance.employee_id).update(email=instance.email)
-            return success_response("Educator record updated", data=serializer.data)
+            
+            # Re-fetch with annotation
+            updated_obj = self.get_queryset().get(id=instance.id)
+            return success_response("Educator record updated", data=self.get_serializer(updated_obj).data)
 
     def destroy(self, request, *args, **kwargs):
         institution = self.request.user.institution
@@ -140,7 +162,11 @@ class RegisteredFacultyViewSet(viewsets.ModelViewSet):
         }
 
         with schema_context(institution.schema_name):
-            for emp_id in identifiers:
+            total = len(identifiers)
+            broadcast_bulk_progress(request.user, "INST_ADMIN", 10, f"Initializing Signal Dispatch for {total} Educators...")
+            
+            import time
+            for i, emp_id in enumerate(identifiers):
                 emp_id = str(emp_id).strip()
                 try:
                     f = FacultyPreSeededRegistry.objects.filter(identifier__iexact=emp_id).first()
@@ -154,9 +180,20 @@ class RegisteredFacultyViewSet(viewsets.ModelViewSet):
                     
                     ActivationService.create_tenant_invitation(f, institution.schema_name, entry_type="faculty")
                     summary["invited"].append(emp_id)
+                    
+                    # Periodic broadcast
+                    if i % 5 == 0 or i == total - 1:
+                        pct = 10 + int((i / total) * 85)
+                        broadcast_bulk_progress(request.user, "INST_ADMIN", pct, f"Dispatching Link to {emp_id}...")
+                    
+                    # Slow down slightly for tiny batches to let animation breathe
+                    if total < 10: time.sleep(0.3)
+
                 except Exception as e:
                     logger.error(f"[FACULTY-INVITE] Failed for {emp_id}: {e}")
                     summary["failed"].append({"identifier": emp_id, "error": str(e)})
+
+            broadcast_bulk_progress(request.user, "INST_ADMIN", 100, "All Activation Links Dispatched.")
 
         total_success = len(summary["invited"])
         return success_response(
@@ -165,8 +202,8 @@ class RegisteredFacultyViewSet(viewsets.ModelViewSet):
         )
 
 BULK_FACULTY_FIELDS = [
-    'full_name', 'email', 'designation', 'department',
-    'joining_date', 'department_ref',
+    'full_name', 'email', 'personal_email', 'official_email',
+    'designation', 'department', 'joining_date', 'department_ref',
 ]
 
 class TenantBulkFacultyUploadView(APIView):
@@ -181,10 +218,11 @@ class TenantBulkFacultyUploadView(APIView):
     parser_classes = [MultiPartParser, JSONParser]
 
     def post(self, request):
-        preview_mode = (
-            request.data.get('preview', 'false').lower() == 'true'
-            or request.data.get('preview') is True
-        )
+        preview_val = request.data.get('preview', 'false')
+        if isinstance(preview_val, bool):
+            preview_mode = preview_val
+        else:
+            preview_mode = str(preview_val).lower() == 'true'
         
         # ── Route: DataGrid JSON commit ──────────────────────────────────────
         if not preview_mode and 'faculty' in request.data:
@@ -421,11 +459,17 @@ class TenantBulkFacultyUploadView(APIView):
         data = {
             "full_name": row.get('full_name', '').strip(),
             "email": row.get('email', '').strip(),
+            "personal_email": row.get('personal_email', '').strip(),
+            "official_email": row.get('official_email', '').strip(),
             "designation": row.get('designation', '').strip(),
             "department": row.get('department', '').strip(),
             "joining_date": row.get('joining_date') if row.get('joining_date') else None,
         }
         
+        # If email is empty but official/personal is provided, populate it
+        if not data['email']:
+            data['email'] = data['official_email'] or data['personal_email']
+            
         dept_str = data['department'].lower()
         if dept_str in dept_cache:
             data['department_ref'] = dept_cache[dept_str]

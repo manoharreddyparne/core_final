@@ -1,0 +1,4 @@
+employee_id,full_name,official_email,personal_email,designation,department,joining_date
+EMP-101,Dr. Manohar Reddy,parnemanoharreddy19@gmail.com,parnemanoharreddy19@gmail.com,Professor,CSE,2024-01-01
+EMP-102,Arjun Sharma,parnemanoharreddy20@gmail.com,parnemanoharreddy20@gmail.com,Assistant Professor,ECE,2024-02-15
+EMP-103,Priya Reddy,parnemanoharreddy21@gmail.com,parnemanoharreddy21@gmail.com,Lecturer,IT,2024-03-10

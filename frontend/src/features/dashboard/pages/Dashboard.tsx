@@ -12,6 +12,7 @@ const ROLE_ROUTES: Record<string, string> = {
   INST_ADMIN: "/institution/dashboard",
   ADMIN: "/institution/dashboard",
   TEACHER: "/faculty-dashboard",
+  FACULTY: "/faculty-dashboard",
   EDUCATOR: "/faculty-dashboard",
   SPOC: "/faculty-dashboard",
   STUDENT: "/student-dashboard",

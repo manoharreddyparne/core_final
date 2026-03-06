@@ -1,8 +1,9 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from apps.placement.models import PlacementDrive, PlacementApplication
-from apps.placement.serializers import PlacementDriveSerializer, PlacementApplicationSerializer
+from apps.placement.serializers import PlacementDriveSerializer, PlacementApplicationSerializer, PlacementProcessStageSerializer
 from apps.placement.services.eligibility_service import EligibilityService
 from apps.placement.services.eligibility_engine import EligibilityEngine
 from apps.placement.services.jd_parser import JDExtractionService
@@ -11,6 +12,7 @@ from apps.auip_institution.permissions import IsTenantAdmin, IsTenantStudent
 from apps.identity.utils.response_utils import success_response, error_response
 from django_tenants.utils import schema_context
 from django.utils import timezone
+from django.db.models import Count, Q
 import logging
 
 logger = logging.getLogger(__name__)
@@ -34,7 +36,16 @@ class PlacementDriveViewSet(viewsets.ModelViewSet):
         return PlacementDrive.objects.all().order_by('-created_at')
 
     def perform_create(self, serializer):
-        serializer.save()
+        drive = serializer.save()
+        if self.request.data.get('broadcast') == 'true' or self.request.data.get('broadcast') is True:
+            # Trigger immediate broadcast to eligible students
+            EligibilityEngine.broadcast_invitations(drive)
+
+    def perform_update(self, serializer):
+        drive = serializer.save()
+        if self.request.data.get('broadcast') == 'true' or self.request.data.get('broadcast') is True:
+            # Trigger immediate broadcast to eligible students
+            EligibilityEngine.broadcast_invitations(drive)
 
     @action(detail=True, methods=['post'])
     def activate(self, request, pk=None):
@@ -57,16 +68,150 @@ class PlacementDriveViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'])
     def extract_jd(self, request):
-        """Upload a JD PDF and return AI extracted JSON rules."""
+        """Upload a JD PDF or paste JD Text to return AI extracted JSON rules."""
         pdf_file = request.FILES.get('file')
-        if not pdf_file:
-            return error_response("Please upload a 'file' (PDF).", code=400)
+        jd_text = request.data.get('text')
+        
+        if not pdf_file and not jd_text:
+            return error_response("Please upload a 'file' (PDF/Image) or provide 'text' for extraction.", code=400)
             
-        extraction = JDExtractionService.extract_from_pdf(pdf_file)
+        if pdf_file:
+            # Route to Multimodal Vision if it's an image file
+            ext = pdf_file.name.split('.')[-1].lower()
+            if ext in ['jpg', 'jpeg', 'png', 'webp', 'heic']:
+                extraction = JDExtractionService.extract_from_image(pdf_file)
+            else:
+                extraction = JDExtractionService.extract_from_pdf(pdf_file)
+        else:
+            extraction = JDExtractionService.extract_from_text(jd_text)
+            
         if "error" in extraction:
             return error_response(extraction['error'], code=500, data=extraction)
             
         return success_response("JD extracted successfully", data=extraction)
+
+    @action(detail=False, methods=['post'])
+    def check_eligibility(self, request):
+        """
+        Dynamically calculates eligible students (both activated and unactivated)
+        based on the form data *before* the drive is saved.
+        """
+        from django.db import connection
+        from apps.auip_institution.models import StudentAcademicRegistry
+        
+        serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            return error_response("Invalid drive parameters", data=serializer.errors, code=400)
+            
+        drive = PlacementDrive(**serializer.validated_data)
+        
+        # ─── DIAGNOSTIC BLOCK ────────────────────────────────────────────
+        total_students = StudentAcademicRegistry.objects.count()
+        schema = connection.schema_name
+        
+        # Sample the first 3 students to see their history_data structure
+        sample_keys = []
+        sample_10th = []
+        for s in StudentAcademicRegistry.objects.order_by('?')[:5]:
+            if s.history_data:
+                sample_keys.append(list(s.history_data.keys()))
+                val_10th = s.history_data.get('10th_percent', s.history_data.get('ssc_percent', 'KEY_MISSING'))
+                sample_10th.append({
+                    'roll': s.roll_number,
+                    '10th_raw': val_10th,
+                    'all_keys': list(s.history_data.keys())
+                })
+        
+        debug_info = {
+            'schema': schema,
+            'total_students': total_students,
+            'drive_filters': {
+                'min_10th': float(drive.min_10th_percent or 0),
+                'min_12th': float(drive.min_12th_percent or 0),
+                'min_cgpa': float(drive.min_cgpa or 0),
+                'min_ug_pct': float(drive.min_ug_percentage or 0),
+                'branches': drive.eligible_branches,
+                'backlogs': drive.allowed_active_backlogs,
+            },
+            'sample_10th_data': sample_10th,
+        }
+        logger.info(f"[ELIGIBILITY-DEBUG] {debug_info}")
+        # ─── END DIAGNOSTIC ──────────────────────────────────────────────
+        
+        search_query = request.data.get('q', '').strip()
+        page = int(request.data.get('page', 1))
+        page_size = int(request.data.get('page_size', 50))
+        
+        qualified_qs = EligibilityEngine.get_qualified_students_qs(drive)
+        
+        # Apply Search Filtering within manifest
+        if search_query:
+            from django.db.models import Q
+            tokens = search_query.split()
+            manifest_filter = Q()
+            for token in tokens:
+                manifest_filter &= (Q(roll_number__icontains=token) | Q(full_name__icontains=token))
+            qualified_qs = qualified_qs.filter(manifest_filter)
+
+        total_count = qualified_qs.count()
+        criteria_ids = set(EligibilityEngine.get_eligible_students_qs(drive).values_list('id', flat=True))
+        
+        from django.db.models import Exists, OuterRef
+        from apps.auip_institution.models import StudentAuthorizedAccount
+        
+        final_qs = qualified_qs.annotate(
+            is_activated=Exists(StudentAuthorizedAccount.objects.filter(academic_ref=OuterRef('pk')))
+        ).values('id', 'roll_number', 'full_name', 'branch', 'cgpa', 'is_activated').order_by('-is_activated', 'roll_number')
+        
+        # Paginate
+        start = (page - 1) * page_size
+        end = start + page_size
+        final_list = final_qs[start:end]
+        
+        data_with_flags = []
+        for s in final_list:
+            data_with_flags.append({**s, "is_manual": s['id'] not in criteria_ids})
+            
+        return success_response(
+            "Eligibility preview generated.", 
+            data={
+                "eligible_students": data_with_flags, 
+                "total_count": total_count,
+                "current_page": page,
+                "page_size": page_size,
+                "_debug": debug_info
+            }
+        )
+
+    @action(detail=False, methods=['get'])
+    def search_students(self, request):
+        """
+        Word-order-independent fuzzy student search.
+        'Manohar Reddy Parne' will match 'Parne Manohar Reddy' because
+        every token is checked independently against name AND roll_number.
+        """
+        query = request.query_params.get('q', '').strip()
+        if not query or len(query) < 2:
+            return success_response("Search term too short.", data=[])
+            
+        from apps.auip_institution.models import StudentAcademicRegistry, StudentAuthorizedAccount
+        from django.db.models import Exists, OuterRef, Q
+        
+        # Split into tokens — each token must appear in roll_number OR full_name
+        tokens = query.split()
+        combined_filter = Q()
+        for token in tokens:
+            combined_filter &= (Q(roll_number__icontains=token) | Q(full_name__icontains=token))
+        
+        results = StudentAcademicRegistry.objects.filter(combined_filter).order_by('full_name')[:15]
+        
+        data = results.annotate(
+            is_activated=Exists(
+                StudentAuthorizedAccount.objects.filter(academic_ref=OuterRef('pk'))
+            )
+        ).values('id', 'roll_number', 'full_name', 'branch', 'cgpa', 'is_activated')
+        
+        return success_response(f"Found {len(data)} students.", data=list(data))
 
     @action(detail=True, methods=['get'])
     def eligibility_stats(self, request, pk=None):
@@ -74,17 +219,26 @@ class PlacementDriveViewSet(viewsets.ModelViewSet):
         drive = self.get_object()
         report = EligibilityEngine.get_eligibility_report(drive)
         return success_response("Eligibility stats retrieved.", data=report)
-        
+
     @action(detail=True, methods=['post'])
     def broadcast(self, request, pk=None):
-        """Triggers email and app notifications to all eligible students."""
+        """
+        Triggers notifications to ALL eligible students:
+        - Active accounts → UI notification + email
+        - Inactive accounts → email only with activation prompt
+        Also auto-creates a placement group chat.
+        """
         drive = self.get_object()
             
         if drive.status != 'ACTIVE':
             return error_response("Drive must be ACTIVE to broadcast.", code=400)
             
-        EligibilityEngine.broadcast_invitations(drive)
-        return success_response("Invitations broadcasted successfully.")
+        result = EligibilityEngine.broadcast_invitations(drive)
+        return success_response(
+            f"Broadcast complete: {result['notified_active']} active notified, "
+            f"{result['notified_inactive']} inactive emailed.",
+            data=result
+        )
 
     @action(detail=False, methods=['get'], permission_classes=[IsTenantStudent])
     def my_eligible_drives(self, request):
@@ -200,12 +354,119 @@ class PlacementApplicationViewSet(viewsets.ModelViewSet):
         if not new_status:
             return error_response("status is required", code=400)
             
-        valid_statuses = dict(PlacementApplication.APPLICATION_STATUS).keys()
+        valid_statuses = [c[0] for c in PlacementApplication.STATUS_CHOICES]
         if new_status not in valid_statuses:
-            return error_response(f"Invalid status. Must be one of {list(valid_statuses)}", code=400)
+            return error_response(f"Invalid status. Must be one of {valid_statuses}", code=400)
             
         app.status = new_status
         app.save(update_fields=['status'])
         
-        # We can also add stages to the history if required
         return success_response(f"Student application status updated to {new_status}")
+
+    @action(detail=True, methods=['post'], permission_classes=[IsTenantAdmin])
+    def add_stage(self, request, pk=None):
+        """Add a process stage (Mock, Interview, etc.) to an application."""
+        app = self.get_object()
+        serializer = PlacementProcessStageSerializer(data={**request.data, 'application': app.id})
+        if serializer.is_valid():
+            serializer.save()
+            return success_response("Process stage added", data=serializer.data)
+        return error_response("Validation error", extra=serializer.errors)
+
+    @action(detail=True, methods=['patch'], permission_classes=[IsTenantAdmin], url_path='update_stage/(?P<stage_id>[^/.]+)')
+    def update_stage(self, request, pk=None, stage_id=None):
+        """Update a specific process stage."""
+        from apps.placement.models import PlacementProcessStage
+        try:
+            stage = PlacementProcessStage.objects.get(id=stage_id, application_id=pk)
+        except PlacementProcessStage.DoesNotExist:
+            return error_response("Stage not found", code=404)
+            
+        serializer = PlacementProcessStageSerializer(stage, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return success_response("Process stage updated", data=serializer.data)
+        return error_response("Validation error", extra=serializer.errors)
+
+
+class PlacementAnalyticsSummaryView(APIView):
+    """
+    Aggregated placement analytics for TPO Analytics Dashboard.
+    GET /api/placement/analytics/summary/
+    """
+    authentication_classes = [TenantAuthentication]
+    permission_classes = [IsTenantAdmin]
+
+    def get(self, request):
+        try:
+            from apps.auip_institution.models import StudentAcademicRegistry
+
+            all_drives = PlacementDrive.objects.all()
+            total_drives = all_drives.count()
+            active_drives = all_drives.filter(status='ACTIVE').count()
+            companies_visited = all_drives.values('company_name').distinct().count()
+
+            # Applications aggregate
+            all_apps = PlacementApplication.objects.select_related('student', 'drive')
+            placed_apps = all_apps.filter(status='PLACED')
+            placed_count = placed_apps.count()
+            total_students = StudentAcademicRegistry.objects.count()
+
+            placement_pct = round((placed_count / total_students * 100), 1) if total_students > 0 else 0
+
+            # Package average — parse "12 LPA" style strings
+            packages: list[float] = []
+            for d in all_drives.exclude(package_details='').values_list('package_details', flat=True):
+                try:
+                    num = float(''.join(filter(lambda c: c.isdigit() or c == '.', d.split()[0])))
+                    packages.append(float(num))
+                except Exception:
+                    pass
+            _avg: float = float(sum(packages) / len(packages)) if packages else 0.0
+            avg_package = f"{_avg.__round__(1)} LPA" if packages else "N/A"
+
+            # Per-drive stats
+            drives_data = []
+            for drive in all_drives.order_by('-created_at')[:50]:
+                drive_apps = all_apps.filter(drive=drive)
+                drives_data.append({
+                    "company_name": drive.company_name,
+                    "role": drive.role,
+                    "status": drive.status,
+                    "applied_count": drive_apps.count(),
+                    "placed_count": drive_apps.filter(status='PLACED').count(),
+                    "package_details": drive.package_details,
+                    "deadline": drive.deadline.isoformat() if drive.deadline else None
+                })
+
+            # Branch-wise stats from student registry + placed applications
+            branch_qs = StudentAcademicRegistry.objects.values('branch').annotate(total=Count('id'))
+            branch_stats = {}
+            for item in branch_qs:
+                branch = item['branch'] or 'Unknown'
+                placed_in_branch = placed_apps.filter(student__branch=branch).count()
+                branch_stats[branch] = {"placed": placed_in_branch, "total": item['total']}
+
+            # Batch (passout_year) stats
+            batch_qs = StudentAcademicRegistry.objects.values('passout_year').annotate(total=Count('id'))
+            batch_stats = {}
+            for item in batch_qs:
+                year = str(item['passout_year']) if item['passout_year'] else 'Unknown'
+                placed_in_batch = placed_apps.filter(student__passout_year=item['passout_year']).count()
+                batch_stats[year] = {"placed": placed_in_batch, "total": item['total']}
+
+            return success_response("Analytics summary retrieved", data={
+                "total_students": total_students,
+                "placed_students": placed_count,
+                "placement_percentage": placement_pct,
+                "avg_package": avg_package,
+                "total_drives": total_drives,
+                "active_drives": active_drives,
+                "companies_visited": companies_visited,
+                "drives": drives_data,
+                "branch_stats": branch_stats,
+                "batch_stats": batch_stats,
+            })
+        except Exception as e:
+            logger.error(f"[PLACEMENT-ANALYTICS-ERROR] {e}")
+            return error_response(f"Failed to generate analytics: {str(e)}", code=500)

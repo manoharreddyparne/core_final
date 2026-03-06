@@ -48,104 +48,140 @@ class BrainOrchestrator:
         Runs in a background thread to avoid blocking the main Daphne/Django event loop.
         Uses a persistent pool to prevent OS thread exhaustion.
         """
+        return BrainOrchestrator.generate_multimodal(prompt, system_prompt=system_prompt, history=history)
+
+    @staticmethod
+    def generate_multimodal(prompt, system_prompt=None, history=None, files=None, model_name='gemini-1.5-flash'):
+        """
+        Multimodal generation support.
+        files: List of PIL.Image.Image objects or base64 data.
+        """
         if history is None:
             history = []
             
         future = BrainOrchestrator._executor.submit(
-            BrainOrchestrator._execute_generate, prompt, system_prompt, history
+            BrainOrchestrator._execute_multimodal, prompt, system_prompt, history, files, model_name
         )
         try:
-            # Total hard limit of 30 seconds for the entire pipeline
-            return future.result(timeout=30)
+            return future.result(timeout=45) # Vision tasks need slightly longer (45s)
         except TimeoutError:
-            logger.error("[BRAIN-TIMEOUT] AI node took too long. Protecting institutional uptime.")
-            # Note: We don't cancel because standard ThreadPool futures aren't easily cancellable
+            logger.error("[BRAIN-TIMEOUT] Vision node took too long.")
             return None
         except Exception as e:
-            logger.error(f"[BRAIN-THREAD-ERROR] Execution failed: {e}")
+            logger.error(f"[BRAIN-THREAD-ERROR] Vision failure: {e}")
             return None
 
     @staticmethod
-    def _execute_generate(prompt, system_prompt=None, history=None):
+    def _execute_multimodal(prompt, system_prompt=None, history=None, files=None, model_name='gemini-1.5-flash'):
         if history is None:
             history = []
-            
-        # BEST APPROACH: GROQ CLOUD (LPU - Language Processing Unit)
-        # This gives you "Unlimited Llama 3" running at 800+ Tokens/Sec 
-        # completely bypassing Cloudflare, Colab, and Gemini Limits.
-        try:
-            # Use the provided Groq key or fall back to Gemini logic if unavailable/invalid.
-            groq_key = getattr(settings, 'GROQ_API_KEY', None)
-            if not groq_key or "invalid" in str(groq_key).lower():
-                raise ValueError("No valid Groq key found. Attempting Fallback.")
-            client = groq.Groq(api_key=groq_key)
-            
-            messages = []
-            if system_prompt:
-                messages.append({"role": "system", "content": system_prompt})
-                
-            # Append proper history natively
-            for chat in history:
-                # Map roles correctly to OpenAI/Groq standards. 'ai' or 'model' -> 'assistant'
-                fixed_role = 'assistant' if chat['role'] in ['ai', 'agent', 'model'] else 'user'
-                messages.append({"role": fixed_role, "content": chat['content']})
-                
-            messages.append({"role": "user", "content": prompt})
-
-            # We use Llama-3 8B strictly. It's lightning fast and incredibly smart.
-            completion = client.chat.completions.create(
-                model="llama-3.1-8b-instant",
-                messages=messages,
-                temperature=0.7,
-                max_tokens=1024,
-                top_p=1,
-                stream=False
-            )
-            
-            if completion and completion.choices:
-                logger.info("[BRAIN-GROQ] BLAZING FAST Llama-3 Response Delivered.")
-                return completion.choices[0].message.content
-                
-        except Exception as groq_e:
-            logger.error(f"[BRAIN-GROQ-ERROR] {groq_e}. Instantly switching to Gemini Lite.")
-            
-            # --- GOOGLE GEMINI (ULTRA FAST FALLBACK) ---
+        
+        # If files are present, Groq is bypassed as it's text-only.
+        if not files:
             try:
-                api_key = getattr(settings, 'GEMINI_API_KEY', None)
-                if not api_key: 
-                    return "AI systems are currently initializing. Please try again in a moment."
-                    
-                import google.generativeai as genai
-                genai.configure(api_key=api_key)
+                # Primary Fast Text Provider
+                groq_key = getattr(settings, 'GROQ_API_KEY', None)
+                if groq_key and "invalid" not in str(groq_key).lower():
+                    client = groq.Groq(api_key=groq_key)
+                    messages = []
+                    if system_prompt:
+                        messages.append({"role": "system", "content": system_prompt})
+                    for chat in history:
+                        fixed_role = 'assistant' if chat['role'] in ['ai', 'agent', 'model'] else 'user'
+                        messages.append({"role": fixed_role, "content": chat['content']})
+                    messages.append({"role": "user", "content": prompt})
+
+                    completion = client.chat.completions.create(
+                        model="llama-3.1-8b-instant",
+                        messages=messages,
+                        temperature=0.0, # Zero temperature for strict extraction
+                        max_tokens=2048,
+                    )
+                    if completion and completion.choices:
+                        return completion.choices[0].message.content
+            except Exception as groq_e:
+                logger.error(f"[BRAIN-GROQ-ERROR] {groq_e}. Falling back to Gemini.")
+
+        # --- GOOGLE GEMINI (Multimodal & Fast/Pro) ---
+        try:
+            api_key = getattr(settings, 'GEMINI_API_KEY', None)
+            if not api_key: 
+                return "Multimodal systems initializing. Try again."
                 
-                # Gemini doesn't use the standard system prompt, we pass it inside the full text block
-                full_prompt = f"{system_prompt}\n\n" if system_prompt else ""
-                
-                # We can inject history manually for simple API call format
-                for chat in history:
-                    role_str = "User" if chat['role'] == "user" else "AI"
-                    full_prompt += f"{role_str}: {chat['content']}\n"
-                    
-                full_prompt += f"\nUser: {prompt}\nAI:"
-                
-                for model_name in ['gemini-1.5-flash', 'gemini-1.5-flash-8b']:
-                    try:
-                        temp_model = genai.GenerativeModel(model_name)
-                        res = temp_model.generate_content(full_prompt)
-                        if res and res.text:
-                            logger.info(f"[BRAIN-SPEED] Fast fallback via {model_name}")
-                            return res.text
-                    except Exception as inner_e:
-                        error_str = str(inner_e)
-                        logger.error(f"[BRAIN-GEMINI-LOOP] Model {model_name} failed: {error_str}")
-                        if "429" in error_str or "Quota" in error_str:
-                            return "SYSTEM_LIMIT_REACHED: Google Gemini free-tier quota exceeded (15 requests/min). To unlock unlimited instant responses, please generate a free Groq API key at console.groq.com and update the GROQ_API_KEY in the .env file."
-                        continue
-                        
-                return "The Intelligence Portal is currently under high load. Redirecting simple queries to standard search."
+            import google.generativeai as genai
+            genai.configure(api_key=api_key)
+            
+            # Model Mapping (Fix for 404s on certain API versions/SDKs)
+            model_map = {
+                'gemini-1.5-flash': 'gemini-1.5-flash-latest',
+                'gemini-1.5-pro': 'gemini-1.5-pro-latest'
+            }
+            actual_model_name = model_map.get(model_name, model_name)
+            
+            # Use requested model
+            model = genai.GenerativeModel(actual_model_name, system_instruction=system_prompt)
+            
+            parts = []
+            for chat in history:
+                role_str = "User" if chat['role'] == "user" else "AI"
+                parts.append(f"{role_str}: {chat['content']}")
+            
+            parts.append(prompt)
+            if files:
+                from PIL import Image
+                import io
+                for f in files:
+                    if isinstance(f, Image.Image):
+                        parts.append(f)
+                    elif hasattr(f, 'read'): # File-like object (PDF, etc)
+                        try:
+                            f.seek(0)
+                            content = f.read()
+                            # Check if it's a PDF
+                            if hasattr(f, 'name') and f.name.lower().endswith('.pdf'):
+                                parts.append({
+                                    "mime_type": "application/pdf",
+                                    "data": content
+                                })
+                            else:
+                                # Try to treat as image
+                                try:
+                                    parts.append(Image.open(io.BytesIO(content)))
+                                except:
+                                    # Fallback to plain bytes if mimetype can't be guessed easily, 
+                                    # but Gemini usually wants explicit mime_type for non-images
+                                    parts.append(content)
+                        except Exception as fe:
+                            logger.error(f"[BRAIN-VISION] File object processing failed: {fe}")
+                    else:
+                        logger.error(f"[BRAIN-VISION] Unsupported file type: {type(f)}")
+            
+            # Try primary model name
+            try:
+                model = genai.GenerativeModel(actual_model_name, system_instruction=system_prompt)
+                res = model.generate_content(
+                    parts,
+                    generation_config=genai.types.GenerationConfig(temperature=0.0)
+                )
             except Exception as e:
-                logger.error(f"[BRAIN-GEMINI-CRITICAL]: {e}")
-                return "Based on your behavior and readiness, I recommend reviewing the latest job drives in the Placement Hub and updating your Resume."
+                if "404" in str(e) or "not found" in str(e).lower():
+                    # Emergency Fallback to standard aliasing
+                    fallback_name = "gemini-1.5-pro" if "flash" in actual_model_name else "gemini-1.5-flash"
+                    logger.warning(f"[BRAIN-VISION] Model {actual_model_name} failed. Retrying with fallback: {fallback_name}")
+                    model = genai.GenerativeModel(fallback_name, system_instruction=system_prompt)
+                    res = model.generate_content(
+                        parts,
+                        generation_config=genai.types.GenerationConfig(temperature=0.0)
+                    )
+                else:
+                    raise e
+
+            if res and res.text:
+                return res.text
+            return ""
+        except Exception as e:
+            logger.error(f"[BRAIN-GEMINI-ERROR] CRITICAL VISION FAILURE: {e}", exc_info=True)
+            return f"Vision processing encountered a core exception: {str(e)}"
 
 
     @staticmethod

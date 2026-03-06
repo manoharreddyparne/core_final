@@ -1,0 +1,4 @@
+employee_id,full_name,official_email,personal_email,designation,department,joining_date
+FAC-001,Dr. P. Manohar Reddy,parnemanoharreddy19@gmail.com,parne.personal@gmail.com,Senior Professor,CSE,2023-01-15
+FAC-002,Prof. Manohar Reddy 20,parnemanoharreddy20@gmail.com,,Professor,ECE,2023-06-20
+FAC-003,Assistant Prof. Reddy 21,parnemanoharreddy21@gmail.com,reddy21@gmail.com,Assistant Professor,EEE,2024-02-10

@@ -70,6 +70,18 @@ export const useFacultyBulkOperations = (onSuccess: () => void) => {
         }
     };
 
+    const handleBulkInviteSelected = async (identifiers: string[]) => {
+        if (identifiers.length === 0) return;
+        const loadingToast = toast.loading(`Broadcasting to ${identifiers.length} educator(s)...`);
+        try {
+            const res = await instApiClient.post("faculty/bulk_invite/", { identifiers });
+            toast.success(res.data?.message || "Activation signal dispatched", { id: loadingToast });
+            onSuccess();
+        } catch (err: any) {
+            toast.error(err.response?.data?.message || "Sync interrupted", { id: loadingToast });
+        }
+    };
+
     const commitGridData = async (updatedFaculty: any[]) => {
         setIsCommitting(true);
         setCommitProgress(0);
@@ -95,6 +107,17 @@ export const useFacultyBulkOperations = (onSuccess: () => void) => {
         }
     };
 
+    const handleInviteDept = async (deptName: string) => {
+        const loadingToast = toast.loading(`Broadcasting to Department ${deptName}...`);
+        try {
+            const res = await instApiClient.post("faculty/bulk_invite/", { department: deptName });
+            toast.success(res.data.message || "Signal dispatched", { id: loadingToast });
+            onSuccess();
+        } catch (err) {
+            toast.error("Transmission failed", { id: loadingToast });
+        }
+    };
+
     return {
         isValidating,
         valProgress,
@@ -105,6 +128,8 @@ export const useFacultyBulkOperations = (onSuccess: () => void) => {
         commitPhase,
         commitProgress,
         handleFileSelect,
-        commitGridData
+        commitGridData,
+        handleBulkInviteSelected,
+        handleInviteDept
     };
 };

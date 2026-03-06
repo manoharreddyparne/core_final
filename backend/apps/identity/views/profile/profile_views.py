@@ -59,6 +59,7 @@ class UserProfileView(APIView):
                     "email": user.email,
                     "first_name": getattr(user, 'first_name', ''),
                     "last_name": getattr(user, 'last_name', ''),
+                    "full_name": f"{getattr(user, 'first_name', '')} {getattr(user, 'last_name', '')}".strip() or getattr(user, 'username', user.email),
                     "username": getattr(user, 'username', user.email),
                     "role": user.role,
                     "is_active": user.is_active,
@@ -66,33 +67,42 @@ class UserProfileView(APIView):
 
             # ---------- Role-specific Info ----------
             role_info = {}
-            if user.role == "STUDENT":
-                # 🚀 Dynamic Attribute Harvesting from Academic Registry (STUDENTS ONLY)
+            if user.role in ("STUDENT", "FACULTY"):
+                # 🚀 Dynamic Attribute Harvesting
                 profile = getattr(user, "academic_ref", None)
                 if profile:
-                    excluded_fields = {'id', 'created_at', 'updated_at', 'history_data', 'sgpa_history', 'password_hash', 'mfa_secret'}
+                    excluded_fields = {
+                        'id', 'created_at', 'updated_at', 'history_data', 
+                        'sgpa_history', 'password_hash', 'mfa_secret', 'department_ref',
+                        'program_ref', 'section_ref', 'semester_ref'
+                    }
                     for field in profile._meta.fields:
-                        if field.name not in excluded_fields:
+                        if field.name not in excluded_fields and not field.name.endswith('_id'):
                             val = getattr(profile, field.name)
-                            if hasattr(val, 'to_eng_string') or isinstance(val, (float, int)):
-                                val = str(val)
-                            elif val is None:
+                            
+                            # 🛡️ Serialization Safety Protocol
+                            if val is None:
                                 val = "N/A"
+                            elif hasattr(val, 'strftime'): # Date/DateTime
+                                val = val.strftime('%Y-%m-%d')
+                            elif hasattr(val, 'to_eng_string') or isinstance(val, (float, int, complex)):
+                                val = str(val)
+                            elif not isinstance(val, (str, bool)):
+                                val = str(val) # Fallback to string for anything else (models, etc)
                                 
                             role_info[field.name] = {
-                                "label": field.verbose_name.title(),
+                                "label": field.verbose_name.replace('_', ' ').title(),
                                 "value": val
                             }
                     
                     role_info["read_only"] = True
                     role_info["intelligence_mode"] = "DYNAMIC" 
-
-            elif user.role == "FACULTY":
-                role_info = {
-                    "designation": {"label": "Designation", "value": getattr(user, 'designation', 'Staff')},
-                    "department": {"label": "Department", "value": getattr(user, 'department', 'N/A')},
-                    "read_only": False
-                }
+                elif user.role == "FACULTY":
+                    role_info = {
+                        "designation": {"label": "Designation", "value": getattr(user, 'designation', 'Staff')},
+                        "department": {"label": "Department", "value": getattr(user, 'department', 'N/A')},
+                        "read_only": False
+                    }
             elif user.role in ("ADMIN", "INSTITUTION_ADMIN"):
                 level = "Institution" if user.role == "INSTITUTION_ADMIN" else "Superuser"
                 role_info = {

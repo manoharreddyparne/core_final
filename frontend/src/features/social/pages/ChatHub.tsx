@@ -180,6 +180,8 @@ export const ChatHub = () => {
     const [sessions, setSessions] = useState<any[]>([]);
     const [connections, setConnections] = useState<any[]>([]);
     const [activeSession, setActiveSession] = useState<any | null>(null);
+    const [activeSessionDetail, setActiveSessionDetail] = useState<any | null>(null);
+    const [showSettings, setShowSettings] = useState(false);
 
     const [msgInput, setMsgInput] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
@@ -211,6 +213,7 @@ export const ChatHub = () => {
             const params = new URLSearchParams(window.location.search);
             const peerId = params.get('peer');
             const peerRole = params.get('role');
+            const groupId = params.get('group');
 
             const [sessData, connData] = await Promise.all([
                 socialApi.getChatSessions(),
@@ -219,7 +222,19 @@ export const ChatHub = () => {
             setSessions(sessData ?? []);
             setConnections(connData?.connections ?? []);
 
-            if (peerId && peerRole) {
+            if (groupId) {
+                try {
+                    const detail = await socialApi.getSessionDetail(groupId);
+                    if (detail) {
+                        const found = sessData?.find((s: any) => s.session_id === groupId);
+                        setActiveSession(found || detail);
+                        setActiveSessionDetail(detail);
+                        setMobileView('chat');
+                    }
+                } catch {
+                   toast.error("Group not found or Access Denied.");
+                }
+            } else if (peerId && peerRole) {
                 const session = await socialApi.startChat(parseInt(peerId), peerRole);
                 if (session?.session_id) {
                     const fresh = await socialApi.getChatSessions();
@@ -240,6 +255,16 @@ export const ChatHub = () => {
     /* ── Load message history when session changes ── */
     useEffect(() => {
         if (!activeSession?.session_id) return;
+        
+        // Refresh session detail for groups
+        if (activeSession.is_group) {
+            socialApi.getSessionDetail(activeSession.session_id)
+                .then(detail => setActiveSessionDetail(detail))
+                .catch(() => setActiveSessionDetail(null));
+        } else {
+            setActiveSessionDetail(null);
+        }
+
         socialApi.getChatMessages(activeSession.session_id)
             .then((msgs: any[]) => ingestHistory(msgs ?? []))
             .catch(() => ingestHistory([]));
@@ -483,6 +508,93 @@ export const ChatHub = () => {
                 </div>
             </div>
 
+            {/* ═══════════════ SETTINGS DRAWER ═══════════════ */}
+            {showSettings && activeSessionDetail && (
+                <div className="fixed inset-y-0 right-0 w-80 glass z-[150] border-l border-white/10 shadow-2xl p-6 flex flex-col gap-6 animate-in slide-in-from-right duration-300">
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-black text-white uppercase tracking-widest">Room Intelligence</h3>
+                        <button onClick={() => setShowSettings(false)} className="text-gray-500 hover:text-white transition-all"><X className="w-4 h-4" /></button>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div className="w-20 h-20 rounded-[2rem] bg-indigo-600/20 flex items-center justify-center mx-auto text-indigo-400 text-3xl font-black">
+                            {activeSessionDetail.name?.[0] || 'G'}
+                        </div>
+                        <div className="text-center">
+                            <h4 className="text-lg font-bold text-white">{activeSessionDetail.name || 'Secure Group'}</h4>
+                            <p className="text-[10px] text-gray-500 uppercase tracking-[0.2em] mt-1">Ref: {activeSessionDetail.participants_metadata?.drive_id ? `Placement Drive #${activeSessionDetail.participants_metadata.drive_id}` : 'General Session'}</p>
+                        </div>
+                    </div>
+
+                    {/* Admin Controls */}
+                    {['INST_ADMIN', 'ADMIN', 'FACULTY'].includes(user?.role || '') && (
+                        <div className="space-y-3">
+                            <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest pl-1">Orchestration Controls</p>
+                            <div className="glass p-4 rounded-2xl border-white/5 space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs font-bold text-gray-300">Announcement Only</span>
+                                    <button 
+                                        onClick={async () => {
+                                            const newVal = !activeSessionDetail.participants_metadata?.read_only_for_students;
+                                            await socialApi.updateGroupSettings(activeSessionDetail.session_id, newVal);
+                                            setActiveSessionDetail({
+                                                ...activeSessionDetail,
+                                                participants_metadata: { ...activeSessionDetail.participants_metadata, read_only_for_students: newVal }
+                                            });
+                                            toast.success(newVal ? "Switched to Announcement Mode" : "Comments Enabled");
+                                        }}
+                                        className={`w-10 h-5 rounded-full relative transition-all ${activeSessionDetail.participants_metadata?.read_only_for_students ? 'bg-indigo-600' : 'bg-white/10'}`}
+                                    >
+                                        <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${activeSessionDetail.participants_metadata?.read_only_for_students ? 'right-1' : 'left-1'}`} />
+                                    </button>
+                                </div>
+                                <p className="text-[9px] text-gray-500 italic">Students will only be able to view messages, not send.</p>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="flex-1 overflow-y-auto space-y-2">
+                        <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest pl-1">Participants ({activeSessionDetail.participants?.length || 0})</p>
+                        {activeSessionDetail.participants?.map((p: any) => {
+                            const isMe = Number(p.id) === Number(user?.id) && p.role === user?.role;
+                            return (
+                                <div key={`${p.role}-${p.id}`} className="flex items-center gap-3 p-3 bg-white/5 rounded-2xl border border-white/5 group/p">
+                                    <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center font-black text-[10px] text-indigo-400">
+                                        {p.name?.[0]}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-xs font-bold text-white truncate">{p.name}</p>
+                                        <p className="text-[9px] text-indigo-500/60 font-black uppercase tracking-widest">{p.role}</p>
+                                    </div>
+                                    {['INST_ADMIN', 'ADMIN', 'FACULTY'].includes(user?.role || '') && !isMe && (
+                                        <button 
+                                            onClick={async () => {
+                                                if (window.confirm(`Expel ${p.name} from this session?`)) {
+                                                    try {
+                                                        await socialApi.removeParticipant(activeSessionDetail.session_id, p.id, p.role);
+                                                        setActiveSessionDetail({
+                                                            ...activeSessionDetail,
+                                                            participants: activeSessionDetail.participants.filter((x: any) => !(x.id === p.id && x.role === p.role))
+                                                        });
+                                                        toast.success("Participant Purged.");
+                                                    } catch {
+                                                        toast.error("Moderation Failure.");
+                                                    }
+                                                }
+                                            }}
+                                            className="opacity-0 group-hover/p:opacity-100 p-2 hover:bg-red-500/20 text-red-500 rounded-xl transition-all"
+                                            title="Expel Participant"
+                                        >
+                                            <X className="w-3.5 h-3.5" />
+                                        </button>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
             {/* ═══════════════ CHAT PANEL ═══════════════ */}
             <div className={`
                 flex-1 flex flex-col glass rounded-2xl border border-white/5 overflow-hidden min-w-0 min-h-0
@@ -511,9 +623,14 @@ export const ChatHub = () => {
                             </div>
 
                             {/* Name + status */}
-                            <div className="flex-1 min-w-0">
+                            <div className="flex-1 min-w-0 cursor-pointer" onClick={() => activeSession.is_group && setShowSettings(true)}>
                                 <div className="flex items-center gap-2 flex-wrap">
                                     <span className="font-bold text-white text-sm truncate">{activeSession.other_name}</span>
+                                    {activeSession.is_group && (
+                                        <span className="bg-indigo-500/10 text-indigo-400 text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-tighter border border-indigo-500/10">
+                                            {activeSessionDetail?.participants?.length || '?'} Participants
+                                        </span>
+                                    )}
                                 </div>
                                 {/* Second line: typing |last seen | live indicator */}
                                 <div className="flex items-center gap-1.5 mt-0.5 h-4">
@@ -641,16 +758,18 @@ export const ChatHub = () => {
                                 <input
                                     ref={inputRef}
                                     type="text"
-                                    placeholder={
+                                     placeholder={
                                         isRecording ? '🔴 Recording…'
                                             : !connected ? 'Reconnecting…'
-                                                : `Message ${activeSession.other_name}…`
+                                            : activeSessionDetail?.participants_metadata?.read_only_for_students && !['INST_ADMIN', 'ADMIN', 'FACULTY'].includes(user?.role || '')
+                                            ? '🚨 Only admins can message here'
+                                            : `Message ${activeSession.other_name}…`
                                     }
-                                    className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-all font-medium"
+                                    className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-all font-medium disabled:opacity-20 disabled:cursor-not-allowed"
                                     value={msgInput}
                                     onChange={e => onTyping(e.target.value)}
                                     onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-                                    disabled={isRecording}
+                                    disabled={isRecording || (activeSessionDetail?.participants_metadata?.read_only_for_students && !['INST_ADMIN', 'ADMIN', 'FACULTY'].includes(user?.role || ''))}
                                     autoComplete="off"
                                 />
 

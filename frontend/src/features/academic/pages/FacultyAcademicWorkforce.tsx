@@ -5,6 +5,7 @@ import {
     FileText, Zap, Info
 } from 'lucide-react';
 import { academicApi } from '../api/academicApi';
+import { useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../auth/context/AuthProvider/AuthProvider';
 
@@ -25,18 +26,27 @@ export const FacultyAcademicWorkforce = () => {
     const [attendanceRecords, setAttendanceRecords] = useState<Record<string, string>>({});
     const [marksRecords, setMarksRecords] = useState<Record<string, number>>({});
 
+    const location = useLocation();
+
     useEffect(() => {
         const loadSubjects = async () => {
             try {
                 const res = await academicApi.list('teacher-assignments');
                 const data = res.data.success ? res.data.data : res.data;
                 setMySubjects(data);
+
+                // Auto-select if passed from dashboard
+                const stateSubjectId = location.state?.subject_id;
+                if (stateSubjectId && data.length > 0) {
+                    const match = data.find((s: any) => s.subject === stateSubjectId || s.id === stateSubjectId);
+                    if (match) setSelectedSubject(match);
+                }
             } catch (err) {
                 toast.error("Registry access denied for assigned subjects");
             }
         };
         loadSubjects();
-    }, []);
+    }, [location.state]);
 
     // Sync Operational Defaults from Subject Definition
     useEffect(() => {
@@ -152,8 +162,8 @@ export const FacultyAcademicWorkforce = () => {
                         key={sub.id}
                         onClick={() => setSelectedSubject(sub)}
                         className={`p-6 rounded-[2.5rem] border transition-all text-left relative overflow-hidden group ${selectedSubject?.id === sub.id
-                                ? 'bg-primary/10 border-primary shadow-[0_0_50px_rgba(20,110,245,0.1)]'
-                                : 'bg-white/5 border-white/5 hover:border-white/20'
+                            ? 'bg-primary/10 border-primary shadow-[0_0_50px_rgba(20,110,245,0.1)]'
+                            : 'bg-white/5 border-white/5 hover:border-white/20'
                             }`}
                     >
                         <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform">
@@ -274,8 +284,8 @@ export const FacultyAcademicWorkforce = () => {
                                                             key={status}
                                                             onClick={() => setAttendanceRecords(prev => ({ ...prev, [s.roll_number]: status }))}
                                                             className={`px-3 py-1.5 rounded-lg text-[9px] font-black transition-all ${attendanceRecords[s.roll_number] === status
-                                                                    ? (status === 'PRESENT' ? 'bg-green-500 text-white shadow-lg' : status === 'ABSENT' ? 'bg-red-500 text-white shadow-lg' : 'bg-amber-500 text-white shadow-lg')
-                                                                    : 'bg-white/5 text-gray-500 hover:bg-white/10'
+                                                                ? (status === 'PRESENT' ? 'bg-green-500 text-white shadow-lg' : status === 'ABSENT' ? 'bg-red-500 text-white shadow-lg' : 'bg-amber-500 text-white shadow-lg')
+                                                                : 'bg-white/5 text-gray-500 hover:bg-white/10'
                                                                 }`}
                                                         >
                                                             {status}

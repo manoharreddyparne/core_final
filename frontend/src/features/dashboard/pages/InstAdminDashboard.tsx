@@ -56,11 +56,18 @@ export const InstAdminDashboard = () => {
             bg: "bg-green-400/10"
         },
         {
-            label: "Verified Faculty",
-            value: statsData?.verified_faculty?.toLocaleString() || (loading ? "..." : "0"),
+            label: "Total Faculty",
+            value: statsData?.total_faculty?.toLocaleString() || (loading ? "..." : "0"),
             icon: Users,
             color: "text-blue-400",
             bg: "bg-blue-400/10"
+        },
+        {
+            label: "Verified Faculty",
+            value: statsData?.verified_faculty?.toLocaleString() || (loading ? "..." : "0"),
+            icon: ShieldCheck,
+            color: "text-cyan-400",
+            bg: "bg-cyan-400/10"
         },
     ];
 
@@ -85,7 +92,7 @@ export const InstAdminDashboard = () => {
             </div>
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {stats.map((stat, i) => (
                     <div key={i} className="glass p-8 rounded-[2.5rem] border-white/5 space-y-4 hover:border-primary/50 transition-all group">
                         <div className={`w-14 h-14 rounded-2xl ${stat.bg} ${stat.color} flex items-center justify-center shadow-lg transition-transform group-hover:scale-110`}>

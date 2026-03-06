@@ -1,5 +1,7 @@
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth/context/AuthProvider/AuthProvider";
+import { instApiClient } from "../../auth/api/base";
 import {
     BookOpen,
     Users,
@@ -8,35 +10,90 @@ import {
     Zap,
     GraduationCap,
     Clock,
-    CheckCircle2
+    CheckCircle2,
+    ChevronRight
 } from "lucide-react";
 
 export const FacultyDashboard = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
+    const [statsData, setStatsData] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+    const [assignedSubjects, setAssignedSubjects] = useState<any[]>([]);
+    const [statsLoading, setStatsLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchDashboardData = async () => {
+            try {
+                // Fetch stats
+                const statsRes = await instApiClient.get("dashboard/stats/");
+                if (statsRes.data.success) {
+                    setStatsData(statsRes.data.data);
+                }
+
+                // Fetch real assignments
+                const academicRes = await instApiClient.get("courses/teacher-assignments/");
+                const assignments = academicRes.data.success ? academicRes.data.data : academicRes.data;
+                setAssignedSubjects(Array.isArray(assignments) ? assignments : []);
+
+            } catch (err) {
+                console.error("Faculty dashboard sync failed", err);
+            } finally {
+                setStatsLoading(false);
+                setLoading(false);
+            }
+        };
+        fetchDashboardData();
+    }, []);
 
     const stats = [
-        { label: "Active Courses", value: "4", icon: BookOpen, color: "text-blue-400", bg: "bg-blue-400/10" },
-        { label: "Total Students", value: "185", icon: Users, color: "text-purple-400", bg: "bg-purple-400/10" },
-        { label: "Pending Tasks", value: "12", icon: Clock, color: "text-amber-400", bg: "bg-amber-400/10" },
+        {
+            label: "Courses Taught",
+            value: statsData?.active_courses?.toLocaleString() || (statsLoading ? "..." : "0"),
+            icon: BookOpen,
+            color: "text-blue-400",
+            bg: "bg-blue-400/10"
+        },
+        {
+            label: "Student Base",
+            value: statsData?.total_students?.toLocaleString() || (statsLoading ? "..." : "0"),
+            icon: Users,
+            color: "text-purple-400",
+            bg: "bg-purple-400/10"
+        },
+        {
+            label: "System Status",
+            value: "LIVE",
+            icon: CheckCircle2,
+            color: "text-green-400",
+            bg: "bg-green-400/10"
+        },
     ];
 
     return (
         <div className="space-y-10 animate-in fade-in duration-700">
             {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div>
-                    <h1 className="text-4xl font-black text-white tracking-tight">
-                        Faculty <span className="text-primary italic">Command</span>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 pb-4">
+                <div className="space-y-1">
+                    <h1 className="text-5xl font-black text-white tracking-tighter leading-tight">
+                        Faculty <span className="text-primary italic relative">
+                            Command
+                            <span className="absolute -bottom-2 left-0 w-full h-1 bg-primary/20 rounded-full blur-sm" />
+                        </span>
                     </h1>
-                    <p className="text-muted-foreground mt-1">
-                        Welcome back, <span className="text-white font-bold">{user?.full_name || user?.first_name || user?.username || "Educator"}</span>.
-                        System operational.
+                    <p className="text-muted-foreground text-sm font-medium tracking-wide">
+                        Welcome back, <span className="text-white font-bold decoration-primary/30 underline decoration-2 underline-offset-4">{user?.full_name || user?.first_name || "Educator Unit"}</span>.
+                        Operational status: <span className="text-green-500 font-black uppercase tracking-widest text-[10px]">Optimal</span>
                     </p>
                 </div>
-                <div className="glass px-4 py-2 rounded-2xl border-white/5 flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                    <span className="text-[10px] font-black text-white uppercase tracking-widest">Faculty Protocol Active</span>
+                <div className="flex items-center gap-4">
+                    <div className="glass px-6 py-3 rounded-2xl border-white/5 flex items-center gap-4 shadow-2xl backdrop-blur-3xl group hover:border-primary/50 transition-all cursor-default">
+                        <div className="relative">
+                            <div className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse" />
+                            <div className="absolute inset-0 w-2.5 h-2.5 rounded-full bg-blue-400 animate-ping opacity-40" />
+                        </div>
+                        <span className="text-[10px] font-black text-white uppercase tracking-[0.2em]">Protocol: Faculty_Active</span>
+                    </div>
                 </div>
             </div>
 
@@ -112,31 +169,41 @@ export const FacultyDashboard = () => {
                     <button className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline px-2">View Full Calendar</button>
                 </div>
                 <div className="space-y-4">
-                    {[
-                        { title: "Advanced Algorithms", time: "09:00 AM - 10:30 AM", room: "Cluster A", status: "Upcoming" },
-                        { title: "System Architecture Workshop", time: "11:00 AM - 12:30 PM", room: "Lab 04", status: "Upcoming" },
-                        { title: "Faculty Council Meeting", time: "02:30 PM - 04:00 PM", room: "Conf Room 2", status: "Upcoming" },
-                    ].map((item, i) => (
-                        <div key={i} className="flex items-center justify-between p-6 bg-white/5 rounded-2xl border border-white/5 hover:bg-white/[0.08] transition-all cursor-pointer">
-                            <div className="flex items-center gap-6">
-                                <div className="text-center min-w-[100px]">
-                                    <p className="text-xs font-black text-primary uppercase tracking-tighter">{item.time}</p>
+                    {assignedSubjects.length > 0 ? (
+                        assignedSubjects.slice(0, 3).map((item, i) => (
+                            <div
+                                key={i}
+                                onClick={() => navigate('/faculty/academic', { state: { subject_id: item.subject } })}
+                                className="flex items-center justify-between p-6 bg-white/5 rounded-2xl border border-white/5 hover:bg-white/[0.08] transition-all cursor-pointer group"
+                            >
+                                <div className="flex items-center gap-6">
+                                    <div className="text-center min-w-[80px]">
+                                        <p className="text-xs font-black text-primary uppercase tracking-tighter">
+                                            {item.subject_code}
+                                        </p>
+                                    </div>
+                                    <div className="h-8 w-[1px] bg-white/10" />
+                                    <div>
+                                        <h4 className="text-white font-bold">{item.subject_name}</h4>
+                                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                                            <LayoutDashboard className="w-3 h-3" />
+                                            Section {item.section_label || 'A'} · {item.academic_year_label}
+                                        </p>
+                                    </div>
                                 </div>
-                                <div className="h-8 w-[1px] bg-white/10" />
-                                <div>
-                                    <h4 className="text-white font-bold">{item.title}</h4>
-                                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-                                        <LayoutDashboard className="w-3 h-3" />
-                                        {item.room}
-                                    </p>
+                                <div className="flex items-center gap-2 px-3 py-1 bg-primary/10 rounded-lg group-hover:bg-primary transition-colors">
+                                    <span className="text-[10px] font-black text-primary group-hover:text-white uppercase tracking-widest">Go to Desk</span>
+                                    <ChevronRight className="w-3 h-3 text-primary group-hover:text-white" />
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2 px-3 py-1 bg-green-500/10 rounded-lg">
-                                <CheckCircle2 className="w-3 h-3 text-green-400" />
-                                <span className="text-[10px] font-black text-green-400 uppercase tracking-widest">{item.status}</span>
-                            </div>
+                        ))
+                    ) : (
+                        <div className="p-12 text-center border border-dashed border-white/10 rounded-3xl">
+                            <BookOpen className="w-10 h-10 text-white/10 mx-auto mb-4" />
+                            <p className="text-gray-500 font-bold text-sm">No course assignments found for your profile.</p>
+                            <p className="text-[10px] text-gray-700 font-black uppercase tracking-widest mt-2 px-4 shadow-sm border border-white/5 rounded-full inline-block py-1">Contact Institution Admin</p>
                         </div>
-                    ))}
+                    )}
                 </div>
             </div>
         </div>

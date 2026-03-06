@@ -9,32 +9,19 @@ export const classSectionFields: FormField[] = [
 ];
 
 export const teacherAssignmentFields: FormField[] = [
-    { name: 'faculty_name', label: 'Faculty Name', required: true, fullWidth: true },
-    { name: 'employee_id', label: 'Employee ID', required: true },
+    { name: 'employee_id', label: 'Faculty Selection', required: true, fullWidth: true },
     { name: 'subject', label: 'Subject ID', required: true, type: 'number' },
     { name: 'section', label: 'Section ID', type: 'number' },
     { name: 'academic_year', label: 'Year ID', required: true, type: 'number' },
     { name: 'semester', label: 'Semester ID', type: 'number' },
-    { name: 'is_primary', label: 'Primary Faculty', type: 'checkbox', checkboxLabel: 'Set as Lead' }
+    { name: 'is_primary', label: 'Primary Faculty', type: 'checkbox', checkboxLabel: 'Set as Lead', fullWidth: true }
 ];
 
 export const studentEnrollmentFields: FormField[] = [
-    { name: 'student_name', label: 'Student Name', required: true, fullWidth: true },
-    { name: 'roll_number', label: 'Roll Number', required: true },
+    { name: 'roll_number', label: 'Student Selection', required: true, fullWidth: true },
     { name: 'subject', label: 'Subject ID', required: true, type: 'number' },
     { name: 'section', label: 'Section ID', type: 'number' },
-    { name: 'semester', label: 'Semester ID', required: true, type: 'number' },
-    {
-        name: 'status',
-        label: 'Enrollment Status',
-        type: 'select',
-        options: [
-            { label: 'Active', value: 'ACTIVE' },
-            { label: 'Dropped', value: 'DROPPED' },
-            { label: 'Completed', value: 'COMPLETED' },
-            { label: 'Detained', value: 'DETAINED' }
-        ]
-    }
+    { name: 'semester', label: 'Semester ID', required: true, type: 'number' }
 ];
 
 export const attendanceLogFields: FormField[] = [

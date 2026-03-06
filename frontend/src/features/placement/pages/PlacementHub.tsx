@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { placementApi } from '../api';
 import { PlacementDrive, PlacementApplication } from '../types';
 import { RecruitmentFunnel } from '../components/RecruitmentFunnel';
+import PlacementDriveCard from '../components/PlacementDriveCard';
 
 const PlacementHub: React.FC = () => {
     const [drives, setDrives] = useState<PlacementDrive[]>([]);
@@ -31,8 +32,8 @@ const PlacementHub: React.FC = () => {
     const handleApply = async (driveId: number) => {
         try {
             setApplying(driveId);
-            // using empty resume string for now, will integrate Resume Builder later
-            await placementApi.applyForDrive(driveId, "default_resume.pdf");
+            // using a valid placeholder URL for now
+            await placementApi.applyForDrive(driveId, "https://auip.edu/resumes/default.pdf");
             // refresh data
             await fetchData();
             // Need to import toast at top if not there
@@ -95,31 +96,21 @@ const PlacementHub: React.FC = () => {
                         Open Drives
                     </h2>
                     <div className="space-y-4">
-                        {drives.map(drive => (
-                            <div key={drive.id} className="glass group p-6 rounded-[2.5rem] border-white/5 hover:bg-white/5 transition-all">
-                                <div className="flex justify-between items-start mb-4">
-                                    <div>
-                                        <h4 className="font-bold text-white">{drive.company_name}</h4>
-                                        <p className="text-[10px] text-muted-foreground font-bold">{drive.location}</p>
-                                    </div>
-                                    <div className="px-2 py-0.5 bg-primary/20 text-primary text-[10px] font-black rounded uppercase">
-                                        {drive.package_details}
-                                    </div>
-                                </div>
-
-                                <p className="text-xs text-blue-100/60 line-clamp-2 mb-4">
-                                    {drive.job_description}
-                                </p>
-
-                                <button
-                                    onClick={() => handleApply(drive.id as number)}
-                                    disabled={applying === drive.id}
-                                    className="w-full py-3 bg-white/5 border border-white/10 rounded-2xl text-xs font-black text-white hover:bg-primary hover:border-primary transition-all group-hover:shadow-lg group-hover:shadow-primary/20 disabled:opacity-50"
-                                >
-                                    {applying === drive.id ? "APPLYING..." : "APPLY NOW"}
-                                </button>
-                            </div>
-                        ))}
+                    <div className="space-y-6">
+                        {drives.map(drive => {
+                            const studentApp = apps.find(a => a.drive === drive.id);
+                            return (
+                                <PlacementDriveCard 
+                                    key={drive.id}
+                                    drive={drive}
+                                    mode="student"
+                                    onApply={handleApply}
+                                    isApplying={applying === drive.id}
+                                    appStatus={studentApp?.status}
+                                />
+                            );
+                        })}
+                    </div>
                     </div>
                 </div>
             </div>

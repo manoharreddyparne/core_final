@@ -146,3 +146,88 @@ class DocumentTemplateViewSet(viewsets.ModelViewSet):
     queryset = DocumentTemplate.objects.all()
     serializer_class = DocumentTemplateSerializer
     permission_classes = [IsTenantAdmin]
+
+
+from rest_framework.views import APIView
+from apps.auip_institution.models import StudentAcademicRegistry
+
+class GovernanceBrainView(APIView):
+    """
+    Endpoints for the Governance Brain Dashboard.
+    GET  /api/governance/brain/dashboard/  — Stats + all student intelligence profiles
+    POST /api/governance/brain/recompute/  — Trigger full matrix rebuild
+    """
+    authentication_classes = [TenantAuthentication]
+    permission_classes = [IsTenantAdmin]
+
+    def get(self, request):
+        """Returns aggregated student intelligence profiles for the Brain Dashboard."""
+        try:
+            from django.db.models import Avg
+            profiles_qs = StudentIntelligenceProfile.objects.select_related('student').all()
+
+            profiles_data = []
+            for p in profiles_qs:
+                s = p.student
+                profiles_data.append({
+                    "id": s.id,
+                    "roll_number": s.roll_number,
+                    "full_name": s.full_name,
+                    "branch": s.branch or "N/A",
+                    "cgpa": float(s.cgpa) if s.cgpa else 0.0,
+                    "batch_year": s.passout_year or 0,
+                    "readiness_score": p.readiness_score,
+                    "behavior_score": p.behavior_score,
+                    "risk_factor": float(p.risk_factor),
+                    "interest_matrix": p.interest_matrix or {},
+                    "last_computed": p.last_computed.isoformat() if p.last_computed else None,
+                    "is_at_risk": p.risk_factor >= 0.4 or p.readiness_score < 40,
+                })
+
+            total = len(profiles_data)
+            avg_readiness = round(sum(p["readiness_score"] for p in profiles_data) / total) if total else 0
+            at_risk = sum(1 for p in profiles_data if p["is_at_risk"])
+            high_performers = sum(1 for p in profiles_data if p["readiness_score"] >= 70)
+
+            from django.utils import timezone
+            stats = {
+                "total_students": total,
+                "avg_readiness": avg_readiness,
+                "at_risk_count": at_risk,
+                "high_performers": high_performers,
+                "last_updated": timezone.now().isoformat(),
+            }
+
+            return success_response("Brain dashboard data retrieved", data={
+                "profiles": profiles_data,
+                "stats": stats,
+            })
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"[BRAIN-DASHBOARD-ERROR] {e}")
+            return error_response(f"Failed to load brain dashboard: {str(e)}", code=500)
+
+    def post(self, request):
+        """Trigger matrix recompute for all students who have intelligence profiles."""
+        try:
+            from apps.core_brain.services import BrainOrchestrator
+            profiles = StudentIntelligenceProfile.objects.select_related('student').all()
+            rebuilt = 0
+            errors = 0
+            for profile in profiles:
+                try:
+                    BrainOrchestrator.rebuild_student_matrix(profile.student.id)
+                    rebuilt += 1
+                except Exception as e:
+                    errors += 1
+                    import logging
+                    logging.getLogger(__name__).error(f"[BRAIN-RECOMPUTE-ERR] Student {profile.student.id}: {e}")
+
+            return success_response(
+                f"Matrix recomputed: {rebuilt} students updated, {errors} errors.",
+                data={"rebuilt": rebuilt, "errors": errors}
+            )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"[BRAIN-RECOMPUTE-CRITICAL] {e}")
+            return error_response(f"Recompute failed: {str(e)}", code=500)

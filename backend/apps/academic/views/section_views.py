@@ -14,6 +14,7 @@ from apps.academic.serializers import (
     ClassSectionSerializer, TeacherAssignmentSerializer, StudentEnrollmentSerializer
 )
 from ._permissions import AdminWriteAuthReadMixin
+from .pagination import AcademicPagination
 
 logger = logging.getLogger(__name__)
 
@@ -22,9 +23,11 @@ class ClassSectionViewSet(AdminWriteAuthReadMixin, viewsets.ModelViewSet):
     authentication_classes = [TenantAuthentication]
     serializer_class = ClassSectionSerializer
 
+    pagination_class = AcademicPagination
+
     def get_queryset(self):
         qs = ClassSection.objects.select_related('program', 'academic_year').annotate(
-            _enrolled_count=Count('enrollments')
+            enrolled_count=Count('enrollments')
         )
         params = self.request.query_params
         if params.get('program'):
@@ -41,7 +44,9 @@ class TeacherAssignmentViewSet(AdminWriteAuthReadMixin, viewsets.ModelViewSet):
     serializer_class = TeacherAssignmentSerializer
 
     def get_queryset(self):
-        qs = TeacherAssignment.objects.select_related('subject', 'section', 'academic_year', 'semester')
+        qs = TeacherAssignment.objects.select_related(
+            'subject', 'section__program', 'section__academic_year', 'academic_year', 'semester'
+        )
         role = getattr(self.request.user, 'role', '')
         if role == 'FACULTY':
             employee_id = getattr(self.request.user.academic_ref, 'employee_id', None) \
@@ -69,8 +74,13 @@ class StudentEnrollmentViewSet(AdminWriteAuthReadMixin, viewsets.ModelViewSet):
     authentication_classes = [TenantAuthentication]
     serializer_class = StudentEnrollmentSerializer
 
+    pagination_class = AcademicPagination
+
     def get_queryset(self):
-        qs = StudentEnrollment.objects.select_related('subject', 'section', 'semester')
+        # Optimized select_related to fix N+1 in semester_label (__str__)
+        qs = StudentEnrollment.objects.select_related(
+            'subject', 'section', 'semester__program', 'semester__academic_year'
+        )
         role = getattr(self.request.user, 'role', '')
         if role == 'STUDENT':
             roll = getattr(self.request.user.academic_ref, 'roll_number', None) \
@@ -106,22 +116,33 @@ class StudentEnrollmentViewSet(AdminWriteAuthReadMixin, viewsets.ModelViewSet):
         except (Subject.DoesNotExist, Semester.DoesNotExist):
             return error_response("Subject or Semester not found", code=404)
 
-        created_count = 0
+        existing_rolls = set(StudentEnrollment.objects.filter(
+            subject=subject, semester=semester, roll_number__in=[s.get('roll_number') for s in students if s.get('roll_number')]
+        ).values_list('roll_number', flat=True))
+
+        new_enrollments = []
         skipped = []
-        with transaction.atomic():
-            for s in students:
-                roll = s.get('roll_number')
-                name = s.get('student_name', '')
-                if not roll:
-                    continue
-                _, created = StudentEnrollment.objects.get_or_create(
-                    roll_number=roll, subject=subject, semester=semester,
-                    defaults={'student_name': name, 'section_id': section_id, 'status': 'ACTIVE'}
+        
+        for s in students:
+            roll = s.get('roll_number')
+            name = s.get('student_name', '')
+            if not roll:
+                continue
+            if roll in existing_rolls:
+                skipped.append(roll)
+            else:
+                new_enrollments.append(
+                    StudentEnrollment(
+                        roll_number=roll, subject=subject, semester=semester,
+                        student_name=name, section_id=section_id, status='ACTIVE'
+                    )
                 )
-                if created:
-                    created_count += 1
-                else:
-                    skipped.append(roll)
+
+        created_count = 0
+        if new_enrollments:
+            with transaction.atomic():
+                StudentEnrollment.objects.bulk_create(new_enrollments, ignore_conflicts=True)
+            created_count = len(new_enrollments)
 
         return success_response(
             f"Bulk enrollment complete: {created_count} enrolled, {len(skipped)} skipped (already enrolled)",

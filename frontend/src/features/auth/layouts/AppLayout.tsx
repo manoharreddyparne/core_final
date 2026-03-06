@@ -216,6 +216,10 @@ export const AppLayout = () => {
         { to: "/newsletters", label: "Nexus Bulletins", icon: FileText, roles: ["student"] },
         { to: "/support-hub", label: "Support", icon: HelpCircle, roles: ["student"] },
 
+        // FACULTY HUB
+        { to: "/faculty-dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["faculty", "teacher"] },
+        { to: "/faculty/academic", label: "Academic Control", icon: Building2, roles: ["faculty", "teacher"] },
+
         // GLOBAL HUB (SUPER ADMIN)
         {
             to: "/superadmin/dashboard",
@@ -279,7 +283,14 @@ export const AppLayout = () => {
             to: "/institution/faculty",
             label: "Academic Faculty",
             icon: Users,
-            roles: ["institution_admin"],
+            roles: ["institution_admin", "admin", "inst_admin"],
+            hideInGlobal: true
+        },
+        {
+            to: "/institution/academic",
+            label: "Academic Hub",
+            icon: Building2,
+            roles: ["institution_admin", "admin", "inst_admin"],
             hideInGlobal: true
         },
 

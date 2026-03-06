@@ -84,6 +84,13 @@ export const placementApi = {
         }
     },
 
+    checkEligibility: async (formData: FormData): Promise<any> => {
+        const response = await placementClient.post("placement/drives/check_eligibility/", formData, {
+            headers: { "Content-Type": "multipart/form-data" }
+        });
+        return response.data;
+    },
+
     getEligibilityStats: async (driveId: number): Promise<any> => {
         const response = await placementClient.get(`placement/drives/${driveId}/eligibility_stats/`);
         return response.data;
@@ -123,6 +130,16 @@ export const placementApi = {
 
     updateApplicationStage: async (applicationId: number, data: { stage_id: number; status: string; feedback?: string }): Promise<any> => {
         const response = await placementClient.patch(`placement/applications/${applicationId}/update_stage/`, data);
+        return response.data;
+    },
+
+    deleteDrive: async (driveId: number): Promise<any> => {
+        const response = await placementClient.delete(`placement/drives/${driveId}/`);
+        return response.data;
+    },
+
+    searchStudents: async (query: string): Promise<any> => {
+        const response = await placementClient.get(`placement/drives/search_students/?q=${query}`);
         return response.data;
     },
 };

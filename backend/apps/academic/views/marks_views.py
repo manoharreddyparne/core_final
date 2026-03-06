@@ -9,10 +9,12 @@ from apps.auip_institution.permissions import IsTenantAdmin
 from ._permissions import IsTenantFacultyOrAdmin
 from apps.academic.models import Subject, Semester, Course, Batch, InternalMark
 from apps.academic.serializers import InternalMarkSerializer, CourseSerializer, BatchSerializer
+from .pagination import AcademicPagination
 
 class InternalMarkViewSet(viewsets.ModelViewSet):
     authentication_classes = [TenantAuthentication]
     serializer_class = InternalMarkSerializer
+    pagination_class = AcademicPagination
 
     def get_queryset(self):
         qs = InternalMark.objects.select_related('subject', 'semester')
@@ -80,6 +82,7 @@ class InternalMarkViewSet(viewsets.ModelViewSet):
 class CourseViewSet(viewsets.ModelViewSet):
     authentication_classes = [TenantAuthentication]
     serializer_class = CourseSerializer
+    pagination_class = AcademicPagination
     def get_queryset(self): return Course.objects.select_related('department', 'program')
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']: return [IsTenantAdmin()]
@@ -88,6 +91,7 @@ class CourseViewSet(viewsets.ModelViewSet):
 class BatchViewSet(viewsets.ModelViewSet):
     authentication_classes = [TenantAuthentication]
     serializer_class = BatchSerializer
+    pagination_class = AcademicPagination
     def get_queryset(self): return Batch.objects.select_related('course')
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']: return [IsTenantAdmin()]

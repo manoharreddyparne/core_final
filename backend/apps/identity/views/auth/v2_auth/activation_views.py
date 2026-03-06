@@ -151,11 +151,31 @@ class ActivationCompleteView(generics.GenericAPIView):
                 if registry_entry.token_expires_at and registry_entry.token_expires_at < timezone.now():
                     return error_response("Activation link has expired.", code=400)
                 
+                # Attempt to get first_name and last_name from academic_record if available
+                first_name = ''
+                last_name = ''
+                if role == 'STUDENT':
+                    from apps.auip_institution.models import StudentAcademicRegistry
+                    academic_record = StudentAcademicRegistry.objects.filter(roll_number=registry_entry.identifier).first()
+                elif role == 'FACULTY':
+                    from apps.auip_institution.models import FacultyAcademicRegistry
+                    academic_record = FacultyAcademicRegistry.objects.filter(employee_id=registry_entry.identifier).first()
+                else: # ADMIN
+                    academic_record = None # Admins might not have an academic record in the same way
+
+                if academic_record and academic_record.full_name:
+                    name_parts = academic_record.full_name.split(' ', 1)
+                    first_name = name_parts[0]
+                    last_name = name_parts[1] if len(name_parts) > 1 else ''
+
                 return success_response("Token valid.", data={
                     "email": registry_entry.email,
                     "identifier": registry_entry.identifier,
                     "role": role,
                     "already_activated": registry_entry.is_activated,
+                    "first_name": first_name,
+                    "last_name": last_name,
+                    "full_name": f"{first_name} {last_name}".strip()
                 })
         except Exception as e:
             logger.error(f"[ActivationComplete-GET] Error: {e}")
@@ -211,6 +231,8 @@ class ActivationCompleteView(generics.GenericAPIView):
             account, created = acc_model.objects.get_or_create(
                 registry_ref=registry_entry,
                 defaults={
+                    "first_name": academic_record.full_name.split(' ')[0] if academic_record and academic_record.full_name else '',
+                    "last_name": ' '.join(academic_record.full_name.split(' ')[1:]) if academic_record and academic_record.full_name else '',
                     "email": registry_entry.email if role != 'ADMIN' else registry_entry.identifier,
                     "password_hash": make_password(password),
                     "is_active": True,

@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 class StudentPagination(PageNumberPagination):
     page_size = 100
     page_size_query_param = 'page_size'
-    max_page_size = 500
+    max_page_size = 2000
 
 
 class RegisteredStudentViewSet(viewsets.ModelViewSet):

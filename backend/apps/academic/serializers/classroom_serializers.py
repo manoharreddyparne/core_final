@@ -10,7 +10,7 @@ from apps.academic.models import (
 class ClassSectionSerializer(serializers.ModelSerializer):
     program_name = serializers.CharField(source='program.name', read_only=True)
     academic_year_label = serializers.CharField(source='academic_year.label', read_only=True)
-    enrolled_count = serializers.SerializerMethodField()
+    enrolled_count = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = ClassSection
@@ -19,9 +19,6 @@ class ClassSectionSerializer(serializers.ModelSerializer):
             'semester_number', 'name', 'max_strength', 'enrolled_count', 'created_at'
         ]
         read_only_fields = ['id', 'created_at', 'enrolled_count']
-
-    def get_enrolled_count(self, obj):
-        return obj.enrollments.count()
 
 
 class TeacherAssignmentSerializer(serializers.ModelSerializer):

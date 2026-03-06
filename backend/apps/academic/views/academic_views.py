@@ -14,6 +14,7 @@ from apps.academic.serializers import (
     SemesterSerializer, SubjectSerializer, SubjectListSerializer, SyllabusUnitSerializer,
 )
 from ._permissions import AdminWriteAuthReadMixin, IsTenantFacultyOrAdmin
+from .pagination import AcademicPagination
 
 logger = logging.getLogger(__name__)
 
@@ -22,18 +23,16 @@ class DepartmentViewSet(AdminWriteAuthReadMixin, viewsets.ModelViewSet):
     """Admin-only CRUD for departments. Students/Faculty: read-only."""
     authentication_classes = [TenantAuthentication]
     serializer_class = DepartmentSerializer
+    pagination_class = AcademicPagination
 
     def get_queryset(self):
         return Department.objects.filter(is_active=True)
-
-    def list(self, request, *args, **kwargs):
-        serializer = self.get_serializer(self.get_queryset(), many=True)
-        return success_response("Departments retrieved", data=serializer.data)
 
 
 class AcademicProgramViewSet(AdminWriteAuthReadMixin, viewsets.ModelViewSet):
     authentication_classes = [TenantAuthentication]
     serializer_class = AcademicProgramSerializer
+    pagination_class = AcademicPagination
 
     def get_queryset(self):
         qs = AcademicProgram.objects.select_related('department').filter(is_active=True)
@@ -42,15 +41,12 @@ class AcademicProgramViewSet(AdminWriteAuthReadMixin, viewsets.ModelViewSet):
             qs = qs.filter(department__code=dept)
         return qs
 
-    def list(self, request, *args, **kwargs):
-        serializer = self.get_serializer(self.get_queryset(), many=True)
-        return success_response("Programs retrieved", data=serializer.data)
-
 
 class AcademicYearViewSet(AdminWriteAuthReadMixin, viewsets.ModelViewSet):
     authentication_classes = [TenantAuthentication]
     serializer_class = AcademicYearSerializer
     queryset = AcademicYear.objects.all()
+    pagination_class = AcademicPagination
 
     @action(detail=False, methods=['get'])
     def current(self, request):
@@ -64,6 +60,7 @@ class AcademicYearViewSet(AdminWriteAuthReadMixin, viewsets.ModelViewSet):
 class SemesterViewSet(AdminWriteAuthReadMixin, viewsets.ModelViewSet):
     authentication_classes = [TenantAuthentication]
     serializer_class = SemesterSerializer
+    pagination_class = AcademicPagination
 
     def get_queryset(self):
         qs = Semester.objects.select_related('program', 'academic_year')
@@ -80,12 +77,16 @@ class SemesterViewSet(AdminWriteAuthReadMixin, viewsets.ModelViewSet):
 class SubjectViewSet(AdminWriteAuthReadMixin, viewsets.ModelViewSet):
     """Full subject management. Includes placement-tagged subjects for exam auto-generation."""
     authentication_classes = [TenantAuthentication]
+    pagination_class = AcademicPagination
 
     def get_serializer_class(self):
         return SubjectListSerializer if self.action == 'list' else SubjectSerializer
 
     def get_queryset(self):
-        qs = Subject.objects.select_related('department', 'program').prefetch_related('syllabus_units')
+        from django.db.models import Count
+        qs = Subject.objects.select_related('department', 'program').annotate(
+            _syllabus_units_count=Count('syllabus_units')
+        ).prefetch_related('syllabus_units')
         params = self.request.query_params
         if params.get('department'):
             qs = qs.filter(department__code=params['department'])
@@ -99,9 +100,6 @@ class SubjectViewSet(AdminWriteAuthReadMixin, viewsets.ModelViewSet):
             qs = qs.filter(is_active=True)
         return qs
 
-    def list(self, request, *args, **kwargs):
-        serializer = self.get_serializer(self.get_queryset(), many=True)
-        return success_response("Subjects retrieved", data=serializer.data)
 
     @action(detail=False, methods=['get'])
     def placement_subjects(self, request):
@@ -124,6 +122,7 @@ class SubjectViewSet(AdminWriteAuthReadMixin, viewsets.ModelViewSet):
 class SyllabusUnitViewSet(viewsets.ModelViewSet):
     authentication_classes = [TenantAuthentication]
     serializer_class = SyllabusUnitSerializer
+    pagination_class = AcademicPagination
 
     def get_queryset(self):
         qs = SyllabusUnit.objects.select_related('subject')

@@ -15,6 +15,7 @@ from apps.auip_institution.permissions import IsTenantAdmin
 from apps.identity.utils.response_utils import success_response, error_response
 
 from ._csv_utils import clean_row
+from .faculty_views import broadcast_bulk_progress
 
 logger = logging.getLogger(__name__)
 
@@ -212,6 +213,7 @@ class TenantBulkStudentUploadView(APIView):
                 StudentAcademicRegistry.objects.values_list('roll_number', flat=True)
             }
 
+            total = len(rows)
             new_academic_objs = []
             update_objs = []
             new_preseeded_objs = []
@@ -221,15 +223,18 @@ class TenantBulkStudentUploadView(APIView):
                 StudentPreSeededRegistry.objects.values_list('identifier', flat=True)
             )
 
-            for row in rows:
+            user = request.user
+            role = getattr(user, 'role', 'INST_ADMIN')
+            broadcast_bulk_progress(user, role, 10, "Initializing CSV Registry Scanning...")
+
+            for i, row in enumerate(rows):
                 roll = row.get('roll_number', '').strip()
                 if not roll:
                     continue
                 try:
                     incoming = clean_row(row, depts, progs, sems, secs)
                     if roll.lower() in existing_rolls_lower:
-                        # Load existing for update — but we'll bulk_update to skip hooks
-                        pass  # collected below
+                        pass  # updates not handled in direct CSV commit yet
                     else:
                         new_academic_objs.append(
                             StudentAcademicRegistry(roll_number=roll, **incoming)
@@ -245,10 +250,14 @@ class TenantBulkStudentUploadView(APIView):
                     logger.error(f"[BulkUpload Commit] Row {roll}: {e}")
                     errors.append({"roll": roll, "error": str(e)})
 
+                if i % 100 == 0:
+                    pct = 10 + int((i / total) * 70)
+                    broadcast_bulk_progress(user, role, pct, f"Indexing Student {i}/{total}...")
+
             with transaction.atomic():
                 created = 0
+                broadcast_bulk_progress(user, role, 85, "Executing Atomic Batch Operations...")
                 if new_academic_objs:
-                    # bypass model.save() hooks — direct db write
                     result = StudentAcademicRegistry.objects.bulk_create(
                         new_academic_objs, ignore_conflicts=True
                     )
@@ -257,6 +266,8 @@ class TenantBulkStudentUploadView(APIView):
                     StudentPreSeededRegistry.objects.bulk_create(
                         new_preseeded_objs, ignore_conflicts=True
                     )
+            
+            broadcast_bulk_progress(user, role, 100, "Registry Commitment Successful.")
 
         return success_response("Student processing complete", data={
             "preview": False,
@@ -301,11 +312,16 @@ class TenantBulkStudentUploadView(APIView):
                 StudentPreSeededRegistry.objects.values_list('identifier', flat=True)
             )
 
+            total = len(students_data)
             new_academic_objs = []
             update_objs = []
             new_preseeded_objs = []
+            
+            user = request.user
+            role = getattr(user, 'role', 'INST_ADMIN')
+            broadcast_bulk_progress(user, role, 10, "Opening Synchronization Channel...")
 
-            for row in students_data:
+            for i, row in enumerate(students_data):
                 roll = str(row.get('roll_number', '')).strip()
                 if not roll or row.get('_status') == 'INVALID':
                     continue
@@ -331,8 +347,13 @@ class TenantBulkStudentUploadView(APIView):
                     logger.error(f"[Commit JSON] Row {roll}: {e}")
                     errors.append({"roll": roll, "error": str(e)})
 
+                if i % 50 == 0:
+                    pct = 20 + int((i / total) * 60)
+                    broadcast_bulk_progress(user, role, pct, f"Merging Student Identity {i}/{total}...")
+
             with transaction.atomic():
                 created = updated = 0
+                broadcast_bulk_progress(user, role, 85, "Applying Global Changes...")
                 if new_academic_objs:
                     res = StudentAcademicRegistry.objects.bulk_create(
                         new_academic_objs, ignore_conflicts=True
@@ -348,6 +369,8 @@ class TenantBulkStudentUploadView(APIView):
                     StudentPreSeededRegistry.objects.bulk_create(
                         new_preseeded_objs, ignore_conflicts=True
                     )
+            
+            broadcast_bulk_progress(user, role, 100, "Registry Sync Complete.")
 
         return success_response("Student processing complete", data={
             "preview": False,
