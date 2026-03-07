@@ -249,10 +249,11 @@ class EligibilityEngine:
         }
 
     @staticmethod
-    def broadcast_invitations(drive: PlacementDrive):
+    def broadcast_invitations(drive: PlacementDrive, mode='INITIAL'):
         """
         Triggers the asynchronous recruitment broadcast.
         Auto-detects if Celery worker is available, falls back to thread if not.
+        'mode' can be 'INITIAL', 'REMINDER', 'MISSING'.
         """
         from apps.placement.tasks import broadcast_placement_drive_task
         from django.db import connection
@@ -274,9 +275,9 @@ class EligibilityEngine:
         
         if celery_alive:
             try:
-                task = broadcast_placement_drive_task.delay(drive.id, schema_name)
+                task = broadcast_placement_drive_task.delay(drive.id, schema_name, mode=mode)
                 task_id = task.id
-                logger.info(f"[BROADCAST] Celery task dispatched: {task_id}")
+                logger.info(f"[BROADCAST] Celery task dispatched: {task_id} (mode={mode})")
             except Exception as e:
                 logger.warning(f"[BROADCAST] Celery dispatch failed: {e}")
                 celery_alive = False
@@ -285,17 +286,17 @@ class EligibilityEngine:
             import threading
             import uuid
             task_id = str(uuid.uuid4())
-            logger.info(f"[BROADCAST] No Celery worker. Running in thread. ID={task_id}")
+            logger.info(f"[BROADCAST] No Celery worker. Running in thread. ID={task_id} (mode={mode})")
             print(f"[BROADCAST] No Celery worker. Running in thread. ID={task_id}", flush=True)
             
             def _run_in_thread():
                 """Run the broadcast task directly (not via Celery .apply())."""
                 try:
-                    print(f"[BROADCAST-THREAD] Starting for drive {drive.id}, schema={schema_name}", flush=True)
+                    print(f"[BROADCAST-THREAD] Starting for drive {drive.id}, schema={schema_name}, mode={mode}", flush=True)
                     # Import and call the raw task function directly, bypassing Celery's bind=True wrapper
                     from apps.placement.tasks import broadcast_placement_drive_task
                     # .run() calls the underlying function directly, passing 'self' as None for unbound
-                    broadcast_placement_drive_task.run(drive.id, schema_name)
+                    broadcast_placement_drive_task.run(drive.id, schema_name, mode=mode)
                     print(f"[BROADCAST-THREAD] ✅ Completed for drive {drive.id}", flush=True)
                 except Exception as exc:
                     import traceback
@@ -331,7 +332,7 @@ class EligibilityEngine:
         }
     
     @staticmethod
-    def send_unified_placement_alert(drive: PlacementDrive, registry: any, is_active: bool):
+    def send_unified_placement_alert(drive: PlacementDrive, registry: any, is_active: bool, chat_link: str = None):
         """
         Sends the premium HTML alert to ALL known emails for a student.
         Also triggers a database notification for active accounts.
@@ -367,7 +368,8 @@ class EligibilityEngine:
             package=drive.package_details or "To be announced",
             deadline=str(drive.deadline),
             frontend_url=frontend_url,
-            is_active=is_active
+            is_active=is_active,
+            chat_link=chat_link
         )
         
         # 2. Universal Delivery (To all emails)
@@ -444,7 +446,7 @@ class EligibilityEngine:
         return email_sent
 
     @staticmethod
-    def _get_premium_placement_html(student_name, company_name, role, package, deadline, frontend_url, is_active):
+    def _get_premium_placement_html(student_name, company_name, role, package, deadline, frontend_url, is_active, chat_link=None):
         """Standard high-fidelity branding for all placement communications."""
         status_label = "INVITED" if is_active else "ELIGIBLE"
         status_color = "#6366f1" if is_active else "#f59e0b"
@@ -456,6 +458,16 @@ class EligibilityEngine:
             if is_active else
             "Our Neural Core has identified a new placement match for your profile. You are <strong>ELIGIBLE</strong> for the following opportunity:"
         )
+
+        chat_snippet = ""
+        if chat_link and is_active:
+             chat_snippet = f"""
+             <div style="margin-top: 15px; text-align: center;">
+                 <a href="{chat_link}" style="color: #6366f1; font-size: 13px; font-weight: 700; text-decoration: none; border-bottom: 2px solid rgba(99, 102, 241, 0.2); padding-bottom: 2px;">
+                     💬 Join Recruitment Discussion Hub
+                 </a>
+             </div>
+             """
 
         activation_snippet = "" if is_active else f"""
             <div style="margin-top: 20px; padding: 15px; background: rgba(245, 158, 11, 0.05); border: 1px dashed rgba(245, 158, 11, 0.2); border-radius: 12px; text-align: center;">
@@ -511,6 +523,7 @@ class EligibilityEngine:
                         {cta_text} →
                     </a>
                 </div>
+                {chat_snippet}
             </main>
             
             <footer style="text-align: center; color: #475569; font-size: 10px; margin-top: 40px; line-height: 1.6;">
@@ -583,7 +596,7 @@ class EligibilityEngine:
                 "name": faculty.first_name or "Faculty",
             })
         
-        invite_token = uuid.uuid4().hex[:16]
+        invite_token = str(uuid.uuid4().hex)[:16]
         
         group = ChatSession.objects.create(
             is_group=True,

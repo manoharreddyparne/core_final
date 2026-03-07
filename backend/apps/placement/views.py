@@ -44,7 +44,7 @@ class PlacementDriveViewSet(viewsets.ModelViewSet):
         return success_response(
             f"Drive '{drive.company_name}' initialized successfully.",
             data=serializer.data,
-            status=status.HTTP_201_CREATED
+            code=status.HTTP_201_CREATED
         )
 
     def update(self, request, *args, **kwargs):
@@ -241,12 +241,12 @@ class PlacementDriveViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def broadcast(self, request, pk=None):
         """
-        Triggers notifications to ALL eligible students:
-        - Active accounts → UI notification + email
-        - Inactive accounts → email only with activation prompt
-        Also auto-creates a placement group chat.
+        Triggers notifications to ALL eligible students.
+        Supports 'mode' parameter: 'INITIAL', 'REMINDER', 'MISSING'.
         """
         drive = self.get_object()
+        mode = request.data.get('mode', 'INITIAL').upper()
+        
         if drive.status != 'ACTIVE':
             drive.status = 'ACTIVE'
             drive.save()
@@ -259,17 +259,45 @@ class PlacementDriveViewSet(viewsets.ModelViewSet):
             "percentage": 1,
             "current": 0,
             "total": 0,
-            "message": "Initializing Neural Orchestrator..."
+            "message": f"Initializing Neural Orchestrator ({mode})..."
         }, timeout=600)
 
-        result = EligibilityEngine.broadcast_invitations(drive)
+        result = EligibilityEngine.broadcast_invitations(drive, mode=mode)
         return success_response(
-            "Broadcast started",
+            f"Broadcast ({mode}) started",
             data={
                 "task_id": result.get('task_id'),
                 "message": result.get('message')
             }
         )
+
+    @action(detail=True, methods=['get'])
+    def detailed_report(self, request, pk=None):
+        """Returns deep insights: who applied, who is eligible but didn't, and who is inactive."""
+        drive = self.get_object()
+        from apps.placement.models import PlacementApplication
+        from apps.auip_institution.models import StudentAcademicRegistry, StudentAuthorizedAccount
+        from django.db.models import OuterRef, Exists
+        
+        eligible_qs = EligibilityEngine.get_eligible_students_qs(drive)
+        applied_ids = list(PlacementApplication.objects.filter(drive=drive).values_list('student_id', flat=True))
+        
+        # 1. APPLIED
+        applied_list = PlacementApplication.objects.filter(drive=drive).select_related('student').values(
+            'id', 'student__full_name', 'student__roll_number', 'status', 'created_at'
+        )
+        
+        # 2. ELIGIBLE BUT NOT APPLIED
+        not_applied_qs = eligible_qs.exclude(id__in=applied_ids).annotate(
+            is_activated=Exists(StudentAuthorizedAccount.objects.filter(academic_ref=OuterRef('pk')))
+        ).values('id', 'full_name', 'roll_number', 'is_activated', 'official_email', 'personal_email')
+
+        return success_response("Strategic report generated.", data={
+            "applied_count": len(applied_list),
+            "not_applied_count": not_applied_qs.count(),
+            "applied_students": list(applied_list),
+            "pending_students": list(not_applied_qs)
+        })
 
     @action(detail=True, methods=['get'])
     def broadcast_progress(self, request, pk=None):
@@ -297,9 +325,12 @@ class PlacementDriveViewSet(viewsets.ModelViewSet):
         if not hasattr(request.user, 'academic_ref') or not request.user.academic_ref:
             return error_response("Student academic record not found.")
 
+        # Atomic eligibility check per student
         drives = EligibilityService.get_eligible_drives_for_student(request.user.academic_ref)
-        # Order by creation date descending
-        drives = drives.order_by('-created_at')
+        
+        # ⚡ ORDERING: Governance priorities first (deadline approaching), then recency
+        drives = drives.order_by('deadline', '-created_at')
+        
         serializer = self.get_serializer(drives, many=True)
         return success_response("Eligible drives retrieved", data=serializer.data)
 
