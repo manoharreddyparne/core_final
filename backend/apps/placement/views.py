@@ -35,17 +35,37 @@ class PlacementDriveViewSet(viewsets.ModelViewSet):
         # Isolation is handled by TenantAuthentication setting the schema
         return PlacementDrive.objects.all().order_by('-created_at')
 
-    def perform_create(self, serializer):
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         drive = serializer.save()
-        if self.request.data.get('broadcast') == 'true' or self.request.data.get('broadcast') is True:
-            # Trigger immediate broadcast to eligible students
-            EligibilityEngine.broadcast_invitations(drive)
+        
+        # Consistent with other AI endpoints
+        return success_response(
+            f"Drive '{drive.company_name}' initialized successfully.",
+            data=serializer.data,
+            status=status.HTTP_201_CREATED
+        )
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        drive = serializer.save()
+        
+        return success_response(
+            f"Strategic configuration for '{drive.company_name}' synchronized.",
+            data=serializer.data
+        )
+
+    def perform_create(self, serializer):
+        # We handle broadcast via dedicated endpoint now
+        serializer.save()
 
     def perform_update(self, serializer):
-        drive = serializer.save()
-        if self.request.data.get('broadcast') == 'true' or self.request.data.get('broadcast') is True:
-            # Trigger immediate broadcast to eligible students
-            EligibilityEngine.broadcast_invitations(drive)
+        # We handle broadcast via dedicated endpoint now
+        serializer.save()
 
     @action(detail=True, methods=['post'])
     def activate(self, request, pk=None):
@@ -56,14 +76,12 @@ class PlacementDriveViewSet(viewsets.ModelViewSet):
         drive.status = 'ACTIVE'
         drive.save()
         
-        # 🔔 Trigger Notifications to Eligible Students
-        # We now use the unified EligibilityEngine logic (Criteria + Manual)
-        qualified_students = EligibilityEngine.get_qualified_students_qs(drive)
-        qualified_count = qualified_students.count()
+        # 🔔 Prepare stats for response
+        report = EligibilityEngine.get_eligibility_report(drive)
         
         return success_response(
-            f"Drive '{drive.company_name}' activated (ID: {drive.id}). {qualified_count} students are eligible.",
-            data={"eligible_count": qualified_count}
+            f"Drive '{drive.company_name}' activated (ID: {drive.id}). {report['total_eligible']} students are eligible.",
+            data={"eligible_count": report['total_eligible'], "report": report}
         )
 
     @action(detail=False, methods=['post'])
@@ -142,7 +160,7 @@ class PlacementDriveViewSet(viewsets.ModelViewSet):
         page = int(request.data.get('page', 1))
         page_size = int(request.data.get('page_size', 50))
         
-        qualified_qs = EligibilityEngine.get_qualified_students_qs(drive)
+        qualified_qs = EligibilityEngine.get_manifest_preview_qs(drive)
         
         # Apply Search Filtering within manifest
         if search_query:
@@ -229,16 +247,49 @@ class PlacementDriveViewSet(viewsets.ModelViewSet):
         Also auto-creates a placement group chat.
         """
         drive = self.get_object()
-            
         if drive.status != 'ACTIVE':
-            return error_response("Drive must be ACTIVE to broadcast.", code=400)
+            drive.status = 'ACTIVE'
+            drive.save()
             
+        # 🏁 PRE-QUEUING CACHE: Ensures frontend poller sees "starting" state immediately
+        from django.core.cache import cache
+        cache.set(f"broadcast_progress_{drive.id}", {
+            "type": "broadcast_status",
+            "status": "processing",
+            "percentage": 1,
+            "current": 0,
+            "total": 0,
+            "message": "Initializing Neural Orchestrator..."
+        }, timeout=600)
+
         result = EligibilityEngine.broadcast_invitations(drive)
         return success_response(
-            f"Broadcast complete: {result['notified_active']} active notified, "
-            f"{result['notified_inactive']} inactive emailed.",
-            data=result
+            "Broadcast started",
+            data={
+                "task_id": result.get('task_id'),
+                "message": result.get('message')
+            }
         )
+
+    @action(detail=True, methods=['get'])
+    def broadcast_progress(self, request, pk=None):
+        """HTTP polling fallback for broadcast progress (when WS channel layer fails)."""
+        from django.core.cache import cache
+        drive = self.get_object()
+        cache_key = f"broadcast_progress_{drive.id}"
+        progress = cache.get(cache_key)
+        if progress:
+            return success_response("Progress retrieved.", data=progress)
+        # If no cached progress, check if drive is already broadcasted
+        if drive.is_broadcasted:
+            return success_response("Broadcast complete.", data={
+                "status": "done", "percentage": 100, "current": 0, "total": 0,
+                "message": "Broadcast complete!"
+            })
+        return success_response("No active broadcast.", data={
+            "status": "idle", "percentage": 0, "current": 0, "total": 0,
+            "message": "Waiting for broadcast to start..."
+        })
 
     @action(detail=False, methods=['get'], permission_classes=[IsTenantStudent])
     def my_eligible_drives(self, request):
@@ -247,6 +298,8 @@ class PlacementDriveViewSet(viewsets.ModelViewSet):
             return error_response("Student academic record not found.")
 
         drives = EligibilityService.get_eligible_drives_for_student(request.user.academic_ref)
+        # Order by creation date descending
+        drives = drives.order_by('-created_at')
         serializer = self.get_serializer(drives, many=True)
         return success_response("Eligible drives retrieved", data=serializer.data)
 

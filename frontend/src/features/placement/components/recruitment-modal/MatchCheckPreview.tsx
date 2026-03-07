@@ -5,6 +5,7 @@ interface MatchCheckPreviewProps {
     show: boolean;
     eligibleStudents: any[];
     excludedRolls: Set<string>;
+    isExclusionMode: boolean; // Add this
     toggleExclusion: (roll: string) => void;
     handleBulkExclusion: (exclude: boolean) => void;
     extraRollNumber: string;
@@ -24,6 +25,7 @@ const MatchCheckPreview: React.FC<MatchCheckPreviewProps> = ({
     show,
     eligibleStudents,
     excludedRolls,
+    isExclusionMode,
     toggleExclusion,
     handleBulkExclusion,
     extraRollNumber,
@@ -70,8 +72,8 @@ const MatchCheckPreview: React.FC<MatchCheckPreviewProps> = ({
             {/* Header and Input ... */}
             <div className="flex items-center justify-between mb-4">
                 <div className="flex flex-col gap-1">
-                    <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] flex items-center gap-2">
-                        <Users className="w-4 h-4" /> Manifest Verification — Matched Students ({eligibleStudents.length})
+                    <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.15em] flex items-center gap-2">
+                        <Users className="w-4 h-4" /> Eligible Students ({totalCount})
                     </p>
                     <div className="flex gap-3 mt-1">
                         <button 
@@ -104,7 +106,7 @@ const MatchCheckPreview: React.FC<MatchCheckPreviewProps> = ({
                         <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500" />
                         <input 
                             type="text"
-                            placeholder="Add student manually (Not in the Matched list)..."
+                            placeholder="Add student manually (Not in the eligible list)..."
                             value={extraRollNumber}
                             onChange={e => handleSearchInput(e.target.value)}
                             className="w-full bg-black/40 border border-white/5 rounded-xl py-2 pl-10 pr-8 text-[11px] text-white font-bold outline-none focus:border-indigo-500/50 transition-all"
@@ -167,10 +169,10 @@ const MatchCheckPreview: React.FC<MatchCheckPreviewProps> = ({
                             <tr className="border-b border-white/5 bg-white/5">
                                 <th className="px-4 py-4 text-[9px] font-black text-gray-500 uppercase tracking-widest text-center">
                                     <button 
-                                        onClick={() => handleBulkExclusion(excludedRolls.size === 0)}
+                                        onClick={() => handleBulkExclusion(isExclusionMode)}
                                         className="p-1 hover:text-indigo-400 transition-colors"
                                     >
-                                        {excludedRolls.size === 0 ? <CheckSquare className="w-4 h-4 text-indigo-500" /> : <Square className="w-4 h-4" />}
+                                        {isExclusionMode && excludedRolls.size === 0 ? <CheckSquare className="w-4 h-4 text-indigo-500" /> : <Square className="w-4 h-4" />}
                                     </button>
                                 </th>
                                 <th className="px-6 py-4 text-[9px] font-black text-gray-500 uppercase tracking-widest">Student Identity</th>
@@ -182,17 +184,20 @@ const MatchCheckPreview: React.FC<MatchCheckPreviewProps> = ({
                         <tbody className="divide-y divide-white/[0.03]">
                             {eligibleStudents.length > 0 ? (
                                 eligibleStudents.map((s) => {
-                                    const isExcluded = excludedRolls.has(s.roll_number);
+                                    // if exclusion mode: roll IN set means Excluded
+                                    // if inclusion mode: roll IN set means Included
+                                    const isSelected = isExclusionMode ? !excludedRolls.has(s.roll_number) : excludedRolls.has(s.roll_number);
+                                    
                                     return (
-                                    <tr key={s.id} className={`hover:bg-white/[0.02] transition-colors group/row ${isExcluded ? 'opacity-40 grayscale' : ''}`}>
+                                    <tr key={s.id} className={`hover:bg-white/[0.02] transition-colors group/row ${!isSelected ? 'opacity-40 grayscale' : ''}`}>
                                         <td className="px-4 py-4 text-center">
                                             <div className="flex items-center justify-center gap-1">
                                                 <button 
                                                     type="button"
                                                     onClick={() => toggleExclusion(s.roll_number)}
-                                                    className={`p-1 transition-all ${isExcluded ? 'text-gray-500' : 'text-indigo-500'}`}
+                                                    className={`p-1 transition-all ${!isSelected ? 'text-gray-500' : 'text-indigo-500'}`}
                                                 >
-                                                    {isExcluded ? <Square className="w-3.5 h-3.5" /> : <CheckSquare className="w-3.5 h-3.5" />}
+                                                    {!isSelected ? <Square className="w-3.5 h-3.5" /> : <CheckSquare className="w-3.5 h-3.5" />}
                                                 </button>
                                                 {s.is_manual && (
                                                     <button 
@@ -235,8 +240,15 @@ const MatchCheckPreview: React.FC<MatchCheckPreviewProps> = ({
                                 )})
                             ) : (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center text-[10px] font-black text-gray-500 uppercase opacity-30">
-                                        Registry scan yielded zero matches.
+                                    <td colSpan={5} className="px-6 py-12 text-center">
+                                        {manifestSearchQuery ? (
+                                            <div className="space-y-3">
+                                                <p className="text-[11px] font-bold text-gray-400">No student found for "{manifestSearchQuery}" in eligible list</p>
+                                                <p className="text-[9px] text-gray-500">Try the "Add student manually" field to search all students and force-add if needed.</p>
+                                            </div>
+                                        ) : (
+                                            <p className="text-[10px] font-black text-gray-500 uppercase opacity-30">No eligible students found for the current criteria.</p>
+                                        )}
                                     </td>
                                 </tr>
                             )}

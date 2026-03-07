@@ -34,7 +34,7 @@ class PlacementDriveSerializer(serializers.ModelSerializer):
             'min_cgpa', 'min_ug_percentage', 'cgpa_to_percentage_multiplier',
             'min_10th_percent', 'min_12th_percent',
             'allowed_active_backlogs', 'eligible_branches', 'eligible_batches',
-            'excluded_rolls', 'manual_students',
+            'excluded_rolls', 'manual_students', 'is_inclusion_mode', 'included_rolls',
             'other_requirements', 'jd_document',
             'neural_metadata',
             'is_broadcasted', 'chat_session_id', 'created_at', 'updated_at',
@@ -92,7 +92,8 @@ class PlacementDriveSerializer(serializers.ModelSerializer):
 
         # 1. Handle JSON fields
         json_fields = ['eligible_branches', 'eligible_batches', 'qualifications',
-                       'contact_details', 'hiring_process', 'excluded_rolls', 'manual_students', 'custom_criteria',
+                       'contact_details', 'hiring_process', 'excluded_rolls', 
+                       'manual_students', 'included_rolls', 'custom_criteria',
                        'neural_metadata']
         for field in json_fields:
             if field in mutable and isinstance(mutable[field], str):

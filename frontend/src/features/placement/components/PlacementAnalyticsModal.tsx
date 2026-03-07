@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import {
-    X, Activity, Globe, Users, BarChart3
+    X, Activity, Globe, Users, BarChart3, Target
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { placementApi } from "../api";
 import { PlacementDrive } from "../types";
+import BroadcastProgressOverlay from "./recruitment-modal/BroadcastProgressOverlay";
 
 interface Props {
     isOpen: boolean;
@@ -19,6 +20,7 @@ const PlacementAnalyticsModal: React.FC<Props> = ({ isOpen, onClose, drive, onBr
     const [showStudentList, setShowStudentList] = useState(false);
     const [manualRollNumber, setManualRollNumber] = useState("");
     const [addingStudent, setAddingStudent] = useState(false);
+    const [showBroadcast, setShowBroadcast] = useState(false);
 
     useEffect(() => {
         if (isOpen && drive.id) {
@@ -39,16 +41,17 @@ const PlacementAnalyticsModal: React.FC<Props> = ({ isOpen, onClose, drive, onBr
     };
 
     const handleActivateAndBroadcast = async () => {
-        try {
-            toast.loading("Activating & Broadcasting...", { id: "broadcast" });
-            await placementApi.activateDrive(drive.id as number);
-            await placementApi.broadcastDrive(drive.id as number);
-            toast.success("Broadcast successful! Students notified.", { id: "broadcast" });
-            onBroadcastSuccess();
-            onClose();
-        } catch (error: any) {
-            toast.error(error.response?.data?.message || "Failed during broadcast sequence", { id: "broadcast" });
-        }
+        // Step 1: Open WS connection overlay FIRST
+        setShowBroadcast(true);
+        
+        // Step 2: After WS connects, trigger the actual broadcast
+        setTimeout(async () => {
+            try {
+                await placementApi.broadcastDrive(drive.id as number);
+            } catch (error: any) {
+                toast.error(error.response?.data?.message || "Recruitment Core Synchronization Failure", { id: "broadcast" });
+            }
+        }, 800);
     };
 
     const handleManualAddStudent = async (e: React.FormEvent) => {
@@ -208,6 +211,18 @@ const PlacementAnalyticsModal: React.FC<Props> = ({ isOpen, onClose, drive, onBr
                         </div>
                     )}
                 </div>
+
+                {showBroadcast && drive.id && (
+                    <BroadcastProgressOverlay 
+                        driveId={drive.id} 
+                        onComplete={() => {
+                            setShowBroadcast(false);
+                            onBroadcastSuccess();
+                            onClose();
+                        }}
+                        onClose={() => setShowBroadcast(false)}
+                    />
+                )}
             </div>
         </div>
     );

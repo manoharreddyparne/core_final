@@ -12,6 +12,7 @@ import GovernanceSection from "./recruitment-modal/GovernanceSection";
 import ExpertiseLedger from "./recruitment-modal/ExpertiseLedger";
 import MatchCheckPreview from "./recruitment-modal/MatchCheckPreview";
 import PlacementDriveCard from "./PlacementDriveCard";
+import BroadcastProgressOverlay from "./recruitment-modal/BroadcastProgressOverlay";
 
 interface Props {
     isOpen: boolean;
@@ -32,8 +33,12 @@ const PlacementRecruitmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess
     const [checkingEligibility, setCheckingEligibility] = useState(false);
     const [showEligibilityPreview, setShowEligibilityPreview] = useState(false);
     const [showStudentPreview, setShowStudentPreview] = useState(false);
-    const [excludedRolls, setExcludedRolls] = useState<Set<string>>(new Set());
+    const [selectionRolls, setSelectionRolls] = useState<Set<string>>(new Set());
+    const [isExclusionMode, setIsExclusionMode] = useState(true);
     const [extraRollNumber, setExtraRollNumber] = useState("");
+    const [manualEntries, setManualEntries] = useState<any[]>([]);
+    const [criteriaChanged, setCriteriaChanged] = useState(false);
+    const lastMatchCriteriaRef = React.useRef<string>("");
 
     const [newDriveForm, setNewDriveForm] = useState<Partial<PlacementDrive>>({
         company_name: '',
@@ -66,6 +71,9 @@ const PlacementRecruitmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess
     const [manifestQuery, setManifestQuery] = useState("");
     const [pageSize] = useState(50);
 
+    const [showBroadcastProgress, setShowBroadcastProgress] = useState(false);
+    const [currentDriveId, setCurrentDriveId] = useState<number | null>(null);
+
     useEffect(() => {
         if (editingDrive) {
             setNewDriveForm({
@@ -73,7 +81,7 @@ const PlacementRecruitmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess
                 deadline: editingDrive.deadline ? new Date(editingDrive.deadline).toISOString().slice(0, 16) : ''
             });
             if (editingDrive.neural_metadata) setExpertise(editingDrive.neural_metadata);
-            if (editingDrive.excluded_rolls) setExcludedRolls(new Set(editingDrive.excluded_rolls));
+            if (editingDrive.excluded_rolls) setSelectionRolls(new Set(editingDrive.excluded_rolls));
         }
     }, [editingDrive]);
 
@@ -111,7 +119,10 @@ const PlacementRecruitmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess
                 }));
                  // Use ext directly as expertise state
                 setExpertise(ext);
-                toast.success("Intelligence Extraction complete!", { id: "jd" });
+                toast.success("JD extracted — running eligibility check...", { id: "jd" });
+                
+                // Auto-run match check after extraction
+                setTimeout(() => handleCheckEligibility(1, ""), 300);
             }
 
         } catch (e: any) {
@@ -120,6 +131,26 @@ const PlacementRecruitmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess
             setUploading(false);
         }
     };
+
+    // Track criteria changes to suggest re-running match check
+    const getCriteriaFingerprint = () => {
+        return JSON.stringify({
+            min_cgpa: newDriveForm.min_cgpa,
+            min_ug_percentage: newDriveForm.min_ug_percentage,
+            min_10th_percent: newDriveForm.min_10th_percent,
+            min_12th_percent: newDriveForm.min_12th_percent,
+            allowed_active_backlogs: newDriveForm.allowed_active_backlogs,
+            eligible_branches: newDriveForm.eligible_branches,
+            eligible_batches: newDriveForm.eligible_batches,
+        });
+    };
+
+    useEffect(() => {
+        const current = getCriteriaFingerprint();
+        if (lastMatchCriteriaRef.current && lastMatchCriteriaRef.current !== current && showEligibilityPreview) {
+            setCriteriaChanged(true);
+        }
+    }, [newDriveForm.min_cgpa, newDriveForm.min_ug_percentage, newDriveForm.min_10th_percent, newDriveForm.min_12th_percent, newDriveForm.allowed_active_backlogs, newDriveForm.eligible_branches, newDriveForm.eligible_batches]);
 
     const handleJDUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files || e.target.files.length === 0) return;
@@ -165,11 +196,22 @@ const PlacementRecruitmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess
         formData.append('hiring_process', JSON.stringify(newDriveForm.hiring_process || []));
         formData.append('custom_criteria', JSON.stringify(newDriveForm.custom_criteria || {}));
         formData.append('neural_metadata', JSON.stringify(newDriveForm.neural_metadata || {}));
-        formData.append('excluded_rolls', JSON.stringify(Array.from(excludedRolls)));
+        // Logic for Universal Selection Mode
+        if (isExclusionMode) {
+            formData.append('excluded_rolls', JSON.stringify(Array.from(selectionRolls)));
+            // In exclusion mode, we don't need 'included_rolls'
+        } else {
+            // In inclusion mode, we tell the backend 'exclude everybody EXCEPT these'
+            // We'll use a special flag or just send included_rolls
+            formData.append('is_inclusion_mode', 'true');
+            formData.append('included_rolls', JSON.stringify(Array.from(selectionRolls)));
+        }
         
-        const manualRolls = eligibleStudents.filter(s => s.is_manual).map(s => s.roll_number);
-        // Also combine with existing manual_students if editing
-        const combinedManual = Array.from(new Set([...manualRolls, ...(newDriveForm.manual_students || [])]));
+        // Use manualEntries state for persistence across pages
+        const combinedManual = Array.from(new Set([
+            ...manualEntries.map(s => s.roll_number), 
+            ...(newDriveForm.manual_students || [])
+        ]));
         formData.append('manual_students', JSON.stringify(combinedManual));
 
         // UUID and Files
@@ -192,19 +234,31 @@ const PlacementRecruitmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess
         try {
             setCheckingEligibility(true);
             setCurrentPage(page);
-            toast.loading(query ? "Filtering manifest..." : "Calculating matches...", { id: "eligibility" });
+            setCriteriaChanged(false);
+            toast.loading(query ? "Filtering..." : "Finding eligible students...", { id: "eligibility" });
             
             const formData = prepareFormData();
-            // Inject pagination and search into formData for the backend
             formData.append('page', String(page));
             formData.append('q', query);
             formData.append('page_size', String(pageSize));
 
             const res = await placementApi.checkEligibility(formData);
-            setEligibleStudents(res.data?.eligible_students || []);
+            let results = res.data?.eligible_students || [];
+            
+            const criteriaIds = new Set(results.map((s: any) => s.id));
+            const activeManuals = manualEntries.filter(m => !criteriaIds.has(m.id));
+            
+            if (page === 1) {
+                setEligibleStudents([...activeManuals, ...results]);
+            } else {
+                setEligibleStudents(results);
+            }
+
             setTotalCount(res.data?.total_count || 0);
             setShowEligibilityPreview(true);
-            toast.success(`Found ${res.data?.total_count || 0} students!`, { id: "eligibility" });
+            // Save the criteria fingerprint after a successful check
+            lastMatchCriteriaRef.current = getCriteriaFingerprint();
+            toast.success(`Found ${res.data?.total_count || 0} eligible students`, { id: "eligibility" });
         } catch (e: any) {
             toast.error(e.response?.data?.message || "Check failed.", { id: "eligibility" });
         } finally {
@@ -235,12 +289,17 @@ const PlacementRecruitmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess
             is_manual: true
         };
 
+        setManualEntries(prev => {
+            if (prev.some(s => s.roll_number === student.roll_number)) return prev;
+            return [newStu, ...prev];
+        });
         setEligibleStudents(prev => [newStu, ...prev]);
         toast.success(`Added ${student.full_name} to manifest.`, { id: "manual" });
     };
 
     const handleRemoveManualStudent = (roll: string) => {
         setEligibleStudents(prev => prev.filter(s => s.roll_number !== roll));
+        setManualEntries(prev => prev.filter(s => s.roll_number !== roll));
         // Also remove from newDriveForm.manual_students if present
         if (newDriveForm.manual_students?.includes(roll)) {
             setNewDriveForm(prev => ({
@@ -252,7 +311,7 @@ const PlacementRecruitmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess
     };
 
     const toggleExclusion = (roll: string) => {
-        setExcludedRolls(prev => {
+        setSelectionRolls(prev => {
             const next = new Set(prev);
             if (next.has(roll)) next.delete(roll);
             else next.add(roll);
@@ -261,27 +320,25 @@ const PlacementRecruitmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess
     };
 
     const handleBulkExclusion = (exclude: boolean) => {
-        if (exclude) {
-            setExcludedRolls(new Set(eligibleStudents.map(s => s.roll_number)));
-            toast.success("All students deselected.");
-        } else {
-            setExcludedRolls(new Set());
-            toast.success("All students selected.");
-        }
+        // Universal toggle: 
+        // If exclude=true (Deselect All), we enter Inclusion Mode with 0 students
+        // If exclude=false (Select All), we enter Exclusion Mode with 0 students
+        setIsExclusionMode(!exclude);
+        setSelectionRolls(new Set());
+        toast.success(exclude ? "Manifest cleared. Toggle students to include." : "Universal selection active.");
     };
 
     const handleCreateDrive = async (isBroadcast: boolean = false) => {
         try {
-            const actionLabel = isBroadcast ? "Broadcasting Intelligence..." : "Syncing Draft...";
+            const actionLabel = isBroadcast ? "Saving & Preparing Broadcast..." : "Syncing Draft...";
             toast.loading(actionLabel, { id: "create_drive" });
             
             const formData = prepareFormData();
             
-            // Set status based on action
+            // Set status based on action — but DON'T include broadcast flag
+            // We'll call the dedicated broadcast endpoint separately
             if (isBroadcast) {
                 formData.set('status', 'ACTIVE');
-                // We'll let the backend trigger notifications if this flag is present
-                formData.append('broadcast', 'true');
             } else if (!editingDrive) {
                 formData.set('status', 'DRAFT');
             }
@@ -293,6 +350,7 @@ const PlacementRecruitmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess
                 formData.set('job_description', jdContent);
             }
 
+            // Step 1: Save/Update the drive
             let response;
             if (editingDrive?.id) {
                 response = await placementApi.updateDrive(editingDrive.id as number, formData);
@@ -300,9 +358,32 @@ const PlacementRecruitmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess
                 response = await placementApi.createDrive(formData);
             }
             
-            const msg = isBroadcast ? "Target students notified! Drive is Live." : "Strategic draft synchronized.";
-            toast.success(msg, { id: "create_drive" });
-            onSuccess();
+            if (isBroadcast) {
+                const driveId = response.data?.id || (editingDrive?.id);
+                if (driveId) {
+                    // Step 2: Open the WS overlay FIRST (so it connects before broadcast starts)
+                    setCurrentDriveId(driveId);
+                    setShowBroadcastProgress(true);
+                    toast.dismiss("create_drive");
+                    
+                    // Step 3: Wait a moment for WS to connect, then trigger broadcast
+                    setTimeout(async () => {
+                        try {
+                            await placementApi.broadcastDrive(driveId);
+                        } catch (broadcastErr: any) {
+                            console.error("[BROADCAST] POST failed:", broadcastErr);
+                            toast.error(broadcastErr.response?.data?.message || "Broadcast trigger failed", { id: "broadcast_err" });
+                        }
+                    }, 800);
+                } else {
+                    toast.success("Drive saved but could not determine ID for broadcast.", { id: "create_drive" });
+                    onSuccess();
+                }
+            } else {
+                const msg = "Strategic draft synchronized.";
+                toast.success(msg, { id: "create_drive" });
+                onSuccess();
+            }
         } catch (error: any) {
             toast.error(error.response?.data?.message || "Protocol failure", { id: "create_drive" });
         }
@@ -321,8 +402,8 @@ const PlacementRecruitmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess
                             <Target className="w-5 h-5 text-indigo-400" />
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold text-white leading-none">{editingDrive ? "Manage Placement Drive" : "New Recruitment Venture"}</h2>
-                            <p className="text-[10px] text-indigo-400/60 uppercase tracking-widest mt-1 font-black">Intelligence-Led Placement Orchestrator</p>
+                            <h2 className="text-xl font-bold text-white leading-none">{editingDrive ? "Edit Placement Drive" : "Create New Placement Drive"}</h2>
+                            <p className="text-[10px] text-indigo-400/60 uppercase tracking-widest mt-1 font-black">Upload JD → Review Criteria → Find Eligible Students → Broadcast</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
@@ -342,8 +423,8 @@ const PlacementRecruitmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess
                     <div className="flex-1 overflow-y-auto p-12 flex items-center justify-center bg-black/40">
                        <div className="w-full max-w-md">
                            <div className="text-center mb-8">
-                               <p className="text-[10px] text-indigo-500 font-black uppercase tracking-[0.3em] mb-2">Simulation Mode</p>
-                               <h3 className="text-2xl font-black text-white">Student Intelligence Perspective</h3>
+                               <p className="text-[10px] text-indigo-500 font-black uppercase tracking-[0.3em] mb-2">Preview</p>
+                               <h3 className="text-2xl font-black text-white">How Students Will See This Drive</h3>
                            </div>
                            <PlacementDriveCard 
                                 drive={{...newDriveForm, status: 'ACTIVE', id: 0, is_broadcasted: true} as any}
@@ -390,17 +471,33 @@ const PlacementRecruitmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess
                             </div>
                         </div>
 
+                        {/* Criteria Changed Banner */}
+                        {criteriaChanged && showEligibilityPreview && (
+                            <div className="mt-4 p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-between animate-in slide-in-from-top-2 duration-300">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                                    <span className="text-[11px] font-bold text-amber-400">Eligibility criteria changed. Student list may be outdated.</span>
+                                </div>
+                                <button
+                                    onClick={() => handleCheckEligibility(1, manifestQuery)}
+                                    className="px-4 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all border border-amber-500/30"
+                                >
+                                    Re-run Match Check
+                                </button>
+                            </div>
+                        )}
+
                         <MatchCheckPreview 
                             show={showEligibilityPreview || checkingEligibility}
                             eligibleStudents={eligibleStudents}
-                            excludedRolls={excludedRolls}
+                            excludedRolls={selectionRolls}
+                            isExclusionMode={isExclusionMode}
                             toggleExclusion={toggleExclusion}
                             handleBulkExclusion={handleBulkExclusion}
                             extraRollNumber={extraRollNumber}
                             setExtraRollNumber={setExtraRollNumber}
                             handleAddManualStudent={handleAddManualStudent}
                             onRemoveManualStudent={handleRemoveManualStudent}
-                            // Pagination Props
                             currentPage={currentPage}
                             totalCount={totalCount}
                             pageSize={pageSize}
@@ -411,38 +508,63 @@ const PlacementRecruitmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess
                     </div>
                 )}
 
+                {showBroadcastProgress && currentDriveId && (
+                    <BroadcastProgressOverlay 
+                        driveId={currentDriveId} 
+                        onComplete={() => {
+                            toast.success("Broadcast complete! Emails sent to all eligible students.", { id: "broadcast" });
+                            onSuccess();
+                            onClose();
+                        }}
+                        onClose={() => setShowBroadcastProgress(false)}
+                    />
+                )}
+
                 {/* Footer Controls */}
                 <div className="p-6 border-t border-white/10 flex items-center justify-between bg-black/40 px-10">
-                    <div className="flex items-center gap-2.5 text-[10px] text-gray-500 font-mono font-black italic">
-                        <Activity className="w-4 h-4 text-indigo-500 animate-pulse" />
-                        CORE_ENGINE: {uploading ? "EXECUTING_MAP" : "READY"}
+                    {/* Selection Counter */}
+                    <div className="flex items-center gap-3">
+                        {showEligibilityPreview && totalCount > 0 && (
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-500/10 border border-indigo-500/20 rounded-lg">
+                                <Users className="w-3.5 h-3.5 text-indigo-400" />
+                                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-wider">
+                                    Selected {isExclusionMode ? (totalCount - selectionRolls.size) : selectionRolls.size} of {totalCount} eligible
+                                </span>
+                            </div>
+                        )}
+                        {!showEligibilityPreview && (
+                            <div className="flex items-center gap-2 text-[10px] text-gray-500 font-bold">
+                                <Activity className="w-3.5 h-3.5 text-indigo-500/50" />
+                                {uploading ? "Processing JD..." : "Ready"}
+                            </div>
+                        )}
                     </div>
-                    <div className="flex gap-4">
-                        <button onClick={onClose} className="px-6 py-2.5 text-xs font-black text-gray-500 hover:text-white uppercase tracking-widest">Abort</button>
+                    <div className="flex gap-3">
+                        <button onClick={onClose} className="px-5 py-2.5 text-xs font-bold text-gray-500 hover:text-white uppercase tracking-wider transition-colors">Cancel</button>
                         
                         <button 
                             onClick={() => handleCheckEligibility(1, manifestQuery)}
                             disabled={checkingEligibility || uploading}
-                            className={`px-6 py-2.5 border border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/10 text-[11px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-2 ${checkingEligibility || uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            className={`px-5 py-2.5 border border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/10 text-[11px] font-black uppercase tracking-wider rounded-xl transition-all flex items-center gap-2 ${checkingEligibility || uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
                             {checkingEligibility ? <Activity className="w-3.5 h-3.5 animate-spin" /> : <Users className="w-3.5 h-3.5" />}
-                            <span>{showEligibilityPreview ? 'Re-Sync Match' : 'Run Match Check'}</span>
+                            <span>{showEligibilityPreview ? 'Re-check' : 'Find Eligible Students'}</span>
                         </button>
 
                         <button 
                             onClick={() => handleCreateDrive(false)}
                             disabled={uploading}
-                            className={`px-6 py-2.5 bg-white/5 hover:bg-white/10 text-white text-[11px] font-black uppercase tracking-widest rounded-xl transition-all border border-white/10 ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            className={`px-5 py-2.5 bg-white/5 hover:bg-white/10 text-white text-[11px] font-black uppercase tracking-wider rounded-xl transition-all border border-white/10 ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
-                            <span>Save Draft</span>
+                            Save Draft
                         </button>
 
                         <button 
                             onClick={() => handleCreateDrive(true)}
                             disabled={uploading}
-                            className={`px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-indigo-500/25 flex items-center gap-2 ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            className={`px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-black uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-indigo-500/25 flex items-center gap-2 ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
-                            <span>Post & Broadcast</span> <Target className="w-4 h-4" />
+                            Save & Broadcast <Target className="w-4 h-4" />
                         </button>
                     </div>
                 </div>

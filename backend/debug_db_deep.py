@@ -1,23 +1,28 @@
-import django
 import os
+import django
 from django.db import connection
 
-def debug_db():
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'auip_core.settings.development')
-    django.setup()
-    
-    with connection.cursor() as cursor:
-        cursor.execute("SELECT schemaname, tablename FROM pg_catalog.pg_tables WHERE tablename LIKE '%placement%';")
-        tables = cursor.fetchall()
-        print("TABLES FOUND:")
-        for t in tables:
-            print(f"  {t[0]}.{t[1]}")
-            
-        # Check actual columns in each
-        for schema, table in tables:
-            cursor.execute(f"SELECT column_name FROM information_schema.columns WHERE table_schema = '{schema}' AND table_name = '{table}';")
-            cols = [r[0] for r in cursor.fetchall()]
-            print(f"    Columns in {schema}.{table}: {cols}")
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'auip_core.settings')
+django.setup()
 
-if __name__ == "__main__":
-    debug_db()
+def check_columns(schema):
+    print(f"Checking columns for schema: {schema}")
+    with connection.cursor() as cursor:
+        cursor.execute(f"SET search_path TO {schema}")
+        cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'placement_placementdrive'")
+        cols = [c[0] for c in cursor.fetchall()]
+        print(f"Columns in {schema}.placement_placementdrive:")
+        for c in sorted(cols):
+            print(f" - {c}")
+        
+        # Check migration table
+        cursor.execute("SELECT name FROM django_migrations WHERE app = 'placement'")
+        migs = [m[0] for m in cursor.fetchall()]
+        print(f"Applied migrations for 'placement' in {schema}:")
+        for m in sorted(migs):
+            print(f" - {m}")
+
+from apps.auip_tenant.models import Client
+for c in Client.objects.all():
+    check_columns(c.schema_name)
+check_columns('public')

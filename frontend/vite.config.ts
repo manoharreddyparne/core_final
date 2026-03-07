@@ -14,6 +14,13 @@ export default defineConfig({
     strictPort: true,
     host: true,
     origin: "http://localhost:3000",
+    hmr: {
+      // Ensure HMR WebSocket connects to the correct host/port
+      // (fixes Docker / WSL / port-forwarding scenarios)
+      host: "localhost",
+      port: 3000,
+      clientPort: 3000,
+    },
     watch: {
       usePolling: true,
     },

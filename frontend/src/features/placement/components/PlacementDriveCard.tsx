@@ -74,14 +74,22 @@ const PlacementDriveCard: React.FC<PlacementDriveCardProps> = ({
 
             {/* Metrics Grid */}
             <div className="space-y-4 mb-8">
-                <div className="flex items-center gap-3 text-xs text-gray-500 font-bold uppercase tracking-widest">
-                    <Globe className="w-4 h-4 text-gray-600 group-hover:text-indigo-500 transition-colors" />
-                    <span className="text-gray-400">{drive.package_details || 'Restricted Package'} • {drive.location || 'Remote'}</span>
-                </div>
+                {(drive.package_details && drive.package_details !== 'Not Specified') || (drive.location && drive.location !== 'Not Specified') ? (
+                    <div className="flex items-center gap-3 text-xs text-gray-500 font-bold uppercase tracking-widest">
+                        <Globe className="w-4 h-4 text-gray-600 group-hover:text-indigo-500 transition-colors" />
+                        <span className="text-gray-400">
+                            {[
+                                drive.package_details && drive.package_details !== 'Not Specified' ? drive.package_details : null,
+                                drive.location && drive.location !== 'Not Specified' ? drive.location : null
+                            ].filter(Boolean).join(' • ') || 'Details available in drive page'}
+                        </span>
+                    </div>
+                ) : null}
                 <div className="flex items-center gap-3 text-xs text-gray-500 font-bold uppercase tracking-widest">
                     <BarChart3 className="w-4 h-4 text-gray-600 group-hover:text-indigo-500 transition-colors" />
                     <span className="text-gray-400">
-                        {(drive.min_cgpa ?? 0) > 0 ? `Min ${drive.min_cgpa} CGPA` : `Min ${drive.min_ug_percentage ?? 0}% UG`} • {drive.experience_years || '0-1'} yrs
+                        {(drive.min_cgpa ?? 0) > 0 ? `Min ${drive.min_cgpa} CGPA` : (drive.min_ug_percentage ?? 0) > 0 ? `Min ${drive.min_ug_percentage}% UG` : 'Open to all'}
+                        {drive.experience_years && drive.experience_years !== 'Not Specified' ? ` • ${drive.experience_years} yrs` : ''}
                     </span>
                 </div>
                 <div className="flex items-center gap-3 text-xs text-gray-500 font-bold uppercase tracking-widest">

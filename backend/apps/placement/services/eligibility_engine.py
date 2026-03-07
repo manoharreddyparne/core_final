@@ -152,27 +152,47 @@ class EligibilityEngine:
         """
         Returns the final set of students for this drive:
         Those who meet strict criteria + Manual Inclusions - Manual Exclusions.
+        USED FOR FINAL BROADCASTING.
         """
-        # 1. Criteria Based Base List
-        criteria_qs_ids = list(EligibilityEngine.get_eligible_students_qs(drive).values_list('roll_number', flat=True))
+        # 1. Base Pool Calculation
+        if drive.is_inclusion_mode:
+            # ONLY explicitly included + Manual adds
+            final_roll_set = set(drive.included_rolls or []) | set(drive.manual_students or [])
+        else:
+            # Criteria based + Manual adds - Exclusions
+            criteria_qs_ids = list(EligibilityEngine.get_eligible_students_qs(drive).values_list('roll_number', flat=True))
+            final_roll_set = set(criteria_qs_ids) | set(drive.manual_students or [])
+            
+            # Remove Exclusions
+            exclusions = drive.excluded_rolls or []
+            for roll in exclusions:
+                if roll in final_roll_set:
+                    final_roll_set.remove(roll)
         
-        # 2. Add Force-Inclusions (Manual additions from the UI list)
+        # 2. Add Applied students (always eligible once they applied)
+        if drive.id:
+            applied_rolls = list(PlacementApplication.objects.filter(drive=drive).values_list('student__roll_number', flat=True))
+            final_roll_set |= set(applied_rolls)
+                
+        return StudentAcademicRegistry.objects.filter(roll_number__in=final_roll_set).distinct()
+
+    @staticmethod
+    def get_manifest_preview_qs(drive: PlacementDrive):
+        """
+        Returns the full candidate pool for the UI Preview.
+        In Exclusion Mode (default): shows everyone matching criteria.
+        In Inclusion Mode: shows everyone matching criteria, but UI will handle checkboxes.
+        """
+        criteria_qs_ids = list(EligibilityEngine.get_eligible_students_qs(drive).values_list('roll_number', flat=True))
         manual_inclusions = drive.manual_students or []
         
-        # 3. Handle Applied students (only if drive is already saved)
-        applied_roll_numbers = []
+        # We always show the FULL criteria pool in preview so the admin can pick from it.
+        final_roll_set = set(criteria_qs_ids) | set(manual_inclusions)
+        
         if drive.id:
-            applied_roll_numbers = list(PlacementApplication.objects.filter(drive=drive).values_list('student__roll_number', flat=True))
-        
-        # Combined Set
-        final_roll_set = set(criteria_qs_ids) | set(manual_inclusions) | set(applied_roll_numbers)
-        
-        # 4. Remove Exclusions
-        exclusions = drive.excluded_rolls or []
-        for roll in exclusions:
-            if roll in final_roll_set:
-                final_roll_set.remove(roll)
-                
+            applied_rolls = list(PlacementApplication.objects.filter(drive=drive).values_list('student__roll_number', flat=True))
+            final_roll_set |= set(applied_rolls)
+            
         return StudentAcademicRegistry.objects.filter(roll_number__in=final_roll_set).distinct()
 
     @staticmethod
@@ -231,77 +251,66 @@ class EligibilityEngine:
     @staticmethod
     def broadcast_invitations(drive: PlacementDrive):
         """
-        Fires notifications to ALL qualified students:
-        - Active accounts → UI notification + email
-        - Inactive accounts → email only with activation prompt
-        Also auto-creates a placement group chat for this drive.
+        Triggers the asynchronous recruitment broadcast.
+        Auto-detects if Celery worker is available, falls back to thread if not.
         """
-        from apps.notifications.services import NotificationDispatcher
-        from django.conf import settings
+        from apps.placement.tasks import broadcast_placement_drive_task
+        from django.db import connection
         
-        qualified_qs = EligibilityEngine.get_qualified_students_qs(drive)
+        schema_name = connection.schema_name
+        task_id = None
         
-        # Build lookup of active account IDs
-        active_account_map = {}
-        for acct in StudentAuthorizedAccount.objects.filter(academic_ref__in=qualified_qs).select_related('academic_ref'):
-            active_account_map[acct.academic_ref_id] = acct
+        # Check if Celery worker is actually alive
+        celery_alive = False
+        try:
+            from auip_core.celery import app as celery_app
+            inspector = celery_app.control.inspect(timeout=3.0)
+            pong = inspector.ping()
+            celery_alive = bool(pong)
+            print(f"[BROADCAST] Celery ping result: {pong}", flush=True)
+        except Exception as e:
+            print(f"[BROADCAST] Celery ping failed: {e}", flush=True)
+            celery_alive = False
         
-        notified_active = 0
-        notified_inactive = 0
-        email_errors = 0
-        
-        frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
-        
-        for registry in qualified_qs.iterator(chunk_size=100):
+        if celery_alive:
             try:
-                acct = active_account_map.get(registry.id)
-                # Primary communications
-                emails = set()
-                if registry.official_email: emails.add(registry.official_email)
-                if registry.personal_email: emails.add(registry.personal_email)
-                
-                if acct and acct.is_active:
-                    # ✅ ACTIVE STUDENT: UI notification + email
-                    NotificationDispatcher.send_notification(
-                        user=acct,
-                        title=f"🎯 Placement Alert: {drive.company_name}",
-                        message=(
-                            f"You are eligible for {drive.role} at {drive.company_name}! "
-                            f"Package: {drive.package_details or 'To be announced'}. "
-                            f"Deadline: {drive.deadline}. Apply now in the Placement Hub."
-                        ),
-                        type='PLACEMENT',
-                        action_link=f"/placement-hub"
-                    )
-                    notified_active += 1
-                    
-                elif emails:
-                    # ⚠️ INACTIVE STUDENT: Email-only with activation prompt (Send to all known emails)
-                    for target_email in emails:
-                        EligibilityEngine._send_inactive_student_email(
-                            email=target_email,
-                            student_name=registry.full_name,
-                            company_name=drive.company_name,
-                            role=drive.role,
-                            package=drive.package_details or "To be announced",
-                            deadline=str(drive.deadline),
-                            frontend_url=frontend_url,
-                        )
-                    notified_inactive += 1
-                    
+                task = broadcast_placement_drive_task.delay(drive.id, schema_name)
+                task_id = task.id
+                logger.info(f"[BROADCAST] Celery task dispatched: {task_id}")
             except Exception as e:
-                email_errors += 1
-                logger.error(f"[ELIGIBILITY-BROADCAST-ERR] Student {registry.roll_number}: {str(e)}")
-                
-        # Mark drive as broadcasted
-        drive.is_broadcasted = True
+                logger.warning(f"[BROADCAST] Celery dispatch failed: {e}")
+                celery_alive = False
         
-        # Auto-create placement group for this drive
-        group_info = EligibilityEngine._create_drive_group(drive, qualified_qs)
-        drive.chat_session_id = group_info.get('session_id')
-        drive.save(update_fields=['is_broadcasted', 'chat_session_id', 'updated_at'])
+        if not celery_alive:
+            import threading
+            import uuid
+            task_id = str(uuid.uuid4())
+            logger.info(f"[BROADCAST] No Celery worker. Running in thread. ID={task_id}")
+            print(f"[BROADCAST] No Celery worker. Running in thread. ID={task_id}", flush=True)
+            
+            def _run_in_thread():
+                """Run the broadcast task directly (not via Celery .apply())."""
+                try:
+                    print(f"[BROADCAST-THREAD] Starting for drive {drive.id}, schema={schema_name}", flush=True)
+                    # Import and call the raw task function directly, bypassing Celery's bind=True wrapper
+                    from apps.placement.tasks import broadcast_placement_drive_task
+                    # .run() calls the underlying function directly, passing 'self' as None for unbound
+                    broadcast_placement_drive_task.run(drive.id, schema_name)
+                    print(f"[BROADCAST-THREAD] ✅ Completed for drive {drive.id}", flush=True)
+                except Exception as exc:
+                    import traceback
+                    print(f"[BROADCAST-THREAD] ❌ ERROR: {exc}", flush=True)
+                    traceback.print_exc()
+                    logger.error(f"[BROADCAST-THREAD] Error: {exc}", exc_info=True)
+            
+            t = threading.Thread(target=_run_in_thread, daemon=True)
+            t.start()
         
-        # Create SocialPost Alert
+        # Mark drive as 'broadcasting' initial state
+        drive.is_broadcasted = False 
+        drive.save(update_fields=['is_broadcasted', 'updated_at'])
+        
+        # Create SocialPost Alert early
         try:
             from apps.social.models import SocialPost
             SocialPost.objects.create(
@@ -313,102 +322,223 @@ class EligibilityEngine:
                 drive_id=drive.id
             )
         except Exception as e:
-            logger.error(f"[SOCIAL-POST-ERR] Failed to create for drive {drive.id}: {str(e)}")
-        
-        logger.info(
-            f"[BROADCAST-COMPLETE] Drive={drive.company_name} | "
-            f"Active={notified_active} | Inactive(email)={notified_inactive} | "
-            f"Errors={email_errors} | Group={group_info.get('session_id', 'N/A')}"
-        )
-        
+            logger.error(f"[SOCIAL-POST-ERR] Failed to create: {str(e)}")
+
         return {
-            "notified_active": notified_active,
-            "notified_inactive": notified_inactive,
-            "email_errors": email_errors,
-            "group": group_info,
+            "success": True,
+            "task_id": task_id,
+            "message": "Broadcast orchestration started in the background."
         }
     
     @staticmethod
-    def _send_inactive_student_email(
-        email: str,
-        student_name: str,
-        company_name: str,
-        role: str,
-        package: str,
-        deadline: str,
-        frontend_url: str
-    ):
+    def send_unified_placement_alert(drive: PlacementDrive, registry: any, is_active: bool):
         """
-        Sends a targeted email to students who haven't activated their accounts,
-        informing them of eligibility and prompting activation.
+        Sends the premium HTML alert to ALL known emails for a student.
+        Also triggers a database notification for active accounts.
         """
-        from django.core.mail import send_mail
+        from apps.notifications.services import NotificationDispatcher
         from django.conf import settings
+        from django.core.mail import send_mail
+        import smtplib
         
-        subject = f"🎯 You're eligible for {company_name} — Activate your AUIP account!"
+        is_debug = getattr(settings, 'DEBUG', False)
         
-        from django.template.loader import render_to_string
-        from django.utils.html import strip_tags
+        emails = set()
+        if registry.official_email: emails.add(registry.official_email)
+        if registry.personal_email: emails.add(registry.personal_email)
         
-        subject = f"🎯 You're eligible for {company_name} — Activate your AUIP account!"
-        
-        # Build HTML content
-        html_content = f"""
-        <div style="font-family: 'Inter', sans-serif; background: #0a0b10; color: #ffffff; padding: 40px; border-radius: 20px;">
-            <div style="text-align: center; margin-bottom: 30px;">
-                <h1 style="color: #6366f1; margin: 0;">AUIP Intelligence Hub</h1>
-                <p style="color: #94a3b8; font-size: 14px; margin-top: 5px;">Secure Placement Orchestrator</p>
-            </div>
+        if not emails:
+            if is_debug:
+                logger.warning(f"[PLACEMENT-EMAIL-DEBUG] No emails found for {registry.roll_number} ({registry.full_name})")
+            return False
             
-            <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); padding: 30px; border-radius: 24px;">
-                <h2 style="margin-top: 0; color: #ffffff;">Hello {student_name},</h2>
-                <p style="font-size: 16px; color: #cbd5e1; line-height: 1.6;">
-                    Our Neural Core has matched your profile with a new recruitment venture. You are <strong>QUALIFIED</strong> for the following opportunity:
+        frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
+        
+        # 1. Prepare Dynamic Content
+        subject = (
+            f"🎯 Recruitment Invite: {drive.company_name} | {drive.role}" if is_active 
+            else f"🎯 Placement Eligibility: Match Found at {drive.company_name}"
+        )
+        
+        html_content = EligibilityEngine._get_premium_placement_html(
+            student_name=registry.full_name,
+            company_name=drive.company_name,
+            role=drive.role,
+            package=drive.package_details or "To be announced",
+            deadline=str(drive.deadline),
+            frontend_url=frontend_url,
+            is_active=is_active
+        )
+        
+        # 2. Universal Delivery (To all emails)
+        from django.utils.html import strip_tags
+        text_content = strip_tags(html_content)
+        
+        if is_debug:
+            logger.info(f"[PLACEMENT-EMAIL-DEBUG] Attempting to send to {emails} | "
+                        f"SMTP: {getattr(settings, 'EMAIL_HOST', '?')}:{getattr(settings, 'EMAIL_PORT', '?')} | "
+                        f"Backend: {getattr(settings, 'EMAIL_BACKEND', '?')} | "
+                        f"From: {getattr(settings, 'DEFAULT_FROM_EMAIL', '?')}")
+        
+        email_sent = False
+        for email in emails:
+            try:
+                send_mail(
+                    subject=subject,
+                    message=text_content,
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[email],
+                    html_message=html_content,
+                    fail_silently=False,
+                )
+                email_sent = True
+                if is_debug:
+                    logger.info(f"[PLACEMENT-EMAIL-DEBUG] ✅ Sent to {email}")
+            except smtplib.SMTPDataError as e:
+                # Gmail quota exceeded (code 550 or similar), rate limits etc
+                logger.error(f"[PLACEMENT-EMAIL-SMTP] SMTP data error for {email}: code={e.smtp_code} msg={e.smtp_error}")
+                if is_debug:
+                    logger.error(f"[PLACEMENT-EMAIL-DEBUG] This may be a Gmail daily limit (500 emails/day). "
+                                 f"Consider using a transactional email service (SES, Sendgrid) for production.")
+            except smtplib.SMTPAuthenticationError as e:
+                logger.error(f"[PLACEMENT-EMAIL-SMTP] Authentication failed: {e.smtp_code} {e.smtp_error}")
+                if is_debug:
+                    logger.error(f"[PLACEMENT-EMAIL-DEBUG] Check EMAIL_HOST_USER and EMAIL_HOST_PASSWORD in settings.")
+            except smtplib.SMTPRecipientsRefused as e:
+                logger.error(f"[PLACEMENT-EMAIL-SMTP] Recipient refused for {email}: {e.recipients}")
+            except smtplib.SMTPException as e:
+                logger.error(f"[PLACEMENT-EMAIL-SMTP] SMTP error for {email}: {type(e).__name__}: {str(e)}")
+            except Exception as e:
+                logger.error(f"[PLACEMENT-EMAIL-ERR] Unexpected error for {email}: {type(e).__name__}: {str(e)}", exc_info=is_debug)
+
+        # 3. In-App Notification (For Active Students)
+        if is_active:
+            try:
+                from apps.notifications.models import Notification
+                from apps.identity.models import User as GlobalUser
+                from django_tenants.utils import schema_context
+                
+                recipient_id = None
+                with schema_context('public'):
+                    global_user = GlobalUser.objects.filter(email=registry.official_email).first()
+                    if global_user:
+                        recipient_id = global_user.id
+                
+                if recipient_id:
+                    Notification.objects.get_or_create(
+                        recipient_id=recipient_id,
+                        title=f"🎯 New Opportunity: {drive.company_name}",
+                        notification_type='PLACEMENT',
+                        defaults={
+                            "message": f"You have been invited to apply for {drive.role} at {drive.company_name}. Complete your application before the deadline.",
+                            "link_url": "/placement-hub"
+                        }
+                    )
+                    if is_debug:
+                        logger.info(f"[PLACEMENT-NOTIF-DEBUG] ✅ In-app notification created for user {recipient_id}")
+                elif is_debug:
+                    logger.warning(f"[PLACEMENT-NOTIF-DEBUG] No global user found for {registry.official_email}")
+            except Exception as e:
+                logger.error(f"[PLACEMENT-NOTIF-ERR] Failed for {registry.roll_number}: {str(e)}")
+                
+        return email_sent
+
+    @staticmethod
+    def _get_premium_placement_html(student_name, company_name, role, package, deadline, frontend_url, is_active):
+        """Standard high-fidelity branding for all placement communications."""
+        status_label = "INVITED" if is_active else "ELIGIBLE"
+        status_color = "#6366f1" if is_active else "#f59e0b"
+        cta_text = "APPLY IN PLACEMENT HUB" if is_active else "ACTIVATE ACCOUNT"
+        cta_link = f"{frontend_url}/placement-hub" if is_active else f"{frontend_url}/activate-request"
+        
+        header_msg = (
+            "Our Recruitment Core has matched your profile as a top candidate. You are <strong>INVITED</strong> to apply for the following venture:"
+            if is_active else
+            "Our Neural Core has identified a new placement match for your profile. You are <strong>ELIGIBLE</strong> for the following opportunity:"
+        )
+
+        activation_snippet = "" if is_active else f"""
+            <div style="margin-top: 20px; padding: 15px; background: rgba(245, 158, 11, 0.05); border: 1px dashed rgba(245, 158, 11, 0.2); border-radius: 12px; text-align: center;">
+                <p style="color: #f59e0b; font-size: 13px; margin: 0; font-weight: 600;">
+                    Your account is currently INACTIVE.
+                </p>
+                <p style="color: #94a3b8; font-size: 11px; margin: 5px 0 0 0;">
+                    Activate now to gain full access to the AI Placement Hub, view detailed JD, and track your interview rounds.
+                </p>
+            </div>
+        """
+
+        return f"""
+        <div style="font-family: 'Inter', system-ui, -apple-system, sans-serif; background: #0a0b10; color: #ffffff; padding: 40px; border-radius: 20px; max-width: 600px; margin: 20px auto; border: 1px solid rgba(255,255,255,0.05);">
+            <header style="text-align: center; margin-bottom: 30px;">
+                <div style="font-size: 24px; font-weight: 900; color: #6366f1; letter-spacing: -0.5px; margin-bottom: 5px;">AUIP</div>
+                <div style="color: #94a3b8; font-size: 10px; text-transform: uppercase; letter-spacing: 2px; font-weight: 800;">Secure Placement Intelligence</div>
+            </header>
+            
+            <main style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); padding: 35px; border-radius: 28px;">
+                <h2 style="margin-top: 0; color: #ffffff; font-size: 22px; font-weight: 800; letter-spacing: -0.5px;">Hello {student_name},</h2>
+                <p style="font-size: 16px; color: #cbd5e1; line-height: 1.6; margin-bottom: 25px;">
+                    {header_msg}
                 </p>
                 
-                <table style="width: 100%; margin: 20px 0; border-collapse: collapse;">
-                    <tr>
-                        <td style="padding: 10px 0; color: #94a3b8; font-size: 12px; text-transform: uppercase; font-weight: 800;">Company</td>
-                        <td style="padding: 10px 0; color: #ffffff; font-weight: 700;">{company_name}</td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 10px 0; color: #94a3b8; font-size: 12px; text-transform: uppercase; font-weight: 800;">Role</td>
-                        <td style="padding: 10px 0; color: #6366f1; font-weight: 700;">{role}</td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 10px 0; color: #94a3b8; font-size: 12px; text-transform: uppercase; font-weight: 800;">Package</td>
-                        <td style="padding: 10px 0; color: #10b981; font-weight: 700;">{package}</td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 10px 0; color: #94a3b8; font-size: 12px; text-transform: uppercase; font-weight: 800;">Deadline</td>
-                        <td style="padding: 10px 0; color: #f43f5e; font-weight: 700;">{deadline}</td>
-                    </tr>
-                </table>
-                
-                <div style="margin-top: 30px; text-align: center;">
-                    <p style="color: #94a3b8; font-size: 13px; margin-bottom: 15px;">Your account is currently <strong>INACTIVE</strong>. Activate now to claim your spot.</p>
-                    <a href="{frontend_url}/activate-request" style="background: #6366f1; color: #ffffff; padding: 14px 40px; border-radius: 14px; text-decoration: none; font-weight: 900; letter-spacing: 1px; display: inline-block;">ACTIVATE ACCOUNT</a>
+                <div style="background: rgba(99, 102, 241, 0.05); border-left: 4px solid {status_color}; padding: 25px; border-radius: 0 16px 16px 0; margin-bottom: 25px;">
+                    <div style="margin-bottom: 15px;">
+                        <span style="color: #94a3b8; font-size: 10px; text-transform: uppercase; font-weight: 800; display: block; margin-bottom: 4px; letter-spacing: 1px;">Corporation</span>
+                        <span style="color: #ffffff; font-weight: 700; font-size: 20px; letter-spacing: -0.3px;">{company_name}</span>
+                    </div>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <span style="color: #94a3b8; font-size: 10px; text-transform: uppercase; font-weight: 800; display: block; margin-bottom: 4px; letter-spacing: 1px;">Role / Designation</span>
+                        <span style="color: #6366f1; font-weight: 700; font-size: 18px;">{role}</span>
+                    </div>
+                    
+                    <div style="display: flex; border-top: 1px solid rgba(99, 102, 241, 0.1); padding-top: 15px;">
+                        <div style="flex: 1;">
+                            <span style="color: #94a3b8; font-size: 10px; text-transform: uppercase; font-weight: 800; display: block; margin-bottom: 4px; letter-spacing: 1px;">Status</span>
+                            <span style="color: {status_color}; font-weight: 800; font-size: 16px;">{status_label}</span>
+                        </div>
+                        <div style="flex: 1;">
+                            <span style="color: #10b981; font-size: 10px; text-transform: uppercase; font-weight: 800; display: block; margin-bottom: 4px; letter-spacing: 1px;">Apply By</span>
+                            <span style="color: #f43f5e; font-weight: 800; font-size: 16px;">{deadline}</span>
+                        </div>
+                    </div>
                 </div>
-            </div>
+
+                {activation_snippet}
+                
+                <div style="margin-top: 40px; text-align: center;">
+                    <a href="{cta_link}" style="background: #6366f1; color: #ffffff; padding: 18px 45px; border-radius: 18px; text-decoration: none; font-weight: 900; letter-spacing: 0.5px; display: inline-block; box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.4);">
+                        {cta_text} →
+                    </a>
+                </div>
+            </main>
             
-            <p style="text-align: center; color: #475569; font-size: 11px; margin-top: 40px;">
+            <footer style="text-align: center; color: #475569; font-size: 10px; margin-top: 40px; line-height: 1.6;">
                 &copy; 2026 AUIP Professional Hub. All rights reserved. <br/>
-                This is an automated match generated by the AUIP Placement Intelligence Engine.
-            </p>
+                This invitation was dynamically generated by the AUIP Placement Intelligence Engine.<br/>
+                <span style="color: #334155;">Institutional Identity Verification: SECURED</span>
+            </footer>
         </div>
         """
-        message = strip_tags(html_content)
-        try:
-            send_mail(
-                subject=subject,
-                message=message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[email],
-                html_message=html_content,
-                fail_silently=False,
-            )
-        except Exception as e:
-            logger.error(f"[INACTIVE-EMAIL-ERR] Failed to send to {email}: {str(e)}")
+
+    @staticmethod
+    def _send_inactive_student_email(email: str, student_name: str, company_name: str, role: str, package: str, deadline: str, frontend_url: str):
+        """DEPRECATED: Legacy shim."""
+        from django.core.mail import send_mail
+        from django.conf import settings
+        from django.utils.html import strip_tags
+        
+        subject = f"🎯 Important: Placement Eligibility at {company_name}"
+        html = EligibilityEngine._get_premium_placement_html(student_name, company_name, role, package, deadline, frontend_url, False)
+        
+        send_mail(
+            subject=subject,
+            message=strip_tags(html),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email],
+            html_message=html,
+            fail_silently=False
+        )
     
     @staticmethod
     def _create_drive_group(drive: PlacementDrive, eligible_qs):

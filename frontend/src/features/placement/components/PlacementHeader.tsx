@@ -13,10 +13,10 @@ const PlacementHeader: React.FC<PlacementHeaderProps> = ({ onInitiate }) => {
                     <div className="p-2.5 bg-indigo-600 rounded-2xl shadow-xl shadow-indigo-600/30">
                         <Target className="w-8 h-8 text-white" />
                     </div>
-                    Placement Governance & Intelligence
+                    Placement Hub
                 </h1>
                 <p className="text-gray-500 text-sm mt-2 font-medium max-w-lg leading-relaxed uppercase tracking-widest text-[10px]">
-                    Automate JDs with AI Expertise Core v4.2 • Unified Student Manifest • TPO Orchestration Hub
+                    AI-Powered JD Extraction • Eligible Student Matching • One-Click Broadcast
                 </p>
             </div>
             <button
@@ -24,7 +24,7 @@ const PlacementHeader: React.FC<PlacementHeaderProps> = ({ onInitiate }) => {
                 className="px-6 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-xs font-black transition-all flex items-center gap-3 shadow-xl shadow-indigo-600/30 hover:scale-105 active:scale-95 group uppercase tracking-widest"
             >
                 <Briefcase className="w-4 h-4 group-hover:rotate-12 transition-transform" />
-                Initiate New Placement Architecture
+                Create New Drive
             </button>
         </header>
     );

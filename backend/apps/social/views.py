@@ -331,8 +331,15 @@ class SocialFeedViewSet(viewsets.ModelViewSet):
             from asgiref.sync import async_to_sync
             channel_layer = get_channel_layer()
             if channel_layer:
+                # Normalize role for group routing (Social Registry uses FACULTY, Identity User uses TEACHER)
+                target_role = user_obj.role
+                if target_role == "TEACHER":
+                    target_role = "FACULTY"
+                elif target_role == "INSTITUTION_ADMIN":
+                    target_role = "INST_ADMIN"
+
                 async_to_sync(channel_layer.group_send)(
-                    f"user_sessions_{user_obj.id}_{user_obj.role}",
+                    f"user_sessions_{user_obj.id}_{target_role}",
                     {
                         "type": "session_update",
                         "data": {
@@ -499,55 +506,35 @@ class ChatViewSet(viewsets.ViewSet):
         from apps.auip_institution.models import StudentAcademicRegistry, FacultyAcademicRegistry, AdminAuthorizedAccount
         
         for s in all_sessions:
-            # Skip if I've 'deleted' this conversation (individual removal)
+            # Skip if I've 'deleted' this conversation
             if s.deleted_for and f"{user_role}-{my_id}" in s.deleted_for:
                 continue
 
+            # RESOLVE OTHER PARTICIPANT from JSON (Fast)
             if s.is_group:
-                other_name = s.name or "Secure Workgroup"
+                other_name = s.name or "Workgroup"
                 orole = "GROUP"
                 oid = 0
             else:
                 other = next((p for p in s.participants if not (int(p['id']) == int(my_id) and p['role'] == user_role)), s.participants[0])
                 orole = other.get('role', 'STUDENT')
                 oid = other.get('id')
-                other_name = other.get('name', 'Unknown Peer')
-                if not other_name or other_name == "Unknown User":
-                    if orole == 'STUDENT':
-                        p = StudentAcademicRegistry.objects.filter(id=oid).first()
-                        if p: other_name = p.full_name
-                    elif orole == 'FACULTY':
-                        p = FacultyAcademicRegistry.objects.filter(id=oid).first()
-                        if p: other_name = p.full_name
-                    elif orole in ('INST_ADMIN', 'ADMIN'):
-                        p = AdminAuthorizedAccount.objects.filter(id=oid).first()
-                        if p: other_name = f"{p.first_name} {p.last_name}".strip() or p.email
+                other_name = other.get('name', 'Peer')
 
-            # Last Message Preview (Decrypted)
-            last_msg = s.messages.order_by('-timestamp').first()
+            # Last Message Preview (Decrypted) - Only fetch last 1
+            last_msg = s.messages.only('content', 'timestamp').last()
             preview = ""
             if last_msg:
-                preview = SecureVaultService.decrypt(last_msg.content)
-                if len(preview) > 30: preview = preview[:30] + "..."
+                try:
+                    preview = SecureVaultService.decrypt(last_msg.content)
+                    if len(preview) > 30: preview = preview[:30] + "..."
+                except:
+                    preview = "Encrypted Message"
 
-            # Resolve Presence (Last Seen / Live) - tenant isolated
-            from apps.identity.models import LoginSession
-            from django_tenants.utils import schema_context
-            from datetime import timedelta
-            
-            online = False
+            # 🚀 PERFORMANCE OPTIMIZATION: Skip expensive LoginSession lookup in list view
+            # The client can check presence upon opening the chat or we can bulk-fetch later.
+            online = False 
             last_seen = None
-            schema = request.tenant.schema_name
-            with schema_context('public'):
-                psess = LoginSession.objects.filter(
-                    tenant_user_id=oid, 
-                    role=orole,
-                    tenant_schema=schema
-                ).order_by('-last_active').first()
-                if psess:
-                    last_seen = psess.last_active
-                    if psess.is_active and psess.last_active > timezone.now() - timedelta(minutes=5):
-                        online = True
 
             results.append({
                 "id": s.id,
@@ -555,7 +542,7 @@ class ChatViewSet(viewsets.ViewSet):
                 "other_name": other_name,
                 "other_role": orole,
                 "other_id": oid,
-                "last_msg_at": s.last_message_at,
+                "last_msg_at": s.last_message_at or (last_msg.timestamp if last_msg else None),
                 "last_msg_preview": preview,
                 "is_group": s.is_group,
                 "unread_count": s.messages.filter(is_read=False).exclude(sender_id=my_id).count(),

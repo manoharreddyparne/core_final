@@ -39,6 +39,7 @@ app.conf.task_routes = {
     "apps.identity.tasks.send_activation_certificate_email_task": {"queue": "certificates"},
     "apps.identity.tasks.send_expiry_warning_email_task": {"queue": "emails"},
     "apps.identity.tasks.check_expiring_certificates": {"queue": "certificates"},
+    "apps.placement.tasks.broadcast_placement_drive_task": {"queue": "default"},
 }
 
 app.conf.task_serializer = "json"

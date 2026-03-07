@@ -106,6 +106,11 @@ export const placementApi = {
         return response.data;
     },
 
+    broadcastProgress: async (driveId: number): Promise<any> => {
+        const response = await placementClient.get(`placement/drives/${driveId}/broadcast_progress/`);
+        return response.data;
+    },
+
     manualAddStudent: async (driveId: number, rollNumber: string): Promise<any> => {
         const response = await placementClient.post(`placement/drives/${driveId}/manual_add_student/`, { roll_number: rollNumber });
         return response.data;

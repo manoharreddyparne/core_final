@@ -41,6 +41,10 @@ class PlacementDrive(models.Model):
     # Manifest Refinements (Manual Overrides)
     excluded_rolls = models.JSONField(default=list, blank=True, help_text="List of roll numbers explicitly excluded from this drive")
     manual_students = models.JSONField(default=list, blank=True, help_text="List of roll numbers explicitly added to this drive")
+    
+    # Universal Selection Mode
+    is_inclusion_mode = models.BooleanField(default=False, help_text="If true, only students in included_rolls (plus manual_students) are eligible")
+    included_rolls = models.JSONField(default=list, blank=True, help_text="Roll numbers specifically targetted if is_inclusion_mode is active")
 
     
     other_requirements = models.TextField(blank=True)
