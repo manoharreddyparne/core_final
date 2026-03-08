@@ -68,6 +68,16 @@ class SessionConsumer(AsyncWebsocketConsumer):
         except Exception as e:
             logger.warning(f"Failed to relay institution update: {e}")
 
+    async def user_notification(self, event: dict):
+        """Point 15: Instant UI alerts for chat/broadcasts."""
+        try:
+            await self.send(text_data=json.dumps({
+                "type": "notification",
+                "data": event.get("data", {})
+            }))
+        except Exception as e:
+            logger.warning(f"Failed to relay notification: {e}")
+
     async def receive(self, text_data: Optional[str] = None, bytes_data: Optional[bytes] = None):
         """Handle messages from client."""
         if not text_data:

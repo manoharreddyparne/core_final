@@ -332,7 +332,7 @@ class EligibilityEngine:
         }
     
     @staticmethod
-    def send_unified_placement_alert(drive: PlacementDrive, registry: any, is_active: bool, chat_link: str = None):
+    def send_unified_placement_alert(drive: Any, registry: Any, is_active: bool, chat_link: str = ""):
         """
         Sends the premium HTML alert to ALL known emails for a student.
         Also triggers a database notification for active accounts.
@@ -554,36 +554,36 @@ class EligibilityEngine:
         )
     
     @staticmethod
-    def _create_drive_group(drive: PlacementDrive, eligible_qs):
+    def provision_recruitment_hub(drive: PlacementDrive):
         """
-        Auto-creates a ChatSession group for this placement drive.
-        All eligible students + admins/faculty are auto-added.
-        Returns group info with invite link.
+        Point 4: Auto-creates a ChatSession group for this placement drive.
+        All students in the academic registry (the 'drive-1X' group) are auto-added 
+        to ensure they see the announcement immediately upon login.
         """
         from apps.social.models import ChatSession
-        from apps.auip_institution.models import FacultyAuthorizedAccount
+        from apps.auip_institution.models import FacultyAuthorizedAccount, StudentAcademicRegistry
         from django.conf import settings
+        import uuid
         
-        # Check if group already exists for this drive
+        # Check if group already exists
         existing = ChatSession.objects.filter(
-            is_group=True,
-            name__icontains=f"[Drive-{drive.id}]"
+            participants_metadata__drive_id=drive.id
         ).first()
         
         if existing:
-            return {
+             return {
                 "session_id": str(existing.session_id),
                 "invite_link": f"{getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')}/chat-hub?group={existing.session_id}",
                 "already_existed": True,
             }
         
-        # Build participants list
+        # Point 4: Add ALL students to the group
         participants = []
+        all_students = StudentAcademicRegistry.objects.all().only('id', 'full_name', 'roll_number')
         
-        # Add eligible students
-        for reg in eligible_qs.all()[:500]:
+        for reg in all_students:
             participants.append({
-                "id": reg.id,
+                "id": int(reg.id),
                 "role": "STUDENT",
                 "name": reg.full_name or reg.roll_number,
             })
@@ -591,16 +591,17 @@ class EligibilityEngine:
         # Add all active faculty/admin
         for faculty in FacultyAuthorizedAccount.objects.filter(is_active=True).select_related('registry_ref'):
             participants.append({
-                "id": faculty.registry_ref_id,
+                "id": int(faculty.registry_ref_id),
                 "role": "FACULTY",
                 "name": faculty.first_name or "Faculty",
             })
         
-        invite_token = str(uuid.uuid4().hex)[:16]
+        uid_hex = uuid.uuid4().hex
+        invite_token = uid_hex[:16]
         
         group = ChatSession.objects.create(
             is_group=True,
-            name=f"[Drive-{drive.id}] {drive.company_name} — {drive.role}",
+            name=f"[Drive-{drive.id}] {drive.company_name} — Announcement Hub",
             participants=participants,
             participants_metadata={
                 "drive_id": drive.id,
@@ -608,17 +609,18 @@ class EligibilityEngine:
                 "role": drive.role,
                 "created_by": "SYSTEM",
                 "auto_generated": True,
-                "read_only_for_students": True, # Gated announcement mode
+                "read_only_for_students": True, # Announcements only
             },
             invite_link_token=invite_token,
         )
         
-        frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
-        
         return {
             "session_id": str(group.session_id),
-            "invite_link": f"{frontend_url}/chat-hub?group={group.session_id}",
             "invite_token": invite_token,
-            "participants_count": len(participants),
-            "already_existed": False,
+            "invite_link": f"{getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')}/chat-hub?group={group.session_id}"
         }
+
+    @staticmethod
+    def _create_drive_group(drive: PlacementDrive, eligible_qs):
+        """Legacy alias for backward compatibility or mode-specific creation."""
+        return EligibilityEngine.provision_recruitment_hub(drive)

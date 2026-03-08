@@ -50,14 +50,48 @@ class PlacementDriveViewSet(viewsets.ModelViewSet):
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        
+        # Point 12: Placement Drive Live Behavior
+        # If drive is already active, only allow certain fields for standard admins
+        is_live = instance.status == 'ACTIVE'
+        is_privileged = request.user.role in ('INST_ADMIN', 'INSTITUTION_ADMIN', 'ADMIN', 'SUPERADMIN')
+        
+        if is_live and not is_privileged:
+            allowed_fields = ['location', 'package_details', 'salary_range', 'tpo_notes', 'deadline']
+            data = request.data.copy()
+            for key in data.keys():
+                if key not in allowed_fields:
+                    data.pop(key)
+            if not data:
+                return error_response("Mission lock: Critical parameters cannot be modified once LIVE.")
+            serializer = self.get_serializer(instance, data=data, partial=True)
+        else:
+            serializer = self.get_serializer(instance, data=request.data, partial=partial)
+            
         serializer.is_valid(raise_exception=True)
         drive = serializer.save()
         
         return success_response(
-            f"Strategic configuration for '{drive.company_name}' synchronized.",
+            f"Strategic configuration for '{drive.company_name}' {'locked & updated' if is_live else 'synchronized'}.",
             data=serializer.data
         )
+
+    @action(detail=True, methods=['post'], permission_classes=[IsTenantAdmin])
+    def remind_unapplied(self, request, pk=None):
+        """Point 13: Remind students who are eligible but haven't applied."""
+        drive = self.get_object()
+        from apps.placement.services.eligibility_engine import EligibilityEngine
+        # Trigger Celery task or direct service call
+        EligibilityEngine.broadcast_invitations(drive, mode='REMINDER')
+        return success_response("Reminder dispatch initiated for unapplied students.")
+
+    @action(detail=True, methods=['post'], permission_classes=[IsTenantAdmin])
+    def remind_inactive(self, request, pk=None):
+        """Point 13: Remind students who haven't activated their accounts."""
+        drive = self.get_object()
+        from apps.placement.services.eligibility_engine import EligibilityEngine
+        EligibilityEngine.broadcast_invitations(drive, mode='INACTIVE_ONLY')
+        return success_response("Activation reminders dispatched.")
 
     def perform_create(self, serializer):
         # We handle broadcast via dedicated endpoint now

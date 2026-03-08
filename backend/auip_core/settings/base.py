@@ -62,6 +62,7 @@ TENANT_APPS = (
     "apps.governance",
     "apps.intelligence",
     "apps.social",
+    "apps.chathub",
     "apps.resumes",
     "apps.core_brain",
 )

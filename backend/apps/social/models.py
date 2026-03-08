@@ -82,7 +82,7 @@ class ChatSession(models.Model):
     deleted_for = models.JSONField(default=list, help_text="List of participant IDs who deleted this chat")
     
     created_at = models.DateTimeField(auto_now_add=True)
-    last_message_at = models.DateTimeField(auto_now=True)
+    last_message_at = models.DateTimeField(auto_now=True, db_index=True)
 
 class ChatMessage(models.Model):
     """
@@ -90,7 +90,7 @@ class ChatMessage(models.Model):
     Includes advanced status tracking and encrypted content refs.
     """
     session = models.ForeignKey(ChatSession, on_delete=models.CASCADE, related_name='messages')
-    sender_id = models.IntegerField()
+    sender_id = models.IntegerField(db_index=True)
     sender_role = models.CharField(max_length=20)
     
     # Encrypted Content
@@ -101,16 +101,34 @@ class ChatMessage(models.Model):
     attachment_type = models.CharField(max_length=20, default='TEXT') # TEXT, IMAGE, VIDEO, VOICE, STICKER
     metadata = models.JSONField(default=dict, blank=True) # Emoji, reactions, etc.
     
-    # Tracking (Real-time indicators)
-    is_delivered = models.BooleanField(default=False)
-    is_read = models.BooleanField(default=False)
-    delivered_at = models.DateTimeField(null=True, blank=True)
-    read_at = models.DateTimeField(null=True, blank=True)
+    # Multi-user Tracking for Groups
+    status_tracking = models.JSONField(default=dict, help_text="Map of {user_id_role: {delivered_at, seen_at}}")
     
-    timestamp = models.DateTimeField(auto_now_add=True)
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
         ordering = ['timestamp']
+        indexes = [
+             models.Index(fields=['session', 'timestamp']),
+        ]
+
+class JoinRequest(models.Model):
+    """
+    Point 3 & 5: System for requesting access to restricted threads.
+    """
+    session = models.ForeignKey(ChatSession, on_delete=models.CASCADE, related_name='join_requests')
+    user_id = models.IntegerField(db_index=True)
+    user_role = models.CharField(max_length=20)
+    user_name = models.CharField(max_length=255)
+    
+    status = models.CharField(
+        max_length=20, 
+        choices=[('PENDING', 'Pending'), ('APPROVED', 'Approved'), ('REJECTED', 'Rejected')],
+        default='PENDING'
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
 
 class SupportTicket(models.Model):
     """

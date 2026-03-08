@@ -54,6 +54,13 @@ class PlacementDrive(models.Model):
     chat_session_id = models.UUIDField(null=True, blank=True, help_text="Linked ChatSession ID")
     neural_metadata = models.JSONField(default=dict, blank=True, help_text="Dynamic AI components (skills, blurbs, roles)")
 
+    # Point 14: Automated Reminder System
+    auto_reminders_enabled = models.BooleanField(default=False)
+    reminder_config = models.JSONField(default=dict, blank=True, help_text="e.g. {'3_days': true, '1_day': true}")
+    
+    # Point 12: Optional fields allowed to update when LIVE
+    tpo_notes = models.TextField(blank=True, help_text="Strategy notes for TPOs")
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

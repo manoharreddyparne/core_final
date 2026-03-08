@@ -59,6 +59,9 @@ urlpatterns = [
     # Social & Personalization (Isolated)
     path('api/social/', include('apps.social.urls')),
 
+    # ChatHub & Recruitment Communication (Isolated)
+    path('api/chathub/', include('apps.chathub.urls')),
+
     # Resume Builder Hub (Isolated)
     path('api/resumes/', include('apps.resumes.urls')),
 

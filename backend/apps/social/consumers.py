@@ -1,6 +1,7 @@
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
+from asgiref.sync import async_to_sync
 from django.utils import timezone
 
 class SocialChatConsumer(AsyncWebsocketConsumer):
@@ -155,22 +156,53 @@ class SocialChatConsumer(AsyncWebsocketConsumer):
         from django_tenants.utils import schema_context
         from apps.social.models import ChatMessage, ChatSession
         from apps.social.security import SecureVaultService
+        from channels.layers import get_channel_layer
         
         schema = self.scope.get('token_payload', {}).get('schema', 'public') if self.scope.get('token_payload') else 'public'
         try:
             with schema_context(schema):
                 session = ChatSession.objects.get(session_id=self.session_id)
                 encrypted = SecureVaultService.encrypt(content)
+                
+                # Point 7: Init status tracking for all
+                status_tracking = {}
+                for p in session.participants:
+                    key = f"{p['id']}_{p['role']}"
+                    if key == f"{self.profile_id}_{getattr(self.user, 'role', 'STUDENT')}":
+                        status_tracking[key] = {"seen_at": timezone.now().isoformat()}
+                    else:
+                        status_tracking[key] = {"delivered_at": None, "seen_at": None}
+
                 m = ChatMessage.objects.create(
                     session=session,
                     sender_id=self.profile_id,
                     sender_role=getattr(self.user, 'role', 'STUDENT'),
                     content=encrypted,
                     attachment_type=att_type,
-                    metadata=metadata
+                    metadata=metadata,
+                    status_tracking=status_tracking
                 )
                 session.last_message_at = timezone.now()
                 session.save()
+
+                # Point 15: Notify other participants who might not be in the room
+                channel_layer = get_channel_layer()
+                for p in session.participants:
+                    key = f"{p['id']}_{p['role']}"
+                    if key != f"{self.profile_id}_{getattr(self.user, 'role', 'STUDENT')}":
+                        user_group = f"user_sessions_{p['id']}_{p['role']}"
+                        async_to_sync(channel_layer.group_send)(
+                            user_group,
+                            {
+                                "type": "user_notification",
+                                "data": {
+                                    "type": "NEW_MESSAGE",
+                                    "session_id": str(session.session_id),
+                                    "sender_name": "New Message", # Profile resolve is slow here, use generic
+                                    "preview": content[:50] + "..." if len(content) > 50 else content
+                                }
+                            }
+                        )
                 return m.id
         except Exception as e:
             import logging
@@ -184,4 +216,17 @@ class SocialChatConsumer(AsyncWebsocketConsumer):
         
         schema = self.scope.get('token_payload', {}).get('schema', 'public') if self.scope.get('token_payload') else 'public'
         with schema_context(schema):
-            ChatMessage.objects.filter(id__in=msg_ids).update(is_read=True, read_at=timezone.now())
+            # Point 7/10: Track per-user detailed status
+            my_key = f"{self.profile_id}_{getattr(self.user, 'role', 'STUDENT')}"
+            now = timezone.now().isoformat()
+            
+            msgs = ChatMessage.objects.filter(id__in=msg_ids)
+            for m in msgs:
+                if not m.status_tracking: m.status_tracking = {}
+                m.status_tracking[my_key] = {
+                    "delivered_at": m.status_tracking.get(my_key, {}).get('delivered_at') or now,
+                    "seen_at": now
+                }
+                m.is_read = True 
+                m.read_at = timezone.now()
+                m.save()
