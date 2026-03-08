@@ -184,6 +184,10 @@ class StudentAuthorizedAccount(models.Model):
     def role(self):
         return "STUDENT"
 
+    @property
+    def full_name(self):
+        return f"{self.first_name} {self.last_name}".strip() or self.email
+
 
 # ==============================================================================
 # 👨‍🏫 2. FACULTY CONTEXT (Registry + Account)
@@ -290,6 +294,10 @@ class FacultyAuthorizedAccount(models.Model):
     def role(self):
         return "FACULTY"
 
+    @property
+    def full_name(self):
+        return f"{self.first_name} {self.last_name}".strip() or self.email
+
 
 # ==============================================================================
 # 🛡️ 3. ADMIN CONTEXT (Registry + Account)
@@ -368,3 +376,7 @@ class AdminAuthorizedAccount(models.Model):
     @property
     def role(self):
         return "INST_ADMIN"
+
+    @property
+    def full_name(self):
+        return f"{self.first_name} {self.last_name}".strip() or self.email

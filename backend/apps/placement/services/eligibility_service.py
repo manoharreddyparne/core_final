@@ -35,34 +35,29 @@ class EligibilityService:
     @staticmethod
     def evaluate_student(student: StudentAcademicRegistry, drive: PlacementDrive) -> Tuple[bool, str]:
         """
-        Evaluates a single student and returns (is_eligible, failure_reason).
-        Used for providing feedback to students on their dashboard.
+        Evaluates a single student using the unified EligibilityEngine.
         """
-        # CGPA Check
-        if drive.min_cgpa > 0 and (student.cgpa or 0) < drive.min_cgpa:
-            return False, f"Your CGPA ({student.cgpa}) is below the required {drive.min_cgpa}."
-            
-        # Branch Check
-        if drive.eligible_branches and student.branch not in drive.eligible_branches:
-            return False, f"Your branch ({student.branch}) is not included in this drive's requirements."
-            
-        # Batch Check
-        if drive.eligible_batches and student.batch_year not in drive.eligible_batches:
-            return False, f"Students from batch {student.batch_year} are not eligible for this drive."
+        from apps.placement.services.eligibility_engine import EligibilityEngine
+        
+        # Use the central engine for consistent branch/CGPA matching
+        is_eligible = EligibilityEngine.is_student_eligible(drive, student.id)
+        
+        if not is_eligible:
+            return False, "Intelligence analysis suggests you do not meet the criteria for this drive."
             
         # 🧠 Governance Brain Checks (Readiness & Behavior)
         from apps.governance.models import StudentIntelligenceProfile
         intel_profile, _ = StudentIntelligenceProfile.objects.get_or_create(student=student)
         
-        # Thresholds (Could be drive-specific in future, using defaults for now)
+        # Thresholds
         MIN_READINESS = 40 
         MIN_BEHAVIOR = 30
         
         if intel_profile.readiness_score < MIN_READINESS:
-            return False, f"Your AI Readiness Score ({intel_profile.readiness_score}) is below the institutional threshold ({MIN_READINESS}). Please complete more mock activities."
+            return False, f"Your AI Readiness Score ({intel_profile.readiness_score}) is below the institutional threshold."
             
         if intel_profile.behavior_score < MIN_BEHAVIOR:
-            return False, f"Your Behavior/Engagement score ({intel_profile.behavior_score}) is too low. Consistent portal activity is required for placement eligibility."
+            return False, f"Your Behavior/Engagement score ({intel_profile.behavior_score}) is too low."
 
         return True, "Congratulations! You are eligible for this drive."
 
@@ -72,12 +67,13 @@ class EligibilityService:
         Retrieves all ACTIVE drives a specific student is eligible for.
         """
         from django.utils import timezone
+        from apps.placement.services.eligibility_engine import EligibilityEngine
+        
         active_drives = PlacementDrive.objects.filter(status='ACTIVE', deadline__gt=timezone.now())
         
         eligible_ids = []
         for drive in active_drives:
-            is_eligible, _ = EligibilityService.evaluate_student(student, drive)
-            if is_eligible:
+            if EligibilityEngine.is_student_eligible(drive, student.id):
                 eligible_ids.append(drive.id)
                 
         return PlacementDrive.objects.filter(id__in=eligible_ids)

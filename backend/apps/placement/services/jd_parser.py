@@ -190,6 +190,7 @@ YOUR REQUIRED OUTPUT SCHEMA (Do not add or remove keys):
   "is_valid": true,
   "company_name": "Not Specified",
   "role": "Not Specified",
+  "roles": [],
   "narrative_summary": "Not Specified",
   "key_highlights": [],
   "min_cgpa": 0.0,
@@ -199,7 +200,9 @@ YOUR REQUIRED OUTPUT SCHEMA (Do not add or remove keys):
   "allowed_active_backlogs": 0,
   "eligible_branches": [],
   "eligible_batches": [],
+  "eligibility_criteria": "Not Specified",
   "package_details": "Not Specified",
+  "CTC": "Not Specified",
   "location": "Not Specified",
   "experience_years": "Not Specified",
   "qualifications": [],
@@ -208,6 +211,7 @@ YOUR REQUIRED OUTPUT SCHEMA (Do not add or remove keys):
   "hiring_process": [],
   "primary_skills": [],
   "secondary_skills": [],
+  "skills_required": [],
   "difficulty_level": 5,
   "drive_type": "GENERAL",
   "role_category": "GENERAL_ENG",
@@ -394,24 +398,7 @@ YOUR REQUIRED OUTPUT SCHEMA (Do not add or remove keys):
         # ──────────────────────────────────────────────────────────────────
         # To prevent schema destruction by smaller LLMs, Pass 2 ONLY focuses
         # on specific enhancements, which are then merged via Python.
-        pass2_system = """
-You are a SENIOR HR Intelligence Auditor.
-Your job is to ENHANCE the data extracted from a Job Description.
-
-STRICT RULES:
-- Output ONLY valid JSON. Absolutely no conversational text. No markdown formatting. No markdown code blocks (```).
-- Start your response immediately with the character { and end with }.
-- DO NOT use any comments (like //) inside the JSON output. JSON does not support comments.
-- discovered_custom_criteria MUST ONLY contain actual constraints found in the text (bonds, service agreements, shifts, unique benefits, etc). DO NOT hallucinate "Not Specified". If none exist, output {}.
-- social_blurbs MUST contain exactly 3 exciting WhatsApp/Telegram messages to hype the role.
-
-YOUR REQUIRED OUTPUT SCHEMA:
-{
-  "improved_narrative_summary": "A highly detailed, professional paragraph summarizing the role and selling points.",
-  "social_blurbs": ["Exciting emoji-rich blurb 1", "Blurb 2", "Blurb 3"],
-  "discovered_custom_criteria": {}
-}
-"""
+        pass2_system = JDExtractionService._get_pass2_system_prompt()
 
         pass2_prompt = (
             f"ORIGINAL JD TEXT:\n{jd_text}\n\n"
@@ -442,6 +429,97 @@ YOUR REQUIRED OUTPUT SCHEMA:
                 logger.warning("[JD-PASS2-JSON-FAIL] Failed to parse Pass 2. Using Pass 1 data.")
         else:
             logger.warning("[JD-PASS2-FAIL] Pass 2 returned empty. Using Pass 1 data.")
+
+        # Ensure location is always a string
+        if isinstance(pass1_data.get("location"), list):
+            pass1_data["location"] = ", ".join(pass1_data["location"])
+
+        return pass1_data
+
+    @staticmethod
+    def _get_pass2_system_prompt():
+        return """
+You are a SENIOR HR Intelligence Auditor.
+Your job is to ENHANCE the data extracted from a Job Description.
+
+STRICT RULES:
+- Output ONLY valid JSON. Absolutely no conversational text. No markdown formatting. No markdown code blocks (```).
+- Start your response immediately with the character { and end with }.
+- DO NOT use any comments (like //) inside the JSON output. JSON does not support comments.
+- social_blurbs MUST contain exactly 3 exciting WhatsApp/Telegram messages to hype the role.
+- discovered_custom_criteria MUST capture ALL additional information from the JD that was NOT already extracted into the standard fields.
+  This includes but is not limited to:
+  - Application link / Apply URL
+  - Application instructions (how to apply)
+  - Program details (apprenticeship, training program, internship)
+  - Program duration
+  - Bond / service agreement details
+  - Shift timings or work schedule
+  - Benefits (health insurance, transport, meals)
+  - Work mode (remote, hybrid, on-site)
+  - Reporting structure
+  - Team size
+  - Required certifications
+  - Relocation support
+  - Probation period
+  - Any other unique requirement or detail
+- If the JD mentions NONE of these extras, output discovered_custom_criteria as {}.
+- DO NOT hallucinate. Only include items that are ACTUALLY present in the JD text.
+
+YOUR REQUIRED OUTPUT SCHEMA:
+{
+  "improved_narrative_summary": "A highly detailed, professional paragraph summarizing the role and selling points.",
+  "social_blurbs": ["Exciting emoji-rich blurb 1", "Blurb 2", "Blurb 3"],
+  "discovered_custom_criteria": {}
+}
+"""
+
+    @staticmethod
+    def _run_enhancement_pass(pass1_data: Dict[str, Any], source_label: str = "EXTRACTED_JD") -> Dict[str, Any]:
+        """
+        Pass 2 enhancement for PDF/Image extractions.
+        Adds narrative summary, social blurbs, and dynamic custom_criteria discovery.
+        """
+        # Build a textual summary from pass1 data for Pass 2 context
+        summary_lines = []
+        for key, val in pass1_data.items():
+            if key in ('is_valid', 'custom_criteria'):
+                continue
+            if val and val != 'Not Specified' and val != [] and val != 0 and val != 0.0:
+                summary_lines.append(f"{key}: {val}")
+        pass1_summary = "\n".join(summary_lines)
+
+        pass2_system = JDExtractionService._get_pass2_system_prompt()
+        pass2_prompt = (
+            f"SOURCE: {source_label}\n\n"
+            f"FIRST-PASS EXTRACTION:\n{pass1_summary}\n\n"
+            f"NARRATIVE SUMMARY SO FAR:\n{pass1_data.get('narrative_summary', '')}\n\n"
+            "Generate the enhancement JSON. Capture ALL additional details not in the standard fields."
+            "OUTPUT ONLY THE RAW JSON OBJECT WITH NO MARKDOWN FORMATTING."
+        )
+
+        try:
+            pass2_raw = BrainOrchestrator.generate_text(pass2_prompt, system_prompt=pass2_system)
+            if pass2_raw:
+                pass2_data = JDExtractionService._parse_json(pass2_raw)
+                if pass2_data:
+                    if pass2_data.get("improved_narrative_summary"):
+                        pass1_data["narrative_summary"] = pass2_data["improved_narrative_summary"]
+                    if isinstance(pass2_data.get("social_blurbs"), list):
+                        pass1_data["social_blurbs"] = pass2_data["social_blurbs"]
+                    if isinstance(pass2_data.get("discovered_custom_criteria"), dict):
+                        existing = pass1_data.get("custom_criteria", {})
+                        if not isinstance(existing, dict):
+                            existing = {}
+                        existing.update(pass2_data["discovered_custom_criteria"])
+                        pass1_data["custom_criteria"] = existing
+                    logger.info(f"[JD-{source_label}] Enhancement pass merged successfully.")
+                else:
+                    logger.warning(f"[JD-{source_label}] Enhancement pass JSON parse failed.")
+            else:
+                logger.warning(f"[JD-{source_label}] Enhancement pass returned empty.")
+        except Exception as e:
+            logger.error(f"[JD-{source_label}] Enhancement pass error: {e}")
 
         # Ensure location is always a string
         if isinstance(pass1_data.get("location"), list):

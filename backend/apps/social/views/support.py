@@ -1,6 +1,6 @@
 from rest_framework import viewsets, permissions
-from .models import SupportTicket
-from .serializers import SupportTicketSerializer
+from ..models import SupportTicket
+from ..serializers import SupportTicketSerializer
 from apps.auip_institution.authentication import TenantAuthentication
 from apps.identity.authentication import SafeJWTAuthentication
 

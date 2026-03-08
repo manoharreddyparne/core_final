@@ -146,6 +146,30 @@ class EligibilityEngine:
         logger.info(f"[ELIGIBILITY] FINAL: {final.count()} eligible")
         return final
 
+    @staticmethod
+    def is_student_eligible(drive, student_profile_id):
+        """
+        Check if a student is eligible for the drive.
+        student_profile_id can be either:
+        - StudentAcademicRegistry.id (from get_profile_id for STUDENT role)
+        - StudentAuthorizedAccount.id (legacy callers)
+        We try registry first, then fall back to authorized account lookup.
+        """
+        from apps.auip_institution.models import StudentAuthorizedAccount
+        
+        # First try: Direct registry ID match (this is what get_profile_id returns)
+        qs = EligibilityEngine.get_qualified_students_qs(drive)
+        if qs.filter(id=student_profile_id).exists():
+            return True
+        
+        # Fallback: Maybe it's an AuthorizedAccount ID
+        account = StudentAuthorizedAccount.objects.filter(id=student_profile_id).first()
+        if account and account.academic_ref_id:
+            return qs.filter(id=account.academic_ref_id).exists()
+            
+        return False
+
+
 
     @staticmethod
     def get_qualified_students_qs(drive: PlacementDrive):
@@ -155,16 +179,20 @@ class EligibilityEngine:
         USED FOR FINAL BROADCASTING.
         """
         # 1. Base Pool Calculation
+        print(f"[ENGINE] Mode: {'INCLUSION' if drive.is_inclusion_mode else 'EXCLUSION'}")
         if drive.is_inclusion_mode:
             # ONLY explicitly included + Manual adds
             final_roll_set = set(drive.included_rolls or []) | set(drive.manual_students or [])
+            print(f"[ENGINE] Inclusion rolls count: {len(drive.included_rolls or [])}")
         else:
             # Criteria based + Manual adds - Exclusions
             criteria_qs_ids = list(EligibilityEngine.get_eligible_students_qs(drive).values_list('roll_number', flat=True))
             final_roll_set = set(criteria_qs_ids) | set(drive.manual_students or [])
+            print(f"[ENGINE] Criteria match count: {len(criteria_qs_ids)}")
             
             # Remove Exclusions
             exclusions = drive.excluded_rolls or []
+            print(f"[ENGINE] Exclusion rolls count: {len(exclusions)}")
             for roll in exclusions:
                 if roll in final_roll_set:
                     final_roll_set.remove(roll)
@@ -173,7 +201,9 @@ class EligibilityEngine:
         if drive.id:
             applied_rolls = list(PlacementApplication.objects.filter(drive=drive).values_list('student__roll_number', flat=True))
             final_roll_set |= set(applied_rolls)
+            print(f"[ENGINE] Applied rolls added: {len(applied_rolls)}")
                 
+        print(f"[ENGINE] Total Target Set size: {len(final_roll_set)}")
         return StudentAcademicRegistry.objects.filter(roll_number__in=final_roll_set).distinct()
 
     @staticmethod
@@ -296,7 +326,7 @@ class EligibilityEngine:
                     # Import and call the raw task function directly, bypassing Celery's bind=True wrapper
                     from apps.placement.tasks import broadcast_placement_drive_task
                     # .run() calls the underlying function directly, passing 'self' as None for unbound
-                    broadcast_placement_drive_task.run(drive.id, schema_name, mode=mode)
+                    broadcast_placement_drive_task.run(None, drive.id, schema_name, mode=mode)
                     print(f"[BROADCAST-THREAD] ✅ Completed for drive {drive.id}", flush=True)
                 except Exception as exc:
                     import traceback
@@ -332,14 +362,15 @@ class EligibilityEngine:
         }
     
     @staticmethod
-    def send_unified_placement_alert(drive: Any, registry: Any, is_active: bool, chat_link: str = ""):
+    def send_unified_placement_alert(drive: Any, registry: Any, is_active: bool, chat_link: str = "", smtp_connection=None):
         """
         Sends the premium HTML alert to ALL known emails for a student.
         Also triggers a database notification for active accounts.
+        Uses persistent smtp_connection when provided for batch performance.
         """
         from apps.notifications.services import NotificationDispatcher
         from django.conf import settings
-        from django.core.mail import send_mail
+        from django.core.mail import send_mail, EmailMessage
         import smtplib
         
         is_debug = getattr(settings, 'DEBUG', False)
@@ -385,14 +416,27 @@ class EligibilityEngine:
         email_sent = False
         for email in emails:
             try:
-                send_mail(
-                    subject=subject,
-                    message=text_content,
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=[email],
-                    html_message=html_content,
-                    fail_silently=False,
-                )
+                if smtp_connection:
+                    # Use persistent connection for batch performance
+                    msg = EmailMessage(
+                        subject=subject,
+                        body=text_content,
+                        from_email=settings.DEFAULT_FROM_EMAIL,
+                        to=[email],
+                        connection=smtp_connection,
+                    )
+                    msg.content_subtype = 'html'
+                    msg.body = html_content
+                    msg.send(fail_silently=False)
+                else:
+                    send_mail(
+                        subject=subject,
+                        message=text_content,
+                        from_email=settings.DEFAULT_FROM_EMAIL,
+                        recipient_list=[email],
+                        html_message=html_content,
+                        fail_silently=False,
+                    )
                 email_sent = True
                 if is_debug:
                     logger.info(f"[PLACEMENT-EMAIL-DEBUG] ✅ Sent to {email}")
@@ -577,23 +621,28 @@ class EligibilityEngine:
                 "already_existed": True,
             }
         
-        # Point 4: Add ALL students to the group
+        # Initialize with empty students, they will be auto-joined when they access the link if eligible/applied
         participants = []
-        all_students = StudentAcademicRegistry.objects.all().only('id', 'full_name', 'roll_number')
         
-        for reg in all_students:
+        # Add all active faculty, admins, and inst admins
+        # This ensures they are auto-members of all recruitment hubs
+        for faculty in FacultyAuthorizedAccount.objects.filter(is_active=True).select_related('academic_ref'):
+            # Use academic_ref_id if available, otherwise fallback to account id
+            # Both are integers (or can be treated as such)
+            participant_id = faculty.academic_ref_id if faculty.academic_ref_id else faculty.id
+            faculty_name = getattr(faculty, 'full_name', getattr(faculty, 'email', f'Faculty-{faculty.id}'))
             participants.append({
-                "id": int(reg.id),
-                "role": "STUDENT",
-                "name": reg.full_name or reg.roll_number,
+                "id": int(participant_id),
+                "role": "FACULTY",
+                "name": faculty_name,
             })
         
-        # Add all active faculty/admin
-        for faculty in FacultyAuthorizedAccount.objects.filter(is_active=True).select_related('registry_ref'):
+        from apps.auip_institution.models import AdminAuthorizedAccount
+        for admin in AdminAuthorizedAccount.objects.all():
             participants.append({
-                "id": int(faculty.registry_ref_id),
-                "role": "FACULTY",
-                "name": faculty.first_name or "Faculty",
+                "id": int(admin.id),
+                "role": admin.role, # INST_ADMIN or ADMIN
+                "name": admin.full_name,
             })
         
         uid_hex = uuid.uuid4().hex

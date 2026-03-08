@@ -35,7 +35,7 @@ const AdminPlacementHub = () => {
     const [deleteId, setDeleteId] = useState<number | null>(null);
 
     return (
-        <div className="max-w-7xl mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-2 duration-500 pb-20">
+        <div className="space-y-12 animate-in fade-in slide-in-from-bottom-2 duration-500 pb-20 px-4 sm:px-6 lg:px-8">
             <PlacementHeader onInitiate={openCreateModal} />
 
             {summary && (
@@ -56,7 +56,7 @@ const AdminPlacementHub = () => {
             ) : drives.length === 0 ? (
                 <PlacementEmptyState onInitiate={openCreateModal} />
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-8">
                     {drives.map(drive => (
                         <PlacementDriveCard
                             key={drive.id}

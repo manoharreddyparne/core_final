@@ -117,7 +117,7 @@ export const useSessionSocket = (user: User | null, isReady: boolean = true) => 
       }
 
       // Backend sends {action: "force_logout", session_id: 123}
-      const action: SessionEvent = data?.action || data?.event;
+      const action: SessionEvent = data?.action || data?.event || data?.type;
       logger.log("[WS] 📩 received:", action, data);
 
       switch (action) {
@@ -188,6 +188,21 @@ export const useSessionSocket = (user: User | null, isReady: boolean = true) => 
           });
           window.dispatchEvent(customEvent);
           break;
+        }
+
+        case "notification": {
+           const info = data.data;
+           if (info.type === 'NEW_MESSAGE') {
+             import('react-hot-toast').then(({ toast }) => {
+                toast.success(`${info.sender_name}: ${info.preview}`, {
+                  duration: 4000,
+                  icon: '💬',
+                });
+             });
+             // Dispatch event for ChatHub components to reload session list/unread counts
+             window.dispatchEvent(new CustomEvent('chat-refresh', { detail: info }));
+           }
+           break;
         }
 
         case "ping":

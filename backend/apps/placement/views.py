@@ -235,6 +235,55 @@ class PlacementDriveViewSet(viewsets.ModelViewSet):
             }
         )
 
+    @action(detail=False, methods=['post'])
+    def eligibility_manifest(self, request):
+        """
+        Returns the ENTIRE list of students who match the criteria.
+        Used for the 'Selected X of Y' preview modal.
+        """
+        from apps.auip_institution.models import StudentAcademicRegistry, StudentAuthorizedAccount
+        from django.db.models import Exists, OuterRef
+        
+        serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            return error_response("Invalid parameters", data=serializer.errors, code=400)
+            
+        drive = PlacementDrive(**serializer.validated_data)
+        print(f"[DEBUG] Manifest Engine: Mode={'INCLUSION' if drive.is_inclusion_mode else 'EXCLUSION'}, Included={len(drive.included_rolls or [])}, Excluded={len(drive.excluded_rolls or [])}")
+        
+        # Get the full qualified pool (Criteria + Manual - Excluded)
+        qualified_qs = EligibilityEngine.get_qualified_students_qs(drive)
+        
+        # Apply Search if present
+        search_query = request.data.get('q', '').strip()
+        if search_query:
+            from django.db.models import Q
+            tokens = search_query.split()
+            manifest_filter = Q()
+            for token in tokens:
+                manifest_filter &= (Q(roll_number__icontains=token) | Q(full_name__icontains=token))
+            qualified_qs = qualified_qs.filter(manifest_filter)
+
+        total_count = qualified_qs.count()
+        criteria_ids = set(EligibilityEngine.get_eligible_students_qs(drive).values_list('id', flat=True))
+        
+        # We limit to 1000 for safety, but usually recruitment is smaller
+        final_qs = qualified_qs.annotate(
+            is_activated=Exists(StudentAuthorizedAccount.objects.filter(academic_ref=OuterRef('pk')))
+        ).values('id', 'roll_number', 'full_name', 'branch', 'cgpa', 'is_activated').order_by('roll_number')[:1000]
+        
+        results = []
+        for s in final_qs:
+            results.append({**s, "is_manual": s['id'] not in criteria_ids})
+            
+        return success_response(
+            "Full manifest retrieved.",
+            data={
+                "students": results,
+                "total_count": total_count
+            }
+        )
+
     @action(detail=False, methods=['get'])
     def search_students(self, request):
         """

@@ -58,7 +58,7 @@ export const NotificationOverlay = ({ isOpen, onClose }: { isOpen: boolean; onCl
     const unreadCount = notifications.filter(n => !n.is_read).length;
 
     return (
-        <div className="absolute top-14 right-0 w-[400px] z-[100] animate-in fade-in slide-in-from-top-2 duration-300">
+        <div className="w-[400px] z-[100] animate-in fade-in slide-in-from-top-2 duration-300">
             <div className="glass-dark border-white/10 rounded-[2.5rem] shadow-3xl overflow-hidden flex flex-col max-h-[600px]">
                 {/* Header */}
                 <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/5">

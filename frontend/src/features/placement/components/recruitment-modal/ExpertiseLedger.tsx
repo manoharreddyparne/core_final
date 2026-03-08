@@ -1,6 +1,7 @@
 import React from "react";
 import { BrainCircuit, Activity, Target, DollarSign, Clock, Phone, ListChecks, X } from "lucide-react";
 import { PlacementDrive } from "../../types";
+import ConfirmModal from "./ConfirmModal";
 
 interface ExpertiseLedgerProps {
     expertise: any;
@@ -17,6 +18,8 @@ const ExpertiseLedger: React.FC<ExpertiseLedgerProps> = ({
     showAddField,
     setShowAddField
 }) => {
+    const [confirmDelete, setConfirmDelete] = React.useState<string | null>(null);
+
     if (!expertise) {
         return (
             <div className="bg-[#12141a] border border-white/10 rounded-[3rem] p-7 h-full flex flex-col shadow-2xl items-center justify-center text-center opacity-20 py-20">
@@ -177,13 +180,7 @@ const ExpertiseLedger: React.FC<ExpertiseLedgerProps> = ({
                                         className="flex-1 bg-transparent border-none text-[10px] font-bold text-gray-300 outline-none focus:text-white transition-colors"
                                     />
                                     <button 
-                                        onClick={() => {
-                                            if (window.confirm("Are you sure?")) {
-                                                const updated = { ...formData.custom_criteria };
-                                                delete updated[k];
-                                                setFormData({ ...formData, custom_criteria: updated });
-                                            }
-                                        }}
+                                        onClick={() => setConfirmDelete(k)}
                                         className="opacity-0 group-hover/criterion:opacity-100 p-1.5 hover:bg-red-500/20 text-red-400 rounded-lg transition-all"
                                     >
                                         <X className="w-3.5 h-3.5" />
@@ -193,6 +190,21 @@ const ExpertiseLedger: React.FC<ExpertiseLedgerProps> = ({
                         </div>
                     </div>
                 )}
+
+                <ConfirmModal 
+                    isOpen={!!confirmDelete}
+                    onClose={() => setConfirmDelete(null)}
+                    onConfirm={() => {
+                        if (confirmDelete) {
+                            const updated = { ...formData.custom_criteria };
+                            delete updated[confirmDelete];
+                            setFormData({ ...formData, custom_criteria: updated });
+                        }
+                    }}
+                    title="Purge Criterion"
+                    message={`Are you sure you want to remove the "${confirmDelete?.replace(/_/g, ' ')}" criterion from this intelligence ledger?`}
+                    confirmText="Purge"
+                />
 
                 <div className="bg-gradient-to-br from-indigo-600/20 to-purple-600/20 border border-indigo-500/40 rounded-[2.5rem] p-6 shadow-2xl relative overflow-hidden group">
                     <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-4 flex items-center gap-2">

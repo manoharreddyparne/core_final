@@ -15,6 +15,8 @@ export interface PlacementApplication {
         company_name: string;
         role: string;
         package_details: string;
+        is_broadcasted?: boolean;
+        chat_session_id?: string;
     };
     student_details?: {
         full_name: string;
@@ -61,6 +63,10 @@ export interface PlacementDrive {
     jd_document?: string | null;
     excluded_rolls?: string[];
     manual_students?: string[];
+    is_inclusion_mode?: boolean;
+    included_rolls?: string[];
     neural_metadata?: Record<string, any>;
+    auto_reminders_enabled?: boolean;
+    reminder_config?: Record<string, boolean>;
 }
 

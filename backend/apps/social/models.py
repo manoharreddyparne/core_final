@@ -78,6 +78,8 @@ class ChatSession(models.Model):
     is_group = models.BooleanField(default=False)
     name = models.CharField(max_length=255, blank=True, help_text="For group chats")
     invite_link_token = models.CharField(max_length=100, unique=True, null=True, blank=True)
+    invite_expiry_at = models.DateTimeField(null=True, blank=True)
+    open_invite = models.BooleanField(default=False, help_text="If True, anyone with link can join bypassing eligibility")
     
     deleted_for = models.JSONField(default=list, help_text="List of participant IDs who deleted this chat")
     

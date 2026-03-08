@@ -41,6 +41,7 @@ const MatchCheckPreview: React.FC<MatchCheckPreviewProps> = ({
 }) => {
     const [searchResults, setSearchResults] = React.useState<any[]>([]);
     const [searching, setSearching] = React.useState(false);
+    const [showOnlySelected, setShowOnlySelected] = React.useState(false);
     const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const handleSearchInput = (val: string) => {
@@ -68,7 +69,7 @@ const MatchCheckPreview: React.FC<MatchCheckPreviewProps> = ({
     if (!show) return null;
 
     return (
-        <div className="mt-8 animate-in fade-in zoom-in duration-500">
+        <div id="eligibility-manifest-anchor" className="mt-8 animate-in fade-in zoom-in duration-500">
             {/* Header and Input ... */}
             <div className="flex items-center justify-between mb-4">
                 <div className="flex flex-col gap-1">
@@ -97,6 +98,12 @@ const MatchCheckPreview: React.FC<MatchCheckPreviewProps> = ({
                     <div className="flex items-center gap-1.5 text-[9px] font-bold text-amber-400/80">
                         <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8)]" /> Pending Activation
                     </div>
+                    <button 
+                        onClick={() => setShowOnlySelected(!showOnlySelected)}
+                        className={`ml-4 px-3 py-1 rounded-lg text-[9px] font-black uppercase transition-all ${showOnlySelected ? 'bg-indigo-500 text-white' : 'bg-white/5 text-gray-500'}`}
+                    >
+                        {showOnlySelected ? 'Showing Selected Only' : 'Show Only Selected'}
+                    </button>
                 </div>
             </div>
 
@@ -183,7 +190,9 @@ const MatchCheckPreview: React.FC<MatchCheckPreviewProps> = ({
                         </thead>
                         <tbody className="divide-y divide-white/[0.03]">
                             {eligibleStudents.length > 0 ? (
-                                eligibleStudents.map((s) => {
+                                eligibleStudents
+                                .filter(s => !showOnlySelected || (isExclusionMode ? !excludedRolls.has(s.roll_number) : excludedRolls.has(s.roll_number)))
+                                .map((s) => {
                                     // if exclusion mode: roll IN set means Excluded
                                     // if inclusion mode: roll IN set means Included
                                     const isSelected = isExclusionMode ? !excludedRolls.has(s.roll_number) : excludedRolls.has(s.roll_number);

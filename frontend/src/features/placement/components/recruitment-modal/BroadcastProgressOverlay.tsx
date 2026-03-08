@@ -21,6 +21,7 @@ const BroadcastProgressOverlay: React.FC<Props> = ({ driveId, onComplete, onClos
     const reconnectRef = useRef<ReturnType<typeof setTimeout>>();
     const pollRef = useRef<ReturnType<typeof setInterval>>();
     const wsConnectedRef = useRef(false);
+    const [warmup, setWarmup] = useState(false);
 
     const formatTime = (seconds: number) => {
         if (!seconds || seconds <= 0) return "Calculating...";
@@ -115,6 +116,12 @@ const BroadcastProgressOverlay: React.FC<Props> = ({ driveId, onComplete, onClos
         };
         startPolling();
 
+        const warmupTimer = setTimeout(() => {
+            if (mountedRef.current && status.percentage === 0) {
+                setWarmup(true);
+            }
+        }, 10000);
+
         return () => {
             mountedRef.current = false;
             if (wsRef.current) wsRef.current.close();
@@ -147,7 +154,7 @@ const BroadcastProgressOverlay: React.FC<Props> = ({ driveId, onComplete, onClos
                          "Broadcasting to Students..."}
                     </h3>
                     <p className="text-indigo-400/80 font-mono text-[9px] sm:text-[10px] uppercase tracking-wider font-bold break-words overflow-hidden text-ellipsis line-clamp-2 max-w-full">
-                        {status.message || "Starting..."}
+                        {warmup && status.percentage === 0 ? "Waking up Governance Brain..." : (status.message || "Starting...")}
                     </p>
                 </div>
 

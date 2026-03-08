@@ -68,6 +68,16 @@ export const placementApi = {
         return response.data;
     },
 
+    remindUnapplied: async (driveId: number): Promise<any> => {
+        const response = await placementClient.post(`placement/drives/${driveId}/remind_unapplied/`);
+        return response.data;
+    },
+
+    remindInactive: async (driveId: number): Promise<any> => {
+        const response = await placementClient.post(`placement/drives/${driveId}/remind_inactive/`);
+        return response.data;
+    },
+
     extractJD: async (input: File | string): Promise<any> => {
         if (typeof input === 'string') {
             const response = await placementClient.post("placement/drives/extract_jd/", { text: input });
@@ -91,6 +101,13 @@ export const placementApi = {
         return response.data;
     },
 
+    getEligibilityManifest: async (formData: FormData): Promise<any> => {
+        const response = await placementClient.post("placement/drives/eligibility_manifest/", formData, {
+            headers: { "Content-Type": "multipart/form-data" }
+        });
+        return response.data;
+    },
+
     getEligibilityStats: async (driveId: number): Promise<any> => {
         const response = await placementClient.get(`placement/drives/${driveId}/eligibility_stats/`);
         return response.data;
@@ -101,8 +118,8 @@ export const placementApi = {
         return response.data;
     },
 
-    broadcastDrive: async (driveId: number): Promise<any> => {
-        const response = await placementClient.post(`placement/drives/${driveId}/broadcast/`);
+    broadcastDrive: async (driveId: number, mode: string = 'INITIAL'): Promise<any> => {
+        const response = await placementClient.post(`placement/drives/${driveId}/broadcast/`, { mode });
         return response.data;
     },
 

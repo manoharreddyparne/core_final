@@ -49,6 +49,40 @@ class NotificationDispatcher:
             link_url=action_link
         )
         
+        # 🚀 WebSocket Real-time Alert
+        try:
+            from channels.layers import get_channel_layer
+            from asgiref.sync import async_to_sync
+            channel_layer = get_channel_layer()
+            if channel_layer:
+                # Group names in SessionConsumer are user_sessions_{user_id}_{role}
+                # Since we don't know the role here easily, we target all likely roles for this user
+                # or we just use a simplified group if we had one.
+                # Actually, SessionConsumer.connect adds user to user_sessions_{user_id}_{role}
+                # Let's try broad patterns or find the user role.
+                with schema_context('public'):
+                    global_user = GlobalUser.objects.filter(id=recipient_id).first()
+                    user_role = global_user.role if global_user else "STUDENT"
+                
+                group_name = f"user_sessions_{recipient_id}_{user_role}"
+                async_to_sync(channel_layer.group_send)(
+                    group_name,
+                    {
+                        "type": "user_notification",
+                        "data": {
+                            "id": notification.id,
+                            "title": title,
+                            "message": message,
+                            "notification_type": type,
+                            "link_url": action_link,
+                            "created_at": str(notification.created_at)
+                        }
+                    }
+                )
+        except Exception as ws_err:
+            import logging
+            logging.getLogger(__name__).warning(f"[NOTIF-WS-ERR] Failed to broadcast: {ws_err}")
+
         # 📧 Trigger Email Delivery
         if email:
             NotificationDispatcher.send_notification_email(

@@ -31,10 +31,10 @@ class ProfileSecurityView(APIView):
             payload = {
                 "last_login": user.last_login,
                 "recent_devices": list(recent),
-                "two_factor_enabled": getattr(user, "two_factor_enabled", False),
+                "two_factor_enabled": False, # TODO: Bridge with MFA service if implemented
             }
 
-            return success_response("Security info retrieved.", data=payload)
+            return success_response("Security snapshot retrieved.", data=payload)
 
         except Exception as exc:
             logger.exception(

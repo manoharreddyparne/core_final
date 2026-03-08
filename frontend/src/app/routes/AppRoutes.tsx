@@ -468,10 +468,11 @@ export const AppRoutes = () => {
         />
 
         <Route path="/settings/change-password" element={<ChangePasswordForm />} />
-        <Route path="/settings/device-management" element={<SessionManager />} />
+        <Route path="/settings/device-management" element={<SecuritySessions />} />
         <Route path="/settings/profile" element={<EditProfile />} />
         <Route path="/settings/password" element={<ChangePasswordForm />} />
-        <Route path="/settings/devices" element={<SessionManager />} />
+        <Route path="/settings/devices" element={<SecuritySessions />} />
+        <Route path="/settings/sessions" element={<SecuritySessions />} />
       </Route>
 
 

@@ -20,35 +20,53 @@ def get_profile_id(user):
 
 def resolve_profile(uid, role):
     """
-    Standardized profile resolver for all social entities.
-    Resolves name, avatar, and presence.
+    Highly advanced cross-institution profile resolver.
+    Connects tenant-specific academic data with global identity users.
     """
-    name = "Unknown User"
-    if role == 'STUDENT':
-        s = StudentAcademicRegistry.objects.filter(id=uid).first()
-        if s: name = s.full_name
-    elif role == 'FACULTY' or role == 'TEACHER':
-        f = FacultyAcademicRegistry.objects.filter(id=uid).first()
-        if f: name = f.full_name
-    elif role in ('INST_ADMIN', 'INSTITUTION_ADMIN', 'ADMIN'):
-        a = AdminAuthorizedAccount.objects.filter(id=uid).first()
-        if a: name = f"{a.first_name} {a.last_name}".strip() or a.email
+    name = "Unknown Protocol"
+    avatar = None
     
-    # Presence Check (Public Registry)
+    # 1. Resolve from Tenant Registry (if in institution context)
+    try:
+        if role == 'STUDENT':
+            s = StudentAcademicRegistry.objects.filter(id=uid).first()
+            if s: name = s.full_name
+        elif role == 'FACULTY' or role == 'TEACHER':
+            f = FacultyAcademicRegistry.objects.filter(id=uid).first()
+            if f: name = f.full_name
+        elif role in ('INST_ADMIN', 'INSTITUTION_ADMIN', 'ADMIN'):
+            a = AdminAuthorizedAccount.objects.filter(id=uid).first()
+            if a: name = f"{a.first_name} {a.last_name}".strip() or a.email
+    except:
+        pass # Not in a tenant schema context or model missing
+
+    # 2. Global Identity & Presence Check
     online = False
     last_seen = None
     try:
+        from apps.identity.models import User
         with schema_context('public'):
-            # Normalize role for presence check
+            # Normalize role
             p_role = role
             if p_role == "TEACHER": p_role = "FACULTY"
             elif p_role == "INSTITUTION_ADMIN": p_role = "INST_ADMIN"
 
+            # Find global user by tenant_id + role (this might be tricky if not unique)
+            # Better: Search LoginSession for active profile
             session = LoginSession.objects.filter(tenant_user_id=uid, role=p_role).order_by('-last_active').first()
+            
             if session:
                 last_seen = session.last_active
                 if session.is_active and session.last_active > timezone.now() - timedelta(minutes=5):
                     online = True
+                
+                # Try to get avatar from User object
+                user = User.objects.filter(id=session.user_id).first()
+                if user:
+                    avatar = user.avatar_url or user.avatar_filename
+                    if name == "Unknown Protocol":
+                        name = f"{user.first_name} {user.last_name}".strip() or user.email
+
     except:
         pass
 
@@ -56,7 +74,7 @@ def resolve_profile(uid, role):
         "id": uid, 
         "role": role, 
         "name": name, 
-        "avatar": name[0] if name else "?",
+        "avatar": avatar or (name[0] if name else "?"),
         "is_online": online,
         "last_seen": last_seen,
         "connection_id": None 

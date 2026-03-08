@@ -9,9 +9,10 @@ interface Props {
     onApply: (driveId: number) => void;
     isApplying: boolean;
     appStatus?: string;
+    mode?: 'admin' | 'student';
 }
 
-const PlacementDriveDetailModal: React.FC<Props> = ({ drive, isOpen, onClose, onApply, isApplying, appStatus }) => {
+const PlacementDriveDetailModal: React.FC<Props> = ({ drive, isOpen, onClose, onApply, isApplying, appStatus, mode = 'student' }) => {
     if (!isOpen) return null;
 
     const metadata = drive.neural_metadata || {};
@@ -112,6 +113,27 @@ const PlacementDriveDetailModal: React.FC<Props> = ({ drive, isOpen, onClose, on
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Custom Criteria / Additional Details */}
+                            {drive.custom_criteria && Object.keys(drive.custom_criteria).length > 0 && (
+                                <div className="space-y-4">
+                                    <h3 className="text-sm font-black text-white uppercase tracking-[0.2em] flex items-center gap-2 opacity-50">
+                                        <Target className="w-4 h-4" /> Neural Directives
+                                    </h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {Object.entries(drive.custom_criteria).map(([key, value]) => (
+                                            <div key={key} className="bg-white/5 p-4 rounded-2xl border border-white/10 flex flex-col gap-1">
+                                                <p className="text-[8px] font-black text-gray-500 uppercase tracking-widest">
+                                                    {key.replace(/_/g, ' ')}
+                                                </p>
+                                                <p className="text-xs font-bold text-white leading-relaxed">
+                                                    {String(value)}
+                                                </p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         <div className="lg:col-span-1 space-y-8">
@@ -138,6 +160,20 @@ const PlacementDriveDetailModal: React.FC<Props> = ({ drive, isOpen, onClose, on
                                         ))}
                                     </div>
                                 )}
+
+                                {drive.jd_document && (
+                                    <div className="glass p-6 rounded-[2rem] border-indigo-500/10 bg-indigo-500/[0.02] mt-6">
+                                        <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-4">Original Artifact</h4>
+                                        <button 
+                                            onClick={() => window.open(typeof drive.jd_document === 'string' ? drive.jd_document : URL.createObjectURL(drive.jd_document as any), '_blank')}
+                                            className="w-full py-4 bg-white/5 hover:bg-white/10 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl border border-white/10 transition-all flex items-center justify-center gap-2 group"
+                                        >
+                                            <FileText className="w-4 h-4 text-indigo-400 group-hover:scale-110 transition-transform" />
+                                            View JD Document
+                                        </button>
+                                        <p className="text-[9px] text-gray-500 font-bold mt-3 text-center uppercase tracking-widest leading-relaxed">Verified by AUIP Neural Core</p>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -148,7 +184,9 @@ const PlacementDriveDetailModal: React.FC<Props> = ({ drive, isOpen, onClose, on
                     <div className="flex flex-col">
                         <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">Action Status</p>
                         <p className="text-xs font-bold text-white">
-                            {appStatus ? `Session active in funnel: ${appStatus}` : 'Eligible for immediate application'}
+                            {mode === 'admin' 
+                                ? 'Admin Management View' 
+                                : (appStatus ? `Session active in funnel: ${appStatus}` : 'Eligible for immediate application')}
                         </p>
                     </div>
                     
@@ -163,20 +201,22 @@ const PlacementDriveDetailModal: React.FC<Props> = ({ drive, isOpen, onClose, on
                             </button>
                         )}
                         
-                        {!appStatus ? (
-                            <button 
-                                onClick={() => onApply(drive.id!)}
-                                disabled={isApplying}
-                                className="px-10 py-4 bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-black uppercase tracking-widest rounded-2xl transition-all shadow-lg shadow-indigo-500/25 flex items-center gap-3 disabled:opacity-50"
-                            >
-                                {isApplying ? 'Processing Application...' : 'Initiate Application'}
-                                <Briefcase className="w-4 h-4" />
-                            </button>
-                        ) : (
-                            <div className="px-10 py-4 bg-emerald-500/10 text-emerald-400 text-[11px] font-black uppercase tracking-widest rounded-2xl border border-emerald-500/20 flex items-center gap-2">
-                                <ShieldCheck className="w-4 h-4" />
-                                Synchronized
-                            </div>
+                        {mode === 'student' && (
+                            !appStatus ? (
+                                <button 
+                                    onClick={() => onApply(drive.id!)}
+                                    disabled={isApplying}
+                                    className="px-10 py-4 bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-black uppercase tracking-widest rounded-2xl transition-all shadow-lg shadow-indigo-500/25 flex items-center gap-3 disabled:opacity-50"
+                                >
+                                    {isApplying ? 'Processing Application...' : 'Initiate Application'}
+                                    <Briefcase className="w-4 h-4" />
+                                </button>
+                            ) : (
+                                <div className="px-10 py-4 bg-emerald-500/10 text-emerald-400 text-[11px] font-black uppercase tracking-widest rounded-2xl border border-emerald-500/20 flex items-center gap-2">
+                                    <ShieldCheck className="w-4 h-4" />
+                                    Synchronized
+                                </div>
+                            )
                         )}
                     </div>
                 </div>

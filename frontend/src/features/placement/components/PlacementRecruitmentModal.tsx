@@ -13,6 +13,7 @@ import ExpertiseLedger from "./recruitment-modal/ExpertiseLedger";
 import MatchCheckPreview from "./recruitment-modal/MatchCheckPreview";
 import PlacementDriveCard from "./PlacementDriveCard";
 import BroadcastProgressOverlay from "./recruitment-modal/BroadcastProgressOverlay";
+import SelectedStudentsModal from "./recruitment-modal/SelectedStudentsModal";
 
 interface Props {
     isOpen: boolean;
@@ -27,7 +28,8 @@ const PlacementRecruitmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess
     const [activeInputTab, setActiveInputTab] = useState<'upload' | 'text'>('upload');
     const [jdText, setJdText] = useState("");
     const [showAddField, setShowAddField] = useState(false);
-    
+    const [showSelectedModal, setShowSelectedModal] = useState(false);
+
     // Eligibility Manifest State
     const [eligibleStudents, setEligibleStudents] = useState<any[]>([]);
     const [checkingEligibility, setCheckingEligibility] = useState(false);
@@ -38,6 +40,8 @@ const PlacementRecruitmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess
     const [extraRollNumber, setExtraRollNumber] = useState("");
     const [manualEntries, setManualEntries] = useState<any[]>([]);
     const [criteriaChanged, setCriteriaChanged] = useState(false);
+    const [fullManifestStudents, setFullManifestStudents] = useState<any[]>([]);
+    const [isFetchingManifest, setIsFetchingManifest] = useState(false);
     const lastMatchCriteriaRef = React.useRef<string>("");
 
     const [newDriveForm, setNewDriveForm] = useState<Partial<PlacementDrive>>({
@@ -59,7 +63,10 @@ const PlacementRecruitmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess
         job_description: '',
         contact_details: [],
         hiring_process: [],
-        custom_criteria: {}
+        custom_criteria: {},
+        auto_reminders_enabled: false,
+        is_inclusion_mode: false,
+        reminder_config: {}
     });
 
     const [expertise, setExpertise] = useState<any>(null);
@@ -73,17 +80,53 @@ const PlacementRecruitmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess
 
     const [showBroadcastProgress, setShowBroadcastProgress] = useState(false);
     const [currentDriveId, setCurrentDriveId] = useState<number | null>(null);
+    const [broadcastMode, setBroadcastMode] = useState<'INITIAL' | 'REMINDER' | 'MISSING'>('INITIAL');
+    const [showModeMenu, setShowModeMenu] = useState(false);
 
     useEffect(() => {
-        if (editingDrive) {
-            setNewDriveForm({
-                ...editingDrive,
-                deadline: editingDrive.deadline ? new Date(editingDrive.deadline).toISOString().slice(0, 16) : ''
-            });
-            if (editingDrive.neural_metadata) setExpertise(editingDrive.neural_metadata);
-            if (editingDrive.excluded_rolls) setSelectionRolls(new Set(editingDrive.excluded_rolls));
+        if (isOpen) {
+            setUploading(false);
+            setCheckingEligibility(false);
+            setShowEligibilityPreview(false);
+            setShowStudentPreview(false);
+            setShowBroadcastProgress(false);
+            setBroadcastMode('INITIAL');
+            setShowModeMenu(false);
+
+            if (editingDrive) {
+                setNewDriveForm({
+                    ...editingDrive,
+                    deadline: editingDrive.deadline ? new Date(editingDrive.deadline).toISOString().slice(0, 16) : ''
+                });
+                setIsExclusionMode(!editingDrive.is_inclusion_mode);
+                setSelectionRolls(new Set(
+                    editingDrive.is_inclusion_mode
+                        ? (editingDrive.included_rolls || [])
+                        : (editingDrive.excluded_rolls || [])
+                ));
+                setManualEntries(editingDrive.manual_students?.map(r => ({ roll_number: r, full_name: 'Manual Entry', is_manual: true })) || []);
+                if (editingDrive.neural_metadata) setExpertise(editingDrive.neural_metadata);
+                if (editingDrive.excluded_rolls) setSelectionRolls(new Set(editingDrive.excluded_rolls));
+            } else {
+                // Reset form completely for new drive
+                setNewDriveForm({
+                    company_name: '', role: '', package_details: '', location: '', experience_years: '', salary_range: '',
+                    deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
+                    min_cgpa: 0, min_ug_percentage: 0, allowed_active_backlogs: 0, min_10th_percent: 0, min_12th_percent: 0,
+                    cgpa_to_percentage_multiplier: 9.5, eligible_branches: [], eligible_batches: [], job_description: '',
+                    contact_details: [], hiring_process: [], custom_criteria: {},
+                    auto_reminders_enabled: false,
+                    is_inclusion_mode: false,
+                    reminder_config: {}
+                });
+                setExpertise(null);
+                setJdText('');
+                setJdFile(null);
+                setSelectionRolls(new Set());
+                setManualEntries([]);
+            }
         }
-    }, [editingDrive]);
+    }, [isOpen, editingDrive]);
 
     const performExtraction = async (input: File | string) => {
         try {
@@ -117,10 +160,10 @@ const PlacementRecruitmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess
                     manual_students: prev.manual_students || [],
                     neural_metadata: ext
                 }));
-                 // Use ext directly as expertise state
+                // Use ext directly as expertise state
                 setExpertise(ext);
                 toast.success("JD extracted — running eligibility check...", { id: "jd" });
-                
+
                 // Auto-run match check after extraction
                 setTimeout(() => handleCheckEligibility(1, ""), 300);
             }
@@ -152,6 +195,13 @@ const PlacementRecruitmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess
         }
     }, [newDriveForm.min_cgpa, newDriveForm.min_ug_percentage, newDriveForm.min_10th_percent, newDriveForm.min_12th_percent, newDriveForm.allowed_active_backlogs, newDriveForm.eligible_branches, newDriveForm.eligible_batches]);
 
+    // 🧪 Point 57: VERIFICATION LOGGING
+    useEffect(() => {
+        if (newDriveForm.auto_reminders_enabled) {
+            console.log("[RECRUITMENT-LIFECYCLE] Active Config:", newDriveForm.reminder_config);
+        }
+    }, [newDriveForm.auto_reminders_enabled, newDriveForm.reminder_config]);
+
     const handleJDUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files || e.target.files.length === 0) return;
         performExtraction(e.target.files[0]);
@@ -168,15 +218,28 @@ const PlacementRecruitmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess
 
     const prepareFormData = () => {
         const formData = new FormData();
-        
+
         // Map scalar fields
         const scalarFields = [
-            'company_name', 'role', 'package_details', 'location', 
-            'experience_years', 'salary_range', 'deadline', 'job_description'
+            'company_name', 'role', 'package_details', 'location',
+            'experience_years', 'salary_range', 'deadline', 'job_description',
+            'auto_reminders_enabled', 'tpo_notes', 'is_inclusion_mode'
         ];
-        
+
         scalarFields.forEach(field => {
-            formData.append(field, String((newDriveForm as any)[field] || ''));
+            let val = (newDriveForm as any)[field];
+
+            // Override with local UI state for selection mode
+            if (field === 'is_inclusion_mode') {
+                val = !isExclusionMode;
+            }
+
+            // Explicitly handle booleans to avoid 'false' || '' becoming ''
+            if (typeof val === 'boolean') {
+                formData.append(field, val ? 'true' : 'false');
+            } else {
+                formData.append(field, (val !== undefined && val !== null) ? String(val) : '');
+            }
         });
 
         // Numeric fields — force to '0' if empty
@@ -196,20 +259,20 @@ const PlacementRecruitmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess
         formData.append('hiring_process', JSON.stringify(newDriveForm.hiring_process || []));
         formData.append('custom_criteria', JSON.stringify(newDriveForm.custom_criteria || {}));
         formData.append('neural_metadata', JSON.stringify(newDriveForm.neural_metadata || {}));
-        // Logic for Universal Selection Mode
+        formData.append('reminder_config', JSON.stringify(newDriveForm.reminder_config || {}));
+        // Universal Selection Mode logic is already handled in scalarFields above, 
+        // but we ensure rolls are appended correctly.
         if (isExclusionMode) {
             formData.append('excluded_rolls', JSON.stringify(Array.from(selectionRolls)));
-            // In exclusion mode, we don't need 'included_rolls'
+            formData.append('included_rolls', JSON.stringify([]));
         } else {
-            // In inclusion mode, we tell the backend 'exclude everybody EXCEPT these'
-            // We'll use a special flag or just send included_rolls
-            formData.append('is_inclusion_mode', 'true');
             formData.append('included_rolls', JSON.stringify(Array.from(selectionRolls)));
+            formData.append('excluded_rolls', JSON.stringify([]));
         }
-        
+
         // Use manualEntries state for persistence across pages
         const combinedManual = Array.from(new Set([
-            ...manualEntries.map(s => s.roll_number), 
+            ...manualEntries.map(s => s.roll_number),
             ...(newDriveForm.manual_students || [])
         ]));
         formData.append('manual_students', JSON.stringify(combinedManual));
@@ -218,7 +281,7 @@ const PlacementRecruitmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess
         if (newDriveForm.chat_session_id) {
             formData.append('chat_session_id', newDriveForm.chat_session_id);
         }
-        
+
         if (jdFile) {
             formData.append('jd_document', jdFile);
         } else if (newDriveForm.jd_document && typeof newDriveForm.jd_document === 'string') {
@@ -236,7 +299,7 @@ const PlacementRecruitmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess
             setCurrentPage(page);
             setCriteriaChanged(false);
             toast.loading(query ? "Filtering..." : "Finding eligible students...", { id: "eligibility" });
-            
+
             const formData = prepareFormData();
             formData.append('page', String(page));
             formData.append('q', query);
@@ -244,10 +307,10 @@ const PlacementRecruitmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess
 
             const res = await placementApi.checkEligibility(formData);
             let results = res.data?.eligible_students || [];
-            
+
             const criteriaIds = new Set(results.map((s: any) => s.id));
             const activeManuals = manualEntries.filter(m => !criteriaIds.has(m.id));
-            
+
             if (page === 1) {
                 setEligibleStudents([...activeManuals, ...results]);
             } else {
@@ -277,7 +340,7 @@ const PlacementRecruitmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess
 
     const handleAddManualStudent = async (student: any) => {
         if (!student) return;
-        
+
         // Check if already in list
         if (eligibleStudents.some(s => s.roll_number === student.roll_number)) {
             toast.error("Student already in manifest.", { id: "manual" });
@@ -317,6 +380,24 @@ const PlacementRecruitmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess
             else next.add(roll);
             return next;
         });
+        // Clear full manifest if selection changes locally
+        setFullManifestStudents([]);
+    };
+
+    const handlePreviewManifest = async () => {
+        try {
+            setIsFetchingManifest(true);
+            toast.loading("Compiling full target audience manifest...", { id: "manifest" });
+            const formData = prepareFormData();
+            const res = await placementApi.getEligibilityManifest(formData);
+            setFullManifestStudents(res.data?.students || []);
+            setShowSelectedModal(true);
+            toast.success("Manifest compiled.", { id: "manifest" });
+        } catch (e: any) {
+            toast.error("Failed to compile manifest.", { id: "manifest" });
+        } finally {
+            setIsFetchingManifest(false);
+        }
     };
 
     const handleBulkExclusion = (exclude: boolean) => {
@@ -332,9 +413,13 @@ const PlacementRecruitmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess
         try {
             const actionLabel = isBroadcast ? "Saving & Preparing Broadcast..." : "Syncing Draft...";
             toast.loading(actionLabel, { id: "create_drive" });
-            
+
             const formData = prepareFormData();
-            
+
+            // 🧪 Point 57: Payload Verification
+            console.log("[DRIVE-PROTOCOL] Payload Snapshot:", Object.fromEntries(formData.entries()));
+            console.log("[LIFECYCLE-SYNC] Reminders Enabled:", newDriveForm.auto_reminders_enabled);
+
             // Set status based on action — but DON'T include broadcast flag
             // We'll call the dedicated broadcast endpoint separately
             if (isBroadcast) {
@@ -357,19 +442,20 @@ const PlacementRecruitmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess
             } else {
                 response = await placementApi.createDrive(formData);
             }
-            
+
             if (isBroadcast) {
                 const driveId = response.data?.id || (editingDrive?.id);
                 if (driveId) {
                     // Step 2: Open the WS overlay FIRST (so it connects before broadcast starts)
+                    console.log(`[NEURAL-ORCHESTRATOR] Initializing Broadcast Sequence | Mode: ${broadcastMode} | DriveID: ${driveId}`);
                     setCurrentDriveId(driveId);
                     setShowBroadcastProgress(true);
                     toast.dismiss("create_drive");
-                    
+
                     // Step 3: Wait a moment for WS to connect, then trigger broadcast
                     setTimeout(async () => {
                         try {
-                            await placementApi.broadcastDrive(driveId);
+                            await placementApi.broadcastDrive(driveId, broadcastMode);
                         } catch (broadcastErr: any) {
                             console.error("[BROADCAST] POST failed:", broadcastErr);
                             toast.error(broadcastErr.response?.data?.message || "Broadcast trigger failed", { id: "broadcast_err" });
@@ -385,6 +471,7 @@ const PlacementRecruitmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess
                 onSuccess();
             }
         } catch (error: any) {
+            console.error("[DRIVE-SAVE] Error:", error.response?.data || error.message);
             toast.error(error.response?.data?.message || "Protocol failure", { id: "create_drive" });
         }
     };
@@ -407,7 +494,7 @@ const PlacementRecruitmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
-                        <button 
+                        <button
                             onClick={() => setShowStudentPreview(!showStudentPreview)}
                             className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${showStudentPreview ? 'bg-indigo-500/20 border-indigo-500 text-indigo-400' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'}`}
                         >
@@ -421,29 +508,29 @@ const PlacementRecruitmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess
 
                 {showStudentPreview ? (
                     <div className="flex-1 overflow-y-auto p-12 flex items-center justify-center bg-black/40">
-                       <div className="w-full max-w-md">
-                           <div className="text-center mb-8">
-                               <p className="text-[10px] text-indigo-500 font-black uppercase tracking-[0.3em] mb-2">Preview</p>
-                               <h3 className="text-2xl font-black text-white">How Students Will See This Drive</h3>
-                           </div>
-                           <PlacementDriveCard 
-                                drive={{...newDriveForm, status: 'ACTIVE', id: 0, is_broadcasted: true} as any}
-                                onOpenAnalytics={() => {}}
-                                onOpenReview={() => {}}
-                                onOpenEdit={() => {}}
-                                onDelete={() => {}}
-                           />
-                           <p className="text-center mt-8 text-xs text-gray-500 font-medium max-w-xs mx-auto">
-                               This is how qualified students will see your opportunity in their Professional Hub.
-                           </p>
-                       </div>
+                        <div className="w-full max-w-md">
+                            <div className="text-center mb-8">
+                                <p className="text-[10px] text-indigo-500 font-black uppercase tracking-[0.3em] mb-2">Preview</p>
+                                <h3 className="text-2xl font-black text-white">How Students Will See This Drive</h3>
+                            </div>
+                            <PlacementDriveCard
+                                drive={{ ...newDriveForm, status: 'ACTIVE', id: 0, is_broadcasted: true } as any}
+                                onOpenAnalytics={() => { }}
+                                onOpenReview={() => { }}
+                                onOpenEdit={() => { }}
+                                onDelete={() => { }}
+                            />
+                            <p className="text-center mt-8 text-xs text-gray-500 font-medium max-w-xs mx-auto">
+                                This is how qualified students will see your opportunity in their Professional Hub.
+                            </p>
+                        </div>
                     </div>
                 ) : (
                     <div className="flex-1 overflow-y-auto p-6 scrollbar-hide">
                         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                             {/* Main Interaction Zone */}
                             <div className="lg:col-span-8 space-y-6">
-                                <JDInputSection 
+                                <JDInputSection
                                     activeInputTab={activeInputTab}
                                     setActiveInputTab={setActiveInputTab}
                                     jdText={jdText}
@@ -455,13 +542,13 @@ const PlacementRecruitmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess
                                 />
 
                                 <DriveDetailsSection formData={newDriveForm} setFormData={setNewDriveForm} />
-                                
+
                                 <GovernanceSection formData={newDriveForm} setFormData={setNewDriveForm} />
                             </div>
 
                             {/* Analysis Sidebar */}
                             <div className="lg:col-span-4 space-y-6">
-                                <ExpertiseLedger 
+                                <ExpertiseLedger
                                     expertise={expertise}
                                     formData={newDriveForm}
                                     setFormData={setNewDriveForm}
@@ -487,7 +574,7 @@ const PlacementRecruitmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess
                             </div>
                         )}
 
-                        <MatchCheckPreview 
+                        <MatchCheckPreview
                             show={showEligibilityPreview || checkingEligibility}
                             eligibleStudents={eligibleStudents}
                             excludedRolls={selectionRolls}
@@ -509,8 +596,8 @@ const PlacementRecruitmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess
                 )}
 
                 {showBroadcastProgress && currentDriveId && (
-                    <BroadcastProgressOverlay 
-                        driveId={currentDriveId} 
+                    <BroadcastProgressOverlay
+                        driveId={currentDriveId}
                         onComplete={() => {
                             toast.success("Broadcast complete! Emails sent to all eligible students.", { id: "broadcast" });
                             onSuccess();
@@ -520,17 +607,30 @@ const PlacementRecruitmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess
                     />
                 )}
 
+                <SelectedStudentsModal
+                    isOpen={showSelectedModal}
+                    onClose={() => setShowSelectedModal(false)}
+                    selectedStudents={fullManifestStudents.length > 0 ? fullManifestStudents : eligibleStudents.filter(s =>
+                        isExclusionMode ? !selectionRolls.has(s.roll_number) : selectionRolls.has(s.roll_number)
+                    )}
+                    driveName={newDriveForm.company_name || "New Drive"}
+                />
+
                 {/* Footer Controls */}
                 <div className="p-6 border-t border-white/10 flex items-center justify-between bg-black/40 px-10">
                     {/* Selection Counter */}
                     <div className="flex items-center gap-3">
                         {showEligibilityPreview && totalCount > 0 && (
-                            <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-500/10 border border-indigo-500/20 rounded-lg">
-                                <Users className="w-3.5 h-3.5 text-indigo-400" />
+                            <button
+                                onClick={handlePreviewManifest}
+                                disabled={isFetchingManifest}
+                                className="flex items-center gap-2 px-3 py-1.5 bg-indigo-500/10 border border-indigo-500/20 rounded-lg hover:bg-indigo-500/20 transition-all group disabled:opacity-50"
+                            >
+                                <Users className={`w-3.5 h-3.5 text-indigo-400 group-hover:scale-110 transition-transform ${isFetchingManifest ? 'animate-pulse' : ''}`} />
                                 <span className="text-[10px] font-black text-indigo-400 uppercase tracking-wider">
-                                    Selected {isExclusionMode ? (totalCount - selectionRolls.size) : selectionRolls.size} of {totalCount} eligible
+                                    {isExclusionMode ? (totalCount - selectionRolls.size) : selectionRolls.size} Selected of {totalCount} Matched — [ {isFetchingManifest ? 'Compiling...' : 'Preview Selection'} ]
                                 </span>
-                            </div>
+                            </button>
                         )}
                         {!showEligibilityPreview && (
                             <div className="flex items-center gap-2 text-[10px] text-gray-500 font-bold">
@@ -541,8 +641,8 @@ const PlacementRecruitmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess
                     </div>
                     <div className="flex gap-3">
                         <button onClick={onClose} className="px-5 py-2.5 text-xs font-bold text-gray-500 hover:text-white uppercase tracking-wider transition-colors">Cancel</button>
-                        
-                        <button 
+
+                        <button
                             onClick={() => handleCheckEligibility(1, manifestQuery)}
                             disabled={checkingEligibility || uploading}
                             className={`px-5 py-2.5 border border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/10 text-[11px] font-black uppercase tracking-wider rounded-xl transition-all flex items-center gap-2 ${checkingEligibility || uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -551,7 +651,7 @@ const PlacementRecruitmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess
                             <span>{showEligibilityPreview ? 'Re-check' : 'Find Eligible Students'}</span>
                         </button>
 
-                        <button 
+                        <button
                             onClick={() => handleCreateDrive(false)}
                             disabled={uploading}
                             className={`px-5 py-2.5 bg-white/5 hover:bg-white/10 text-white text-[11px] font-black uppercase tracking-wider rounded-xl transition-all border border-white/10 ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -559,13 +659,47 @@ const PlacementRecruitmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess
                             Save Draft
                         </button>
 
-                        <button 
-                            onClick={() => handleCreateDrive(true)}
-                            disabled={uploading}
-                            className={`px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-black uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-indigo-500/25 flex items-center gap-2 ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        >
-                            Save & Broadcast <Target className="w-4 h-4" />
-                        </button>
+                        <div className="relative">
+                            <button
+                                onClick={() => {
+                                    if (editingDrive?.is_broadcasted && !showModeMenu) {
+                                        setShowModeMenu(true);
+                                    } else {
+                                        handleCreateDrive(true);
+                                    }
+                                }}
+                                disabled={uploading}
+                                className={`px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-black uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-indigo-500/25 flex items-center gap-2 ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                                {editingDrive?.is_broadcasted ? 'Re-Broadcast' : 'Save & Broadcast'} <Target className={`w-4 h-4 ${showModeMenu ? 'rotate-180' : ''} transition-transform`} />
+                            </button>
+
+                            {showModeMenu && (
+                                <div className="absolute bottom-full right-0 mb-3 w-56 bg-[#1a1c23] border border-white/10 rounded-2xl p-2 shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-200">
+                                    <p className="px-3 py-2 text-[9px] font-black text-gray-500 uppercase tracking-widest border-b border-white/5 mb-1">Select Mode</p>
+                                    <button
+                                        onClick={() => { setBroadcastMode('INITIAL'); setShowModeMenu(false); handleCreateDrive(true); }}
+                                        className="w-full text-left px-3 py-2 text-[10px] font-bold text-indigo-400 hover:bg-white/5 rounded-lg transition-colors flex items-center justify-between"
+                                    >
+                                        INITIAL (Resend to ALL)
+                                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                                    </button>
+                                    <button
+                                        onClick={() => { setBroadcastMode('REMINDER'); setShowModeMenu(false); handleCreateDrive(true); }}
+                                        className="w-full text-left px-3 py-2 text-[10px] font-bold text-amber-400 hover:bg-white/5 rounded-lg transition-colors flex items-center justify-between"
+                                    >
+                                        REMINDER (Only non-applied)
+                                        <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                                    </button>
+                                    <button
+                                        onClick={() => setShowModeMenu(false)}
+                                        className="w-full text-left px-3 py-2 text-[10px] font-black text-gray-500 hover:bg-white/5 rounded-lg transition-colors mt-1 border-t border-white/5 pt-2"
+                                    >
+                                        CANCEL
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>

@@ -1,12 +1,12 @@
 from django.db import models
 from rest_framework import viewsets, permissions
 from rest_framework.decorators import action
-from .models import SocialPost, SocialLike, SocialComment
-from .serializers import SocialPostSerializer
+from ..models import SocialPost, SocialLike, SocialComment
+from ..serializers import SocialPostSerializer
 from apps.auip_institution.authentication import TenantAuthentication
 from apps.identity.authentication import SafeJWTAuthentication
 from apps.identity.utils.response_utils import success_response, error_response
-from .utils import get_profile_id
+from ..utils import get_profile_id
 
 class SocialFeedViewSet(viewsets.ModelViewSet):
     """

@@ -38,6 +38,12 @@ class SessionConsumer(AsyncWebsocketConsumer):
         self.group_name = f"user_sessions_{self.user.id}_{role}"
         await self.channel_layer.group_add(self.group_name, self.channel_name)
 
+        # 🚀 ADD: Subscribe to profile ID for Chat Notifications
+        profile_id = payload.get("tenant_user_id") if payload else getattr(self.user, 'id', None)
+        self.profile_group_name = f"user_sessions_{profile_id}_{role}"
+        if self.profile_group_name != self.group_name:
+            await self.channel_layer.group_add(self.profile_group_name, self.channel_name)
+
         # 🚀 REAL-TIME HUB
         user_role = getattr(self.user, 'role', role)
         if user_role == "SUPER_ADMIN":

@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 
-const COOLDOWN_MS = 45 * 60 * 1000; // 45 minutes
+const COOLDOWN_MS = 6 * 60 * 60 * 1000; // 6 hours
 const STORAGE_KEY = "secure_cooldown_until";
 
 export const useSecureCooldown = () => {

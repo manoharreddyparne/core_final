@@ -27,9 +27,10 @@ class MessageViewSet(viewsets.ViewSet):
         my_id = self._get_my_id(request)
         role = request.user.role
         
-        # Security: check membership
+        # Security: check membership or public access
         is_member = any(int(p['id']) == int(my_id) and p['role'] == role for p in session.participants)
-        if not is_member: return error_response("Access Denied", code=403)
+        if not is_member and not session.open_invite:
+            return error_response("Access Denied", code=403)
 
         msgs = session.messages.all().order_by('timestamp')
         results = []
@@ -37,16 +38,18 @@ class MessageViewSet(viewsets.ViewSet):
         for m in msgs:
             # Point 7: Message Metadata (Seen/Delivered)
             status = "SENT"
+            tracking = m.status_tracking or {}
+            
             if session.is_group:
-                seen_by = [k for k, v in m.status_tracking.items() if v.get('seen_at')]
+                seen_by = [k for k, v in tracking.items() if v.get('seen_at')]
                 if len(seen_by) >= len(session.participants) - 1:
                     status = "SEEN"
-                elif any(v.get('delivered_at') for v in m.status_tracking.values()):
+                elif any(v.get('delivered_at') for v in tracking.values()):
                     status = "DELIVERED"
             else:
-                other_key = next((k for k in m.status_tracking.keys() if not k.startswith(f"{my_id}_{role}")), None)
+                other_key = next((k for k in tracking.keys() if not k.startswith(f"{my_id}_{role}")), None)
                 if other_key:
-                    track = m.status_tracking[other_key]
+                    track = tracking[other_key]
                     if track.get('seen_at'): status = "SEEN"
                     elif track.get('delivered_at'): status = "DELIVERED"
 

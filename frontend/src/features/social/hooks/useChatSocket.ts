@@ -14,7 +14,7 @@ export interface ChatMessage {
     is_pending?: boolean;
 }
 
-export const useChatSocket = (activeSession: any | null, currentUserId?: number) => {
+export const useChatSocket = (activeSession: any | null, currentUserId?: number, onMetadataUpdate?: (data: any) => void) => {
     const sessionId: string | null = activeSession?.session_id || null;
     const otherId: string | null = activeSession?.other_id != null
         ? String(activeSession.other_id)
@@ -24,21 +24,40 @@ export const useChatSocket = (activeSession: any | null, currentUserId?: number)
     const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const reconnectDelay = useRef<number>(1000);
     const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    
+    // This ref tracks the "current" session so we can abort stale reconnects
     const sessionIdRef = useRef<string | null>(null);
+    // Generation counter — incremented on every session switch to invalidate old callbacks
+    const generationRef = useRef<number>(0);
+    
     /** cached MY profile_id, learned once from history or first echo  */
     const myProfileIdRef = useRef<string | null>(null);
 
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [connected, setConnected] = useState(false);
-    const [typingUser, setTypingUser] = useState<string | null>(null);
+    const [typingUsers, setTypingUsers] = useState<Record<string, { name: string, timer: any }>>({});
 
     /* ── is_me resolution ── */
     const resolveIsMe = useCallback((senderId: string | number): boolean => {
         const sid = String(senderId);
+        
+        // 1. Prioritize my_id from activeSession (Server-side source of truth for THIS session)
+        if (activeSession?.my_id && String(activeSession.my_id) === sid) return true;
+
+        // 2. Fallback to currentUserId if available (from Auth)
+        if (currentUserId && Number(sid) === currentUserId) return true;
+        
+        // 3. Fallback to cached profile ID
         if (myProfileIdRef.current) return sid === myProfileIdRef.current;
-        if (otherId !== null) return sid !== otherId;
-        return Number(sid) === currentUserId;
-    }, [otherId, currentUserId]);
+        
+        // 4. Group context: we can't infer as easily without knowing our own ID
+        if (activeSession?.is_group) return false;
+
+        // 5. 1-on-1 fallback: differentiate by the 'other' person
+        if (otherId !== null && otherId !== '0') return sid !== otherId;
+        
+        return false;
+    }, [otherId, currentUserId, activeSession?.my_id, activeSession?.is_group]);
 
     function buildMsg(data: any, isMe: boolean): ChatMessage {
         return {
@@ -48,8 +67,12 @@ export const useChatSocket = (activeSession: any | null, currentUserId?: number)
             attachment_type: data.attachment_type ?? 'TEXT',
             timestamp: data.timestamp ?? new Date().toISOString(),
             is_me: isMe,
-            is_read: false,
+            is_read: Boolean(data.is_read),
             is_pending: false,
+            // @ts-ignore
+            status: data.is_read ? 'SEEN' : 'SENT',
+            sender_name: data.sender_name,
+            sender_role: data.sender_role
         };
     }
 
@@ -78,6 +101,8 @@ export const useChatSocket = (activeSession: any | null, currentUserId?: number)
                                 id: data.msg_id ?? updated[tmpIdx].id,
                                 timestamp: data.timestamp ?? updated[tmpIdx].timestamp,
                                 is_pending: false,
+                                // @ts-ignore
+                                status: 'SENT'
                             };
                             return updated;
                         }
@@ -88,41 +113,73 @@ export const useChatSocket = (activeSession: any | null, currentUserId?: number)
                         return [...prev, buildMsg(data, false)];
                     }
                 });
+                // Ensure room list updates unread counts
+                window.dispatchEvent(new CustomEvent('chat_update'));
 
             } else if (data.type === "typing_broadcast") {
                 const sidStr = String(data.sender_id);
+                const name = data.sender_name || "Someone";
+                
                 if (data.is_typing) {
-                    setTypingUser(sidStr);
-                    if (typingTimer.current) clearTimeout(typingTimer.current);
-                    typingTimer.current = setTimeout(() => setTypingUser(null), 4000);
+                    setTypingUsers(prev => {
+                        if (prev[sidStr]?.timer) clearTimeout(prev[sidStr].timer);
+                        const timer = setTimeout(() => {
+                            setTypingUsers(current => {
+                                const next = { ...current };
+                                delete next[sidStr];
+                                return next;
+                            });
+                        }, 4000);
+                        return { ...prev, [sidStr]: { name, timer } };
+                    });
                 } else {
-                    setTypingUser(null);
-                    if (typingTimer.current) clearTimeout(typingTimer.current);
+                    setTypingUsers(prev => {
+                        if (prev[sidStr]?.timer) clearTimeout(prev[sidStr].timer);
+                        const next = { ...prev };
+                        delete next[sidStr];
+                        return next;
+                    });
                 }
 
+            } else if (data.type === "metadata_broadcast") {
+                if (onMetadataUpdate) onMetadataUpdate(data);
+                window.dispatchEvent(new CustomEvent('chat_update'));
+
             } else if (data.type === "status_broadcast" && data.status === "SEEN") {
-                setMessages(prev => prev.map(m => m.is_me ? { ...m, is_read: true } : m));
+                setMessages(prev => prev.map(m => m.is_me ? { ...m, is_read: true, status: 'SEEN' } : m));
+                window.dispatchEvent(new CustomEvent('chat_update'));
             }
         } catch (e) {
             console.error("[ChatSocket] Parse error:", e);
         }
-    }, [resolveIsMe]);
+    }, [resolveIsMe, onMetadataUpdate]);
 
-    /* ── WebSocket connect ── */
-    const connect = useCallback(() => {
-        if (!sessionId) return;
-        const token = getAccessToken();
-        if (!token) return;
-
+    /* ── Destroy existing socket safely ── */
+    const destroySocket = useCallback(() => {
+        // Cancel any pending reconnect timers
         if (reconnectTimer.current) {
             clearTimeout(reconnectTimer.current);
             reconnectTimer.current = null;
         }
-
-        if (socketRef.current && socketRef.current.readyState !== WebSocket.CLOSED) {
+        if (socketRef.current) {
+            // Remove all callbacks FIRST to prevent onclose from firing reconnect logic
+            socketRef.current.onopen = null;
+            socketRef.current.onmessage = null;
+            socketRef.current.onerror = null;
             socketRef.current.onclose = null;
-            socketRef.current.close();
+            // Only close if not already closed
+            if (socketRef.current.readyState !== WebSocket.CLOSED &&
+                socketRef.current.readyState !== WebSocket.CLOSING) {
+                socketRef.current.close(1000, "session-switch");
+            }
+            socketRef.current = null;
         }
+    }, []);
+
+    /* ── WebSocket connect ── */
+    const connect = useCallback((targetSessionId: string, generation: number) => {
+        const token = getAccessToken();
+        if (!token || !targetSessionId) return;
 
         let wsBase: string;
         const rawWsBase = (import.meta.env.VITE_BACKEND_WS_URL || import.meta.env.VITE_WS_URL) as string;
@@ -133,52 +190,83 @@ export const useChatSocket = (activeSession: any | null, currentUserId?: number)
             wsBase = httpBase.replace(/^http/, 'ws') + '/ws';
         }
 
-        const wsUrl = `${wsBase}/chat/${sessionId}/?token=${token}`;
+        const wsUrl = `${wsBase}/chat/${targetSessionId}/?token=${token}`;
         const ws = new WebSocket(wsUrl);
         socketRef.current = ws;
 
         ws.onopen = () => {
+            // Validate this is still the current generation
+            if (generationRef.current !== generation) {
+                ws.close(1000, "stale");
+                return;
+            }
             setConnected(true);
             reconnectDelay.current = 1000;
         };
+
         ws.onmessage = handleMessage;
+
+        ws.onerror = () => {
+            // Let onclose handle it
+        };
+
         ws.onclose = (e) => {
+            // If generation changed, ignore this close event
+            if (generationRef.current !== generation) return;
+
             setConnected(false);
             socketRef.current = null;
-            if (sessionIdRef.current && e.code !== 1000) {
+
+            // Only reconnect on abnormal closures (not user-initiated switch)
+            if (sessionIdRef.current === targetSessionId && e.code !== 1000 && e.code !== 4000) {
                 const delay = reconnectDelay.current;
                 reconnectTimer.current = setTimeout(() => {
-                    if (sessionIdRef.current) connect();
+                    // Double check generation hasn't changed during the delay
+                    if (generationRef.current === generation && sessionIdRef.current === targetSessionId) {
+                        connect(targetSessionId, generation);
+                    }
                 }, delay);
                 reconnectDelay.current = Math.min(delay * 2, 15000);
             }
         };
-    }, [sessionId, handleMessage]);
+    }, [handleMessage]);
 
     /* ── Lifecycle ── */
     useEffect(() => {
+        // Increment generation to invalidate any previous socket's callbacks
+        const generation = ++generationRef.current;
         sessionIdRef.current = sessionId;
         myProfileIdRef.current = activeSession?.my_id ? String(activeSession.my_id) : null;
         reconnectDelay.current = 1000;
 
+        // Always destroy the previous socket first
+        destroySocket();
+
         if (sessionId) {
             setMessages([]);
-            setTypingUser(null);
-            connect();
+            setTypingUsers({});
+            // Small delay to let the old socket fully close before opening new one
+            const connectTimer = setTimeout(() => {
+                if (generationRef.current === generation && sessionIdRef.current === sessionId) {
+                    connect(sessionId, generation);
+                }
+            }, 50);
+            return () => {
+                clearTimeout(connectTimer);
+                sessionIdRef.current = null;
+                destroySocket();
+            };
         } else {
-            socketRef.current?.close(1000);
             setConnected(false);
         }
 
         return () => {
             sessionIdRef.current = null;
-            if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
-            if (socketRef.current) {
-                socketRef.current.onclose = null;
-                socketRef.current.close(1000);
-            }
+            destroySocket();
         };
-    }, [sessionId, connect, activeSession?.my_id]);
+    }, [sessionId, activeSession?.my_id]);
+
+
 
     /* ── History Ingestion ── */
     const ingestHistory = useCallback((msgs: any[]) => {
@@ -195,6 +283,10 @@ export const useChatSocket = (activeSession: any | null, currentUserId?: number)
             is_read: Boolean(m.is_read),
             read_at: m.read_at ?? null,
             is_pending: false,
+            // @ts-ignore
+            status: m.status ?? (m.is_read ? 'SEEN' : 'SENT'),
+            sender_name: m.sender_name,
+            sender_role: m.sender_role,
         })));
     }, []);
 
@@ -219,12 +311,12 @@ export const useChatSocket = (activeSession: any | null, currentUserId?: number)
         rawSend({ type: 'chat_message', message, attachment_type: attType });
     };
 
-    const sendTyping = (isTyping: boolean) => rawSend({ type: 'typing_status', is_typing: isTyping });
+    const sendTyping = (isTyping: boolean, myName?: string) => rawSend({ type: 'typing_status', is_typing: isTyping, sender_name: myName });
     const markRead = (msgIds: number[]) => { if (msgIds.length > 0) rawSend({ type: 'read_receipt', message_ids: msgIds }); };
 
     return {
         messages, setMessages: ingestHistory, connected,
         sendMessage, sendTyping, markRead,
-        typingUser, otherId
+        typingUsers, otherId
     };
 };

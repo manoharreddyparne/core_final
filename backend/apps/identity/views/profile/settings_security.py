@@ -30,15 +30,22 @@ class SettingsSecurityView(APIView):
         user: User = request.user
 
         try:
+            filter_kwargs = {}
+            if hasattr(user, 'tenant_user_id') and user.tenant_user_id:
+                filter_kwargs['tenant_user_id'] = user.tenant_user_id
+            else:
+                filter_kwargs['user'] = user
+
             # auto-deactivate expired ones
-            active_sessions = LoginSession.objects.filter(user=user, is_active=True)
+            active_sessions = LoginSession.objects.filter(**filter_kwargs, is_active=True)
             for s in active_sessions:
                 s.deactivate_if_expired()
 
             session_list = []
-            for session in LoginSession.objects.filter(user=user).order_by("-created_at"):
+            for session in LoginSession.objects.filter(**filter_kwargs).order_by("-created_at"):
                 loc = get_location(session.ip_address)
                 device_info = parse_device_info(session.user_agent)
+
 
                 session_list.append(
                     {
@@ -59,7 +66,7 @@ class SettingsSecurityView(APIView):
                 )
 
             payload = {
-                "two_factor_enabled": getattr(user, "two_factor_enabled", False),
+                "two_factor_enabled": False, # TODO: Connect to MFA service
                 "recent_sessions": session_list,
             }
 
@@ -70,7 +77,7 @@ class SettingsSecurityView(APIView):
                 "[SettingsSecurityView][GET] failed | user=%s | error=%s",
                 user.id, exc
             )
-            return error_response("Unable to fetch security settings.", code=500)
+            return error_response(f"Unable to fetch security settings: {str(exc)}", code=500)
 
     # ---------------------------------------------------------------------
 

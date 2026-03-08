@@ -73,3 +73,8 @@ export const logoutAllSessions = async () => {
   });
   return data;
 };
+
+export const secureDevice = async () => {
+  const { data } = await api.post("secure-device/");
+  return data;
+};

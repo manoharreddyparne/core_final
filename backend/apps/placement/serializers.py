@@ -37,6 +37,7 @@ class PlacementDriveSerializer(serializers.ModelSerializer):
             'excluded_rolls', 'manual_students', 'is_inclusion_mode', 'included_rolls',
             'other_requirements', 'jd_document',
             'neural_metadata',
+            'auto_reminders_enabled', 'reminder_config', 'tpo_notes',
             'is_broadcasted', 'chat_session_id', 'created_at', 'updated_at',
             'is_eligible', 'eligibility_reason', 'application_status',
             'experience_years',
@@ -94,7 +95,7 @@ class PlacementDriveSerializer(serializers.ModelSerializer):
         json_fields = ['eligible_branches', 'eligible_batches', 'qualifications',
                        'contact_details', 'hiring_process', 'excluded_rolls', 
                        'manual_students', 'included_rolls', 'custom_criteria',
-                       'neural_metadata']
+                       'neural_metadata', 'reminder_config']
         for field in json_fields:
             if field in mutable and isinstance(mutable[field], str):
                 try:
@@ -133,11 +134,23 @@ class PlacementDriveSerializer(serializers.ModelSerializer):
             mutable['chat_session_id'] = None
 
         # 4. Handle File fields sent as strings (URLs)
-        # If jd_document is a string (e.g. "http://..."), it means the file is already 
-        # on the server and we aren't uploading a new one. 
-        # DRF FileField doesn't like strings, so we remove it if it's not a proper File object.
         if 'jd_document' in mutable and isinstance(mutable['jd_document'], str):
             del mutable['jd_document']
+
+        # 5. Handle Boolean strings (convert 'true'/'false' to actual bools)
+        # FormData sends booleans as strings, and empty strings for uninitialized fields.
+        bool_fields = ['auto_reminders_enabled', 'is_inclusion_mode', 'is_broadcasted']
+        for field in bool_fields:
+            if field in mutable:
+                val = mutable[field]
+                if isinstance(val, str):
+                    if val.lower() == 'true':
+                        mutable[field] = True
+                    elif val.lower() == 'false':
+                        mutable[field] = False
+                    elif val == '':
+                        # Default empty string to False for booleans to avoid validation errors
+                        mutable[field] = False
 
         return super().to_internal_value(mutable)
 

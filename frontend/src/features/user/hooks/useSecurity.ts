@@ -22,13 +22,14 @@ export function useSecurity() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [ov, ss] = await Promise.all([
+      // Fetch independently so one failure doesn't block the other
+      const [ovResult, ssResult] = await Promise.allSettled([
         getSecurityOverview(),
         getSessionSettings(),
       ]);
 
-      setOverview(ov);
-      setSessions(ss);
+      if (ovResult.status === 'fulfilled') setOverview(ovResult.value);
+      if (ssResult.status === 'fulfilled') setSessions(ssResult.value);
     } finally {
       setLoading(false);
     }

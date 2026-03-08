@@ -3,6 +3,7 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from asgiref.sync import async_to_sync
 from django.utils import timezone
+from apps.social.utils import get_profile_id
 
 class SocialChatConsumer(AsyncWebsocketConsumer):
     """
@@ -15,7 +16,7 @@ class SocialChatConsumer(AsyncWebsocketConsumer):
             await self.close()
             return
             
-        self.profile_id = await self.get_profile_id()
+        self.profile_id = await self.sync_get_profile_id()
 
         self.session_id = self.scope['url_route']['kwargs']['session_id']
         self.room_group_name = f'chat_{self.session_id}'
@@ -50,7 +51,7 @@ class SocialChatConsumer(AsyncWebsocketConsumer):
                 self.room_group_name,
                 {
                     'type': 'chat_broadcast',
-                    'message': content, # Decrypted for broadcast (assuming HTTPS/WSS security)
+                    'message': content, 
                     'msg_id': saved_id,
                     'sender_id': self.profile_id,
                     'attachment_type': att_type,
@@ -66,7 +67,8 @@ class SocialChatConsumer(AsyncWebsocketConsumer):
                 {
                     'type': 'typing_broadcast',
                     'sender_id': self.profile_id,
-                    'is_typing': data.get('is_typing', False)
+                    'is_typing': data.get('is_typing', False),
+                    'sender_name': data.get('sender_name')
                 }
             )
 
@@ -96,11 +98,6 @@ class SocialChatConsumer(AsyncWebsocketConsumer):
             )
 
     async def chat_broadcast(self, event):
-        """
-        Send to ALL participants including the sender.
-        The sender uses the echo to confirm their optimistic message
-        got saved and to obtain the real DB message ID.
-        """
         await self.send(text_data=json.dumps(event))
 
     async def typing_broadcast(self, event):
@@ -116,23 +113,11 @@ class SocialChatConsumer(AsyncWebsocketConsumer):
             await self.send(text_data=json.dumps(event['signal_data']))
 
     @database_sync_to_async
-    def get_profile_id(self):
-        """
-        Resolve the registry profile ID for the connected user.
-        MUST run inside the correct tenant schema — WebSocket connections
-        bypass the tenant middleware, so we read the schema from the JWT
-        token payload just like is_member() and save_message() do.
-        """
+    def sync_get_profile_id(self):
         from django_tenants.utils import schema_context
-        from apps.social.views import SocialFeedViewSet
-
-        schema = (
-            self.scope.get('token_payload', {}).get('schema', 'public')
-            if self.scope.get('token_payload')
-            else 'public'
-        )
+        schema = self.scope.get('token_payload', {}).get('schema', 'public') if self.scope.get('token_payload') else 'public'
         with schema_context(schema):
-            return SocialFeedViewSet._get_my_profile_id(None, self.user)
+            return get_profile_id(self.user)
 
     @database_sync_to_async
     def is_member(self):
@@ -143,13 +128,8 @@ class SocialChatConsumer(AsyncWebsocketConsumer):
         with schema_context(schema):
             my_id = self.profile_id
             session = ChatSession.objects.filter(session_id=self.session_id).first()
-            if not session: 
-                print(f"[WS-MEMBER] Session not found: {self.session_id}")
-                return False
-            
-            member = any(int(p['id']) == int(my_id) for p in session.participants)
-            print(f"[WS-MEMBER] Check: my_profile_id={my_id} participants={session.participants} member={member}")
-            return member
+            if not session: return False
+            return any(int(p['id']) == int(my_id) for p in session.participants)
 
     @database_sync_to_async
     def save_message(self, content, att_type, metadata):
@@ -164,7 +144,6 @@ class SocialChatConsumer(AsyncWebsocketConsumer):
                 session = ChatSession.objects.get(session_id=self.session_id)
                 encrypted = SecureVaultService.encrypt(content)
                 
-                # Point 7: Init status tracking for all
                 status_tracking = {}
                 for p in session.participants:
                     key = f"{p['id']}_{p['role']}"
@@ -185,7 +164,6 @@ class SocialChatConsumer(AsyncWebsocketConsumer):
                 session.last_message_at = timezone.now()
                 session.save()
 
-                # Point 15: Notify other participants who might not be in the room
                 channel_layer = get_channel_layer()
                 for p in session.participants:
                     key = f"{p['id']}_{p['role']}"
@@ -198,28 +176,23 @@ class SocialChatConsumer(AsyncWebsocketConsumer):
                                 "data": {
                                     "type": "NEW_MESSAGE",
                                     "session_id": str(session.session_id),
-                                    "sender_name": "New Message", # Profile resolve is slow here, use generic
+                                    "sender_name": "New Message",
                                     "preview": content[:50] + "..." if len(content) > 50 else content
                                 }
                             }
                         )
                 return m.id
         except Exception as e:
-            import logging
-            logging.getLogger(__name__).error(f"WS Save Message Error: {e}", exc_info=True)
             return None
 
     @database_sync_to_async
     def mark_as_read(self, msg_ids):
         from django_tenants.utils import schema_context
         from apps.social.models import ChatMessage
-        
         schema = self.scope.get('token_payload', {}).get('schema', 'public') if self.scope.get('token_payload') else 'public'
         with schema_context(schema):
-            # Point 7/10: Track per-user detailed status
             my_key = f"{self.profile_id}_{getattr(self.user, 'role', 'STUDENT')}"
             now = timezone.now().isoformat()
-            
             msgs = ChatMessage.objects.filter(id__in=msg_ids)
             for m in msgs:
                 if not m.status_tracking: m.status_tracking = {}
@@ -227,6 +200,4 @@ class SocialChatConsumer(AsyncWebsocketConsumer):
                     "delivered_at": m.status_tracking.get(my_key, {}).get('delivered_at') or now,
                     "seen_at": now
                 }
-                m.is_read = True 
-                m.read_at = timezone.now()
                 m.save()
