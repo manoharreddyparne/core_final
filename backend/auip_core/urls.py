@@ -29,11 +29,13 @@ urlpatterns = [
     # Courses and batches
     path('api/courses/', include('apps.academic.urls')),
 
-    # Quizzes, questions, options
-    path('api/quizzes/', include('apps.quizzes.urls')),
+    # Unified Exams System (Mock Tests & Online Exams)
+    path('api/exams/', include('apps.exams.urls')),
 
-    # Quiz attempts
-    path('api/attempts/', include('apps.attempts.urls')),
+    # Projects & Research repository
+    path('api/projects/', include('apps.projects.urls')),
+
+
 
     # Optional dj-rest-auth endpoints (token refresh, login/logout fallback)
     path('api/auth/', include('dj_rest_auth.urls')),

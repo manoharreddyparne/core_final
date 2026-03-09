@@ -54,11 +54,11 @@ TENANT_APPS = (
     "django.contrib.auth", # Tenants might need their own auth context
     "apps.auip_institution", # Tenant Specific Data (Students, Faculty)
     "apps.academic",
-    "apps.quizzes",
-    "apps.attempts",
-    "apps.anti_cheat",
+    "apps.exams", # Unified Exam/Attempts/Anti-Cheat system
     "apps.placement",
+    "apps.projects", # Research & Project Portfolios
     "apps.notifications",
+
     "apps.governance",
     "apps.intelligence",
     "apps.resumes",

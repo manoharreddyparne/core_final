@@ -227,6 +227,55 @@ export const InstAdminDashboard = () => {
                         </button>
                     </div>
                 </div>
+
+                {/* Exams & Mock Tests Card */}
+                <div className="glass p-10 rounded-[3rem] bg-white/[0.03] border-amber-500/10 relative overflow-hidden group flex flex-col justify-between h-[320px]">
+                    <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-110 transition-transform">
+                        <ShieldCheck className="w-48 h-48 text-amber-400" />
+                    </div>
+                    <div className="relative z-10 space-y-4">
+                        <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-400 border border-amber-500/20">
+                            <ShieldCheck className="w-6 h-6" />
+                        </div>
+                        <h2 className="text-3xl font-black text-white leading-tight">Exams & Mock Tests</h2>
+                        <p className="text-gray-500 text-sm font-medium max-w-sm leading-relaxed">
+                            Oversee institutional assessments, manage question banks, and audit real-time proctoring violations.
+                        </p>
+                    </div>
+                    <div className="relative z-10">
+                        <button
+                            onClick={() => navigate("/mock-tests")}
+                            className="px-8 py-3 glass bg-amber-500/10 border-amber-500/20 text-amber-300 font-bold rounded-2xl hover:bg-amber-500/20 transition-all flex items-center gap-2"
+                        >
+                            Manage Exams <ArrowRight className="w-4 h-4" />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Research Repository Card */}
+                <div className="glass p-10 rounded-[3rem] bg-white/[0.03] border-indigo-500/10 relative overflow-hidden group flex flex-col justify-between h-[320px]">
+                    <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-110 transition-transform">
+                        <BookOpen className="w-48 h-48 text-indigo-400" />
+                    </div>
+                    <div className="relative z-10 space-y-4">
+                        <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/20">
+                            <BookOpen className="w-6 h-6" />
+                        </div>
+                        <h2 className="text-3xl font-black text-white leading-tight">Research Repository</h2>
+                        <p className="text-gray-500 text-sm font-medium max-w-sm leading-relaxed">
+                            Global hub for institutional peer-reviewed papers. Certify student manuscripts and publish academic work.
+                        </p>
+                    </div>
+                    <div className="relative z-10">
+                        <button
+                            onClick={() => navigate("/research")}
+                            className="px-8 py-3 glass bg-indigo-500/10 border-indigo-500/20 text-indigo-300 font-bold rounded-2xl hover:bg-indigo-500/20 transition-all flex items-center gap-2"
+                        >
+                            Open Repository <ArrowRight className="w-4 h-4" />
+                        </button>
+                    </div>
+                </div>
+
             </div>
 
             {/* Recent Activity Mini-Feed */}

@@ -123,7 +123,7 @@ class NetworkViewSet(viewsets.ViewSet):
             return success_response("Search idle", data=[])
 
         # Security: Admins should search everyone. Regular users search connections.
-        is_admin = role in ['INST_ADMIN', 'ADMIN', 'FACULTY']
+        is_admin = role in ['INST_ADMIN', 'INSTITUTION_ADMIN', 'ADMIN', 'FACULTY']
         
         connections = Connection.objects.filter(
             Q(follower_id=my_id, follower_role=role) |

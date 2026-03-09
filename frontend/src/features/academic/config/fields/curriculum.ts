@@ -32,6 +32,7 @@ export const syllabusUnitFields: FormField[] = [
     { name: 'unit_number', label: 'Unit Number', type: 'number', required: true },
     { name: 'title', label: 'Unit Title', required: true, fullWidth: true },
     { name: 'hours_required', label: 'Hours', type: 'number' },
+    { name: 'topics', label: 'Topics (List)', helpText: 'Comma separated like Topic 1, Topic 2', fullWidth: true },
     { name: 'ai_question_weight', label: 'AI Weight', type: 'number', helpText: '0 to 1.0' }
 ];
 
@@ -48,5 +49,6 @@ export const legacyBatchFields: FormField[] = [
     { name: 'course', label: 'Course ID', required: true, type: 'number' },
     { name: 'name', label: 'Batch Name', required: true },
     { name: 'start_date', label: 'Start Date', type: 'date', required: true },
-    { name: 'end_date', label: 'End Date', type: 'date', required: true }
+    { name: 'end_date', label: 'End Date', type: 'date', required: true },
+    { name: 'roll_numbers', label: 'Enrolled Roll Numbers (List)', helpText: 'Comma separated like ROLL-1, ROLL-2', fullWidth: true }
 ];

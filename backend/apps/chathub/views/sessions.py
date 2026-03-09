@@ -230,7 +230,7 @@ class SessionViewSet(viewsets.ViewSet):
     @action(detail=True, methods=['post'], url_path='establish_and_broadcast')
     def establish_and_broadcast(self, request, pk=None):
         """Points 2 & 6: Automated recruitment broadcast from the hub."""
-        if request.user.role not in ['INST_ADMIN', 'ADMIN', 'FACULTY']:
+        if request.user.role not in ['INST_ADMIN', 'INSTITUTION_ADMIN', 'ADMIN', 'FACULTY']:
              return error_response("Unauthorized", code=403)
              
         session = ChatSession.objects.filter(session_id=pk).first()

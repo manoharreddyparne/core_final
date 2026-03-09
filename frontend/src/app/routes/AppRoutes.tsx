@@ -38,7 +38,9 @@ import { NewsletterPage } from "../../features/governance/pages/NewsletterPage";
 import GovernanceBrainDashboard from "../../features/intelligence/pages/GovernanceBrainDashboard";
 import TPOAnalyticsDashboard from "../../features/intelligence/pages/TPOAnalyticsDashboard";
 import MockTestHub from "../../features/quizzes/pages/MockTestHub";
+import ResearchHub from "../../features/projects/pages/ResearchHub";
 import AcademicHub from "../../features/academic/pages/AcademicHub";
+
 import FacultyAcademicWorkforce from "../../features/academic/pages/FacultyAcademicWorkforce";
 import CertificateVerify from "../../features/auth/pages/CertificateVerify";
 
@@ -400,6 +402,17 @@ export const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
+
+        {/* RESEARCH REPOSITORY — Peer Reviewed Manuscripts */}
+        <Route
+          path="/research"
+          element={
+            <ProtectedRoute allowedRoles={["student", "faculty", "institution_admin", "admin"]}>
+              <ResearchHub />
+            </ProtectedRoute>
+          }
+        />
+
 
         {/* LEGACY REDIRECT */}
         <Route path="/admin-dashboard" element={<Navigate to="/" replace />} />

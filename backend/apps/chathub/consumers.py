@@ -54,6 +54,7 @@ class SocialChatConsumer(AsyncWebsocketConsumer):
                     'message': content, 
                     'msg_id': saved_id,
                     'sender_id': self.profile_id,
+                    'sender_role': getattr(self.user, 'role', 'STUDENT'),
                     'attachment_type': att_type,
                     'timestamp': timezone.now().isoformat(),
                     'status': 'SENT'
@@ -67,6 +68,7 @@ class SocialChatConsumer(AsyncWebsocketConsumer):
                 {
                     'type': 'typing_broadcast',
                     'sender_id': self.profile_id,
+                    'sender_role': getattr(self.user, 'role', 'STUDENT'),
                     'is_typing': data.get('is_typing', False),
                     'sender_name': data.get('sender_name')
                 }
@@ -81,6 +83,7 @@ class SocialChatConsumer(AsyncWebsocketConsumer):
                 {
                     'type': 'status_broadcast',
                     'sender_id': self.profile_id,
+                    'sender_role': getattr(self.user, 'role', 'STUDENT'),
                     'status': 'SEEN',
                     'message_ids': msg_ids
                 }
@@ -93,7 +96,8 @@ class SocialChatConsumer(AsyncWebsocketConsumer):
                 {
                     'type': 'webrtc_signal',
                     'signal_data': data,
-                    'sender_id': self.profile_id
+                    'sender_id': self.profile_id,
+                    'sender_role': getattr(self.user, 'role', 'STUDENT')
                 }
             )
 
@@ -101,16 +105,16 @@ class SocialChatConsumer(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps(event))
 
     async def typing_broadcast(self, event):
-        if str(event['sender_id']) != str(self.profile_id):
+        if str(event.get('sender_id')) != str(self.profile_id) or str(event.get('sender_role')) != str(getattr(self.user, 'role', 'STUDENT')):
             await self.send(text_data=json.dumps(event))
 
     async def status_broadcast(self, event):
-        if str(event['sender_id']) != str(self.profile_id):
+        if str(event.get('sender_id')) != str(self.profile_id) or str(event.get('sender_role')) != str(getattr(self.user, 'role', 'STUDENT')):
             await self.send(text_data=json.dumps(event))
 
     async def webrtc_signal(self, event):
-        if str(event['sender_id']) != str(self.profile_id):
-            await self.send(text_data=json.dumps(event['signal_data']))
+        if str(event.get('sender_id')) != str(self.profile_id) or str(event.get('sender_role')) != str(getattr(self.user, 'role', 'STUDENT')):
+            await self.send(text_data=json.dumps(event.get('signal_data')))
 
     @database_sync_to_async
     def sync_get_profile_id(self):

@@ -37,3 +37,15 @@ class IsTenantFaculty(permissions.BasePermission):
             request.user.is_authenticated and
             role == 'FACULTY'
         )
+
+class IsTenantFacultyOrAdmin(permissions.BasePermission):
+    """
+    Allocates access to both Admins and Faculty.
+    """
+    def has_permission(self, request, view):
+        role = getattr(request.user, 'role', None)
+        return bool(
+            request.user and
+            request.user.is_authenticated and
+            role in ('INST_ADMIN', 'INSTITUTION_ADMIN', 'ADMIN', 'FACULTY')
+        )

@@ -5,6 +5,8 @@ from apps.academic.models import Department, AcademicProgram, AcademicYear, Seme
 
 
 class DepartmentSerializer(serializers.ModelSerializer):
+    head_email = serializers.EmailField(required=False, allow_blank=True, allow_null=True)
+
     class Meta:
         model = Department
         fields = ['id', 'name', 'code', 'description', 'head_email', 'is_active', 'created_at', 'updated_at']

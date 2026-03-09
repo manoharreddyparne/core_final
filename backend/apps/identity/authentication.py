@@ -103,6 +103,25 @@ class SafeJWTAuthentication(JWTAuthentication):
         # ✅ Success: Attach JTI to request
         request.access_jti = jti
 
+        # ✅ CRITICAL: Atomic Tenant Switch (Enforce correct institutional DB)
+        schema = validated_token.get('schema')
+        if schema and schema != 'public':
+            try:
+                from django.db import connection
+                from django_tenants.utils import get_tenant_model
+                
+                TenantModel = get_tenant_model()
+                with schema_context('public'):
+                    tenant = TenantModel.objects.get(schema_name=schema)
+                
+                if tenant:
+                    # Switch global connection and request object
+                    connection.set_tenant(tenant)
+                    request.tenant = tenant
+                    logger.info(f"[AUTH-TENANT] Switched to {schema} for {user.email}")
+            except Exception as e:
+                logger.error(f"[AUTH-TENANT] Switch failed for {schema}: {e}")
+
         return user, validated_token
 
     def get_user(self, validated_token):

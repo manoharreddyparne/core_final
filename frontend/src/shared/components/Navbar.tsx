@@ -42,9 +42,16 @@ const Navbar = () => {
                 <Link to="/create-student" className="hover:bg-blue-500 px-3 py-2 rounded">
                   Create Student
                 </Link>
+                <Link to="/research" className="hover:bg-blue-500 px-3 py-2 rounded">
+                  Research Hub
+                </Link>
+                <Link to="/mock-tests" className="hover:bg-blue-500 px-3 py-2 rounded">
+                  Mock Tests
+                </Link>
                 <Link to="/create-teacher" className="hover:bg-blue-500 px-3 py-2 rounded">
                   Create Teacher
                 </Link>
+
                 <button
                   onClick={handleLogout}
                   className="bg-red-500 hover:bg-red-600 px-3 py-2 rounded transition"

@@ -38,26 +38,33 @@ export const useChatSocket = (activeSession: any | null, currentUserId?: number,
     const [typingUsers, setTypingUsers] = useState<Record<string, { name: string, timer: any }>>({});
 
     /* ── is_me resolution ── */
-    const resolveIsMe = useCallback((senderId: string | number): boolean => {
+    const resolveIsMe = useCallback((senderId: string | number, senderRole?: string): boolean => {
         const sid = String(senderId);
         
-        // 1. Prioritize my_id from activeSession (Server-side source of truth for THIS session)
-        if (activeSession?.my_id && String(activeSession.my_id) === sid) return true;
+        // 1. Prioritize my_id & my_role from activeSession (Server-side source of truth for THIS session)
+        if (activeSession?.my_id && String(activeSession.my_id) === sid) {
+            if (!senderRole || senderRole === activeSession?.my_role) return true;
+        }
 
         // 2. Fallback to currentUserId if available (from Auth)
-        if (currentUserId && Number(sid) === currentUserId) return true;
+        if (currentUserId && Number(sid) === currentUserId) {
+            // Very basic fallback if role isn't provided
+            if (!senderRole) return true;
+        }
         
         // 3. Fallback to cached profile ID
-        if (myProfileIdRef.current) return sid === myProfileIdRef.current;
+        if (myProfileIdRef.current && sid === myProfileIdRef.current) {
+            if (!senderRole || senderRole === activeSession?.my_role) return true;    
+        }
         
-        // 4. Group context: we can't infer as easily without knowing our own ID
+        // 4. Group context: we can't infer as easily without knowing our own ID accurately
         if (activeSession?.is_group) return false;
 
         // 5. 1-on-1 fallback: differentiate by the 'other' person
         if (otherId !== null && otherId !== '0') return sid !== otherId;
         
         return false;
-    }, [otherId, currentUserId, activeSession?.my_id, activeSession?.is_group]);
+    }, [otherId, currentUserId, activeSession?.my_id, activeSession?.my_role, activeSession?.is_group]);
 
     function buildMsg(data: any, isMe: boolean): ChatMessage {
         return {
@@ -82,7 +89,7 @@ export const useChatSocket = (activeSession: any | null, currentUserId?: number,
             const data = JSON.parse(event.data);
 
             if (data.type === "chat_broadcast") {
-                const isMe = resolveIsMe(data.sender_id);
+                const isMe = resolveIsMe(data.sender_id, data.sender_role);
                 if (isMe && myProfileIdRef.current === null) {
                     myProfileIdRef.current = String(data.sender_id);
                 }

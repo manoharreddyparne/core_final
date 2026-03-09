@@ -33,7 +33,7 @@ export const AcademicHub = () => {
         subject_id: '',
         semester_id: '',
         section_id: '',
-        rawStudents: ''
+        rawSection: ''
     });
 
     const [stats, setStats] = useState({
@@ -50,6 +50,7 @@ export const AcademicHub = () => {
         semesters: [],
         subjects: [],
         sections: [],
+        registrySections: [],
         faculty: []
     });
 
@@ -79,43 +80,47 @@ export const AcademicHub = () => {
     ];
 
     const fetchOptionCaches = async () => {
-        try {
-            const listParams = { params: { page_size: 500 } };
-            const [progRes, deptRes, yearRes, semRes, subRes, secRes, facRes, stuRes] = await Promise.all([
-                academicApi.list('programs', listParams),
-                academicApi.list('departments', listParams),
-                academicApi.list('academic-years', listParams),
-                academicApi.list('semesters', listParams),
-                academicApi.list('subjects', listParams),
-                academicApi.list('sections', listParams),
-                instApiClient.get('faculty/'), // Usually not paginated or handled separately
-                instApiClient.get('students/', { params: { page_size: 2000 } })
-            ]);
+        const listParams = { page_size: 1000 };
+        
+        // Helper to safely unwrap a response even if it's paginated or array
+        const unwrap = (res: any) => {
+            const raw = res.data.success ? res.data.data : res.data;
+            return raw.results || (Array.isArray(raw) ? raw : []);
+        };
 
-            const unwrap = (res: any) => {
-                const raw = res.data.success ? res.data.data : res.data;
-                return raw.results || (Array.isArray(raw) ? raw : []);
-            };
+        const safeFetch = async (promise: Promise<any>) => {
+            try { return await promise; } catch (e) { console.error("Cache pre-fetch partial failure:", e); return { data: [] }; }
+        };
 
-            setOptionsCache({
-                programs: unwrap(progRes).map((p: any) => ({ label: p.name, value: p.id })),
-                departments: unwrap(deptRes).map((d: any) => ({ label: d.name, value: d.id })),
-                academicYears: unwrap(yearRes).map((y: any) => ({ label: y.label, value: y.id })),
-                semesters: unwrap(semRes).map((s: any) => ({ label: s.label || `${s.program__code || ''} Sem${s.semester_number}`, value: s.id })),
-                subjects: unwrap(subRes).map((s: any) => ({ label: `${s.code} - ${s.name}`, value: s.id })),
-                sections: unwrap(secRes).map((s: any) => ({ label: `${s.name} (${s.program_name || ''})`, value: s.id, original: s })),
-                faculty: unwrap(facRes).map((f: any) => ({ label: `${f.full_name} (${f.employee_id})`, value: f.employee_id, original: f })),
-                students: unwrap(stuRes)
-                    .filter((s: any) => s.roll_number)
-                    .map((s: any) => ({
-                        label: `${s.full_name} (${s.roll_number})`.trim(),
-                        value: s.roll_number,
-                        original: s
-                    }))
-            });
-        } catch (e) {
-            console.error("Option cache pre-fetch failed", e);
-        }
+        const [progRes, deptRes, yearRes, semRes, subRes, secRes, facRes, stuRes, stuSecRes] = await Promise.all([
+            safeFetch(academicApi.list('programs', listParams)),
+            safeFetch(academicApi.list('departments', listParams)),
+            safeFetch(academicApi.list('academic-years', listParams)),
+            safeFetch(academicApi.list('semesters', listParams)),
+            safeFetch(academicApi.list('subjects', listParams)),
+            safeFetch(academicApi.list('sections', listParams)),
+            safeFetch(instApiClient.get('faculty/')),
+            safeFetch(instApiClient.get('students/', { params: { page_size: 2000 } })),
+            safeFetch(instApiClient.get('students/sections/'))
+        ]);
+
+        setOptionsCache({
+            programs: unwrap(progRes).map((p: any) => ({ label: `${p.name} (${p.code})`, value: p.id })),
+            departments: unwrap(deptRes).map((d: any) => ({ label: `${d.name} (${d.code})`, value: d.id })),
+            academicYears: unwrap(yearRes).map((y: any) => ({ label: y.label, value: y.id })),
+            semesters: unwrap(semRes).map((s: any) => ({ label: s.label, value: s.id })),
+            subjects: unwrap(subRes).map((s: any) => ({ label: `${s.code} - ${s.name}`, value: s.id })),
+            sections: unwrap(secRes).map((s: any) => ({ label: `${s.name} (${s.program_name || ''})`, value: s.id, original: s })),
+            faculty: unwrap(facRes).map((f: any) => ({ label: `${f.full_name} (${f.employee_id})`, value: f.employee_id, original: f })),
+            registrySections: unwrap(stuSecRes).map((s: any) => ({ label: `Registry Group: ${s.name} (${s.total} Students)`, value: s.name })),
+            students: unwrap(stuRes)
+                .filter((s: any) => s.roll_number)
+                .map((s: any) => ({
+                    label: `${s.full_name} (${s.roll_number})`.trim(),
+                    value: s.roll_number,
+                    original: s
+                }))
+        });
     };
 
     useEffect(() => {
@@ -175,11 +180,33 @@ export const AcademicHub = () => {
 
     const handleSave = async (formData: any) => {
         const tab = tabs.find(t => t.id === activeTab);
+        
+        // 🧬 Data Transformation: Convert comma-separated strings to arrays for ArrayFields
+        const processedData = { ...formData };
+        if (typeof processedData.placement_tags === 'string') {
+            processedData.placement_tags = processedData.placement_tags
+                .split(',')
+                .map((t: string) => t.trim())
+                .filter((t: string) => t.length > 0);
+        }
+        if (typeof processedData.topics === 'string') {
+            processedData.topics = processedData.topics
+                .split(',')
+                .map((t: string) => t.trim())
+                .filter((t: string) => t.length > 0);
+        }
+        if (typeof processedData.roll_numbers === 'string') {
+            processedData.roll_numbers = processedData.roll_numbers
+                .split(',')
+                .map((t: string) => t.trim())
+                .filter((t: string) => t.length > 0);
+        }
+
         try {
             if (selectedItem) {
-                await academicApi.update(tab!.endpoint, selectedItem.id, formData);
+                await academicApi.update(tab!.endpoint, selectedItem.id, processedData);
             } else {
-                await academicApi.create(tab!.endpoint, formData);
+                await academicApi.create(tab!.endpoint, processedData);
             }
             setIsModalOpen(false);
             fetchData();
@@ -437,11 +464,11 @@ export const AcademicHub = () => {
 
             {/* Bulk Enrollment Modal */}
             {isBulkOpen && (() => {
-                const previewStudents = bulkEnrollData.section_id ? (() => {
-                    const targetSection = optionsCache.sections.find((sec: any) => sec.value == bulkEnrollData.section_id);
-                    if (!targetSection) return [];
-                    const sectionName = targetSection.original.name;
-                    return optionsCache.students.filter((s: any) => s.original.section === sectionName || s.original.section_name === sectionName);
+                const previewStudents = bulkEnrollData.rawSection ? (() => {
+                    return optionsCache.students.filter((s: any) => 
+                        s.original.section === bulkEnrollData.rawSection || 
+                        s.original.section_name === bulkEnrollData.rawSection
+                    );
                 })() : [];
 
                 return (
@@ -482,17 +509,34 @@ export const AcademicHub = () => {
                                 </div>
                                 <div className="space-y-1.5 p-6 border border-primary/20 bg-primary/5 rounded-3xl">
                                     <div className="flex items-center gap-3 mb-4">
+                                        <Users className="w-5 h-5 text-primary" />
+                                        <div>
+                                            <label className="text-[11px] font-black text-white uppercase tracking-widest">Registry Filter (Source)</label>
+                                            <p className="text-[9px] text-gray-500 font-bold mt-1">Pick the group from your uploaded CSV to enroll.</p>
+                                        </div>
+                                    </div>
+                                    <select
+                                        value={bulkEnrollData.rawSection} onChange={e => setBulkEnrollData({ ...bulkEnrollData, rawSection: e.target.value })}
+                                        className="w-full bg-white/10 border border-white/20 rounded-2xl px-5 py-4 text-xs text-white placeholder:text-gray-800 font-bold focus:border-primary/50 outline-none appearance-none cursor-pointer hover:bg-white/[0.15] transition-all"
+                                    >
+                                        <option value="" className="bg-black text-gray-500">Pick Registry Group...</option>
+                                        {optionsCache.registrySections.map((s: any) => <option key={s.value} value={s.value} className="bg-black text-white">{s.label}</option>)}
+                                    </select>
+                                </div>
+
+                                <div className="space-y-1.5 p-6 border border-primary/20 bg-primary/5 rounded-3xl">
+                                    <div className="flex items-center gap-3 mb-4">
                                         <Layers className="w-5 h-5 text-primary" />
                                         <div>
-                                            <label className="text-[11px] font-black text-white uppercase tracking-widest">Section Auto-Mapper</label>
-                                            <p className="text-[9px] text-gray-500 font-bold mt-1">Select a section to automatically aggregate and enroll all its students.</p>
+                                            <label className="text-[11px] font-black text-white uppercase tracking-widest">Target Section (Mapping)</label>
+                                            <p className="text-[9px] text-gray-500 font-bold mt-1">Select the official ClassSection to assign these students.</p>
                                         </div>
                                     </div>
                                     <select
                                         value={bulkEnrollData.section_id} onChange={e => setBulkEnrollData({ ...bulkEnrollData, section_id: e.target.value })}
                                         className="w-full bg-white/10 border border-white/20 rounded-2xl px-5 py-4 text-xs text-white placeholder:text-gray-800 font-bold focus:border-primary/50 outline-none appearance-none cursor-pointer hover:bg-white/[0.15] transition-all"
                                     >
-                                        <option value="" className="bg-black text-gray-500">Pick Section to extract students...</option>
+                                        <option value="" className="bg-black text-gray-500">Pick Target Section...</option>
                                         {optionsCache.sections.map((s: any) => <option key={s.value} value={s.value} className="bg-black text-white">{s.label}</option>)}
                                     </select>
                                 </div>

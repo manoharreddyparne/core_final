@@ -135,7 +135,7 @@ class InviteViewSet(viewsets.ViewSet):
     @action(detail=False, methods=['get'])
     def pending_requests(self, request):
         """Admin panel: view pending join requests."""
-        if request.user.role not in ['INST_ADMIN', 'ADMIN']:
+        if request.user.role not in ['INST_ADMIN', 'INSTITUTION_ADMIN', 'ADMIN']:
             return error_response("Unauthorized", code=403)
         
         reqs = JoinRequest.objects.filter(status='PENDING').select_related('session')
@@ -150,7 +150,7 @@ class InviteViewSet(viewsets.ViewSet):
     @action(detail=True, methods=['post'])
     def resolve_request(self, request, pk=None):
         """Admin approval/rejection."""
-        if request.user.role not in ['INST_ADMIN', 'ADMIN']:
+        if request.user.role not in ['INST_ADMIN', 'INSTITUTION_ADMIN', 'ADMIN']:
              return error_response("Unauthorized", code=403)
              
         join_req = get_object_or_404(JoinRequest, id=pk)
@@ -181,7 +181,7 @@ class InviteViewSet(viewsets.ViewSet):
     @action(detail=False, methods=['post'])
     def generate_link(self, request):
         """Admin: generate/refresh a tokenized join link."""
-        if request.user.role not in ['INST_ADMIN', 'ADMIN']:
+        if request.user.role not in ['INST_ADMIN', 'INSTITUTION_ADMIN', 'ADMIN']:
              return error_response("Unauthorized. Governance access restricted to Institute Administrators.", code=403)
         
         session_id = request.data.get('session_id')

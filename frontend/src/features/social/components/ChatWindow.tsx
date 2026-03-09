@@ -62,7 +62,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = (props) => {
     // Unified Typing Logic
     const typingList = Object.values(typingUsers).map(u => u.name);
 
-    const isReadOnly = activeSessionDetail?.participants_metadata?.read_only_for_students && !['INST_ADMIN', 'ADMIN', 'FACULTY'].includes(user?.role || '');
+    const isReadOnly = activeSessionDetail?.participants_metadata?.read_only_for_students && !['INST_ADMIN', 'INSTITUTION_ADMIN', 'ADMIN', 'FACULTY'].includes(user?.role || '');
 
     return (
         <div className="flex-1 flex flex-col glass rounded-2xl border border-white/5 overflow-hidden min-w-0 min-h-0">

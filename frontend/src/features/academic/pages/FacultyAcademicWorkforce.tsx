@@ -32,7 +32,10 @@ export const FacultyAcademicWorkforce = () => {
         const loadSubjects = async () => {
             try {
                 const res = await academicApi.list('teacher-assignments');
-                const data = res.data.success ? res.data.data : res.data;
+                // 🧬 Robust Extraction: Handle Success Envelope or Raw Paginated/Array Response
+                const rawData = res.data.success ? res.data.data : res.data;
+                const data = Array.isArray(rawData) ? rawData : (rawData.results || []);
+                
                 setMySubjects(data);
 
                 // Auto-select if passed from dashboard
@@ -60,15 +63,20 @@ export const FacultyAcademicWorkforce = () => {
         setLoading(true);
         try {
             const res = await academicApi.list('enrollments', { subject: subject.subject });
-            const data = res.data.success ? res.data.data : res.data;
+            // 🧬 Robust Extraction: Handle Success Envelope or Raw Paginated/Array Response
+            const rawData = res.data.success ? res.data.data : res.data;
+            const data = Array.isArray(rawData) ? rawData : (rawData.results || []);
+            
             setStudents(data);
 
             const initialAttendance: Record<string, string> = {};
             const initialMarks: Record<string, number> = {};
-            data.forEach((s: any) => {
-                initialAttendance[s.roll_number] = 'PRESENT';
-                initialMarks[s.roll_number] = 0;
-            });
+            if (Array.isArray(data)) {
+                data.forEach((s: any) => {
+                    initialAttendance[s.roll_number] = 'PRESENT';
+                    initialMarks[s.roll_number] = 0;
+                });
+            }
             setAttendanceRecords(initialAttendance);
             setMarksRecords(initialMarks);
         } catch (err) {
@@ -267,7 +275,7 @@ export const FacultyAcademicWorkforce = () => {
                                             <p className="font-black uppercase tracking-widest opacity-20 italic underline decoration-primary">Syncing Intelligence Matrix...</p>
                                         </td>
                                     </tr>
-                                ) : students.map((s) => (
+                                ) : (Array.isArray(students) ? students : []).map((s) => (
                                     <tr key={s.id} className="bg-white/5 hover:bg-white/[0.08] transition-all rounded-[1.5rem] overflow-hidden group">
                                         <td className="px-6 py-5 rounded-l-3xl">
                                             <p className="text-sm font-black text-white italic">{s.student_name}</p>

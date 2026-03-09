@@ -110,6 +110,38 @@ class AccessTokenSessionMiddleware:
             if result:
                 user, token = result
                 request.auth = token
+                
+                # ✅ AUTO-TENANT SWITCH: If token contains schema info, enforce it
+                schema = None
+                if isinstance(token, dict):
+                    schema = token.get('schema')
+                elif hasattr(token, 'get'):
+                    schema = token.get('schema')
+
+                if schema and schema != 'public':
+                    try:
+                        from django.db import connection
+                        from django_tenants.utils import get_tenant_model, set_urlconf
+                        
+                        # Switch DB connection to tenant schema
+                        TenantModel = get_tenant_model()
+                        # Clients (TenantModel) live in 'public' schema
+                        from django_tenants.utils import schema_context
+                        with schema_context('public'):
+                            tenant = TenantModel.objects.get(schema_name=schema)
+                        
+                        if tenant:
+                            # Use set_tenant for full django-tenants integration
+                            connection.set_tenant(tenant)
+                            request.tenant = tenant
+                            
+                            # Log for debugging
+                            logger.info(f"[TENANT-AUTO] Switched to schema: {schema} for user: {getattr(user, 'email', 'unknown')}")
+                            
+                            if hasattr(tenant, 'domain_url'):
+                                set_urlconf(None) 
+                    except Exception as e:
+                        logger.error(f"[TENANT-AUTO] Failed switch to {schema}: {e}")
                 return user
             return AnonymousUser()
         except AuthenticationFailed as e:

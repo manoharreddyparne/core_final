@@ -61,7 +61,7 @@ class MessageViewSet(viewsets.ViewSet):
                 "attachment_url": m.attachment_file.url if m.attachment_file else None,
                 "attachment_type": m.attachment_type,
                 "timestamp": m.timestamp,
-                "is_me": int(m.sender_id) == int(my_id),
+                "is_me": str(m.sender_id) == str(my_id) and str(m.sender_role) == str(role),
                 "status": status,
                 "metadata": m.metadata
             })

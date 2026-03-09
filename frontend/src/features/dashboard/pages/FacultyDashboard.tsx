@@ -11,8 +11,11 @@ import {
     GraduationCap,
     Clock,
     CheckCircle2,
-    ChevronRight
+    ChevronRight,
+    ArrowRight,
+    Brain,
 } from "lucide-react";
+
 
 export const FacultyDashboard = () => {
     const { user } = useAuth();
@@ -157,6 +160,55 @@ export const FacultyDashboard = () => {
                         </button>
                     </div>
                 </div>
+
+                {/* Exam Management */}
+                <div className="glass p-10 rounded-[3rem] bg-white/[0.03] border-amber-500/10 relative overflow-hidden group min-h-[300px] flex flex-col justify-between">
+                    <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-110 transition-transform">
+                        <Brain className="w-48 h-48 text-amber-400" />
+                    </div>
+                    <div className="relative z-10 space-y-4">
+                        <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-400 border border-amber-500/20">
+                            <Brain className="w-6 h-6" />
+                        </div>
+                        <h2 className="text-3xl font-black text-white leading-tight">Exam Management</h2>
+                        <p className="text-gray-500 text-sm font-medium max-w-sm leading-relaxed">
+                            Create secure online exams, manage question banks, and monitor real-time proctoring data with AI evaluation.
+                        </p>
+                    </div>
+                    <div className="relative z-10">
+                        <button 
+                            onClick={() => navigate('/mock-tests')}
+                            className="px-8 py-3 glass bg-amber-500/10 border-amber-500/20 text-amber-300 font-bold rounded-2xl hover:bg-amber-500/20 transition-all flex items-center gap-2"
+                        >
+                            Open Exams <ArrowRight className="w-4 h-4" />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Research Hub */}
+                <div className="glass p-10 rounded-[3rem] bg-white/[0.03] border-indigo-500/10 relative overflow-hidden group min-h-[300px] flex flex-col justify-between">
+                    <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-110 transition-transform">
+                        <BookOpen className="w-48 h-48 text-indigo-400" />
+                    </div>
+                    <div className="relative z-10 space-y-4">
+                        <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/20">
+                            <BookOpen className="w-6 h-6" />
+                        </div>
+                        <h2 className="text-3xl font-black text-white leading-tight">Research Repository</h2>
+                        <p className="text-gray-500 text-sm font-medium max-w-sm leading-relaxed">
+                            Review student manuscripts, certify high-impact papers, and manage the institutional research database.
+                        </p>
+                    </div>
+                    <div className="relative z-10">
+                        <button 
+                             onClick={() => navigate('/research')}
+                             className="px-8 py-3 glass bg-indigo-500/10 border-indigo-500/20 text-indigo-300 font-bold rounded-2xl hover:bg-indigo-500/20 transition-all flex items-center gap-2"
+                        >
+                            Review Papers <ArrowRight className="w-4 h-4" />
+                        </button>
+                    </div>
+                </div>
+
             </div>
 
             {/* Upcoming Schedule */}

@@ -148,11 +148,19 @@ export const AppLayout: React.FC = () => {
     // 🔗 2. Dynamic Navigation Grid
     const navItems = useMemo(() => [
         // STUDENT HUB
+        // PRIMARY MODULES
+        { to: "/research", label: "Research Hub", icon: BookOpen, roles: ["student", "faculty", "teacher", "institution_admin", "admin", "inst_admin"], badge: "NEW" },
+
         { to: "/student-dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["student"] },
+
         { to: "/student-intelligence", label: "Intelligence Hub", icon: Brain, roles: ["student"] },
         { to: "/resume-studio", label: "Resume Studio", icon: FileText, roles: ["student"] },
+
+
         { to: "/placement-hub", label: "Placements", icon: Briefcase, roles: ["student"] },
+        { to: "/mock-tests", label: "Mock Tests", icon: FlaskConical, roles: ["student", "faculty", "teacher"] },
         { to: "/newsletters", label: "Newsletters", icon: FileText, roles: ["student"] },
+
         { to: "/support-hub", label: "Support", icon: HelpCircle, roles: ["student"] },
 
         // FACULTY HUB
@@ -172,8 +180,9 @@ export const AppLayout: React.FC = () => {
         { to: "/institution/faculty", label: "Academic Faculty", icon: Users, roles: ["institution_admin", "admin", "inst_admin"], hideInGlobal: true },
         { to: "/institution/academic", label: "Academic Hub", icon: Building2, roles: ["institution_admin", "admin", "inst_admin"], hideInGlobal: true },
 
+
+
         // CROSS-ROLE TOOLS
-        { to: "/mock-tests", label: "Mock Tests", icon: FlaskConical, roles: ["student", "faculty"] },
         { to: "/professional-hub", label: "Professional Hub", icon: Globe, roles: ["all"] },
         { to: "/discovery", label: "Search Network", icon: Search, roles: ["all"] },
         { to: "/chat-hub", label: "Comms Hub", icon: MessageCircle, roles: ["all"], badge: 'SECURE' },

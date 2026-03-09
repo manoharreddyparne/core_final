@@ -10,7 +10,7 @@ import csv
 import io
 from django_tenants.utils import schema_context
 from apps.auip_institution.authentication import TenantAuthentication
-from apps.auip_institution.permissions import IsTenantAdmin
+from apps.auip_institution.permissions import IsTenantAdmin, IsTenantFacultyOrAdmin
 from apps.auip_institution.models import FacultyAcademicRegistry, FacultyPreSeededRegistry
 from apps.identity.utils.response_utils import success_response, error_response
 from apps.academic.models import Department
@@ -61,23 +61,22 @@ class RegisteredFacultyViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         from apps.auip_institution.models import FacultyAuthorizedAccount
         from django.db.models import Exists, OuterRef
-        institution = self.request.user.institution
+        
+        # 🧬 Isolation Protocol: Inherit context from Tenant Middleware
+        active_account_subquery = FacultyAuthorizedAccount.objects.filter(
+            email=OuterRef('email')
+        )
+        qs = FacultyAcademicRegistry.objects.select_related('department_ref').annotate(
+            is_active_account=Exists(active_account_subquery)
+        )
 
-        with schema_context(institution.schema_name):
-            active_account_subquery = FacultyAuthorizedAccount.objects.filter(
-                email=OuterRef('email')
-            )
-            qs = FacultyAcademicRegistry.objects.select_related('department_ref').annotate(
-                is_active_account=Exists(active_account_subquery)
-            )
+        status_filter = self.request.query_params.get('status')
+        if status_filter == 'ACTIVE':
+            qs = qs.filter(is_active_account=True)
+        elif status_filter == 'SEEDED':
+            qs = qs.filter(is_active_account=False)
 
-            status_filter = self.request.query_params.get('status')
-            if status_filter == 'ACTIVE':
-                qs = qs.filter(is_active_account=True)
-            elif status_filter == 'SEEDED':
-                qs = qs.filter(is_active_account=False)
-
-            return qs
+        return qs
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
@@ -96,8 +95,8 @@ class RegisteredFacultyViewSet(viewsets.ModelViewSet):
         return success_response("Faculty retrieved successfully", data=serializer.data)
 
     def create(self, request, *args, **kwargs):
-        institution = self.request.user.institution
-        with schema_context(institution.schema_name):
+        schema = self.request.tenant.schema_name
+        with schema_context(schema):
             serializer = self.get_serializer(data=request.data)
             serializer.is_valid(raise_exception=True)
             instance = serializer.save()
@@ -112,8 +111,8 @@ class RegisteredFacultyViewSet(viewsets.ModelViewSet):
             return success_response("Educator provisioned successfully", data=data)
 
     def update(self, request, *args, **kwargs):
-        institution = self.request.user.institution
-        with schema_context(institution.schema_name):
+        schema = self.request.tenant.schema_name
+        with schema_context(schema):
             partial = kwargs.pop('partial', False)
             instance = self.get_object()
             serializer = self.get_serializer(instance, data=request.data, partial=partial)
@@ -126,80 +125,63 @@ class RegisteredFacultyViewSet(viewsets.ModelViewSet):
             updated_obj = self.get_queryset().get(id=instance.id)
             return success_response("Educator record updated", data=self.get_serializer(updated_obj).data)
 
+    def partial_update(self, request, *args, **kwargs):
+        kwargs['partial'] = True
+        return self.update(request, *args, **kwargs)
+
     def destroy(self, request, *args, **kwargs):
-        institution = self.request.user.institution
-        with schema_context(institution.schema_name):
+        schema = self.request.tenant.schema_name
+        with schema_context(schema):
             instance = self.get_object()
             emp_id = instance.employee_id
             instance.delete()
             # 🗑️ Clean up pre-seeded registry if not activated
             FacultyPreSeededRegistry.objects.filter(identifier=emp_id, is_activated=False).delete()
-            return success_response("Educator record removed")
+            return success_response("Educator record and registry sanitized")
 
     @action(detail=False, methods=['get'])
     def departments(self, request):
         """Get unique list of departments."""
-        institution = request.user.institution
-        with schema_context(institution.schema_name):
+        with schema_context(request.tenant.schema_name):
             depts = self.get_queryset().values_list('department', flat=True).distinct()
             return success_response("Departments retrieved", data=list(filter(None, depts)))
 
     @action(detail=False, methods=['post'])
     def bulk_invite(self, request):
-        """Trigger activation links for multiple faculty members."""
-        identifiers = request.data.get('identifiers', [])
-        if not identifiers:
-            return error_response("List of employee identifiers required", code=400)
-
+        """Send activation signals to all listed educators."""
         from apps.identity.services.activation_service import ActivationService
-        
-        institution = request.user.institution
+        identifiers = request.data.get('identifiers', [])
         summary = {
             "invited": [],
             "already_activated": [],
-            "not_found": [],
             "failed": []
         }
 
-        with schema_context(institution.schema_name):
+        with schema_context(request.tenant.schema_name):
             total = len(identifiers)
             broadcast_bulk_progress(request.user, "INST_ADMIN", 10, f"Initializing Signal Dispatch for {total} Educators...")
             
-            import time
-            for i, emp_id in enumerate(identifiers):
-                emp_id = str(emp_id).strip()
+            for idx, emp_id in enumerate(identifiers):
                 try:
-                    f = FacultyPreSeededRegistry.objects.filter(identifier__iexact=emp_id).first()
-                    if not f:
-                        summary["not_found"].append(emp_id)
-                        continue
-                    
+                    f = FacultyPreSeededRegistry.objects.get(identifier=emp_id)
                     if f.is_activated:
                         summary["already_activated"].append(emp_id)
                         continue
                     
-                    ActivationService.create_tenant_invitation(f, institution.schema_name, entry_type="faculty")
+                    ActivationService.create_tenant_invitation(f, request.tenant.schema_name, entry_type="faculty")
                     summary["invited"].append(emp_id)
                     
                     # Periodic broadcast
-                    if i % 5 == 0 or i == total - 1:
-                        pct = 10 + int((i / total) * 85)
-                        broadcast_bulk_progress(request.user, "INST_ADMIN", pct, f"Dispatching Link to {emp_id}...")
-                    
-                    # Slow down slightly for tiny batches to let animation breathe
-                    if total < 10: time.sleep(0.3)
-
+                    if idx % 10 == 0:
+                        prog = 10 + int((idx / total) * 80)
+                        broadcast_bulk_progress(request.user, "INST_ADMIN", prog, f"Dispatched {idx}/{total} signals...")
+                        
                 except Exception as e:
-                    logger.error(f"[FACULTY-INVITE] Failed for {emp_id}: {e}")
                     summary["failed"].append({"identifier": emp_id, "error": str(e)})
 
             broadcast_bulk_progress(request.user, "INST_ADMIN", 100, "All Activation Links Dispatched.")
 
-        total_success = len(summary["invited"])
-        return success_response(
-            f"Successfully dispatched {total_success} activation signals.",
-            data=summary
-        )
+        return success_response(f"Activation signals dispatched to {len(summary['invited'])} educators", data=summary)
 
 BULK_FACULTY_FIELDS = [
     'full_name', 'email', 'personal_email', 'official_email',
@@ -250,7 +232,7 @@ class TenantBulkFacultyUploadView(APIView):
         errors = []
         valid_records = []
 
-        with schema_context(institution.schema_name):
+        with schema_context(request.tenant.schema_name):
             depts = {d.code.lower(): d for d in Department.objects.all()}
             depts.update({d.name.lower(): d for d in Department.objects.all()})
             
@@ -340,7 +322,7 @@ class TenantBulkFacultyUploadView(APIView):
 
         institution = request.user.institution
         errors = []
-        with schema_context(institution.schema_name):
+        with schema_context(request.tenant.schema_name):
             # Ensure departments
             incoming_dept_codes = {r.get('department', '').strip() for r in rows if r.get('department')}
             for code in incoming_dept_codes:
@@ -395,7 +377,7 @@ class TenantBulkFacultyUploadView(APIView):
 
         institution = request.user.institution
         errors = []
-        with schema_context(institution.schema_name):
+        with schema_context(request.tenant.schema_name):
             # Ensure departments
             incoming_dept_codes = {r.get('department', '').strip() for r in faculty_data if r.get('department')}
             for code in incoming_dept_codes:
@@ -470,7 +452,7 @@ class TenantBulkFacultyUploadView(APIView):
         if not data['email']:
             data['email'] = data['official_email'] or data['personal_email']
             
-        dept_str = data['department'].lower()
+        dept_str = (data['department'] or '').strip().lower()
         if dept_str in dept_cache:
             data['department_ref'] = dept_cache[dept_str]
             

@@ -13,25 +13,36 @@ import {
     Target,
     Activity,
     ShieldCheck,
-    Cpu
+    Cpu,
+    BookOpen
 } from "lucide-react";
+
 import { useNavigate } from "react-router-dom";
 import { intelligenceApi } from "../../intelligence/api";
+import { notificationApi } from "../../notifications/api";
+import toast from "react-hot-toast";
 
 const StudentDashboard: React.FC = () => {
     const { user } = useAuth();
     const { profile, load, loading: profileLoading } = useProfile();
     const [stats, setStats] = useState<any>(null);
+    const [notifications, setNotifications] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
 
     useEffect(() => {
         const fetchStats = async () => {
             try {
-                const res = await intelligenceApi.getDashboard();
-                setStats(res);
+                const [statsRes, notificationsRes] = await Promise.all([
+                    intelligenceApi.getDashboard(),
+                    notificationApi.getNotifications()
+                ]);
+                setStats(statsRes);
+                // Notifications might be in .results if paginated, or direct array
+                const items = Array.isArray(notificationsRes) ? notificationsRes : (notificationsRes?.results || []);
+                setNotifications(items.slice(0, 5)); 
             } catch (err) {
-                console.error("Failed to load intelligence stats", err);
+                console.error("Failed to load dashboard data", err);
             } finally {
                 setLoading(false);
             }
@@ -159,7 +170,8 @@ const StudentDashboard: React.FC = () => {
                 </div>
 
                 {/* Vertical Quick Access */}
-                <div className="space-y-8 flex flex-col h-[340px]">
+                <div className="space-y-4 flex flex-col">
+
                     <QuickLinkCard
                         title="Resume Studio"
                         sub="Surgical CV Engineering"
@@ -184,6 +196,15 @@ const StudentDashboard: React.FC = () => {
                         color="text-amber-400"
                         bg="bg-amber-400/5"
                     />
+                    <QuickLinkCard
+                        title="Research Hub"
+                        sub="Academic Repository & Papers"
+                        icon={<BookOpen />}
+                        to="/research"
+                        color="text-indigo-400"
+                        bg="bg-indigo-400/5"
+                    />
+
                 </div>
             </div>
 
@@ -199,24 +220,32 @@ const StudentDashboard: React.FC = () => {
                 </div>
 
                 <div className="space-y-4">
-                    <ActivityItem
-                        msg="Account successfully activated & verified"
-                        time="Just now"
-                        status="SECURE"
-                        color="text-green-400"
-                    />
-                    <ActivityItem
-                        msg="Governance Brain status: Initializing baseline"
-                        time="10m ago"
-                        status="SYSTEM"
-                        color="text-primary"
-                    />
-                    <ActivityItem
-                        msg="New Mock Test Arsenal available for practice"
-                        time="1h ago"
-                        status="UPDATE"
-                        color="text-amber-400"
-                    />
+                    {notifications.length > 0 ? (
+                        notifications.map((n, i) => (
+                            <ActivityItem
+                                key={n.id || i}
+                                msg={n.title + ": " + n.message}
+                                time={new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                status={n.notification_type || "ALERT"}
+                                color={n.is_read ? "text-gray-500" : "text-primary"}
+                                onClick={async () => {
+                                    if (!n.is_read) {
+                                        await notificationApi.markAsRead(n.id);
+                                        // Update local state
+                                        setNotifications(prev => prev.map(notif => notif.id === n.id ? { ...notif, is_read: true } : notif));
+                                    }
+                                    if (n.link_url) navigate(n.link_url);
+                                }}
+                            />
+                        ))
+                    ) : (
+                        <ActivityItem
+                            msg="Account successfully activated & verified"
+                            time="Just now"
+                            status="SECURE"
+                            color="text-green-400"
+                        />
+                    )}
                 </div>
             </div>
         </div>
@@ -259,15 +288,18 @@ const QuickLinkCard = ({ title, sub, icon, to, color, bg }: any) => {
     );
 };
 
-const ActivityItem = ({ msg, time, status, color }: any) => (
-    <div className="flex items-center justify-between p-5 bg-white/[0.02] rounded-3xl border border-white/5 hover:bg-white/[0.04] transition-all">
+const ActivityItem = ({ msg, time, status, color, onClick }: any) => (
+    <div 
+        onClick={onClick}
+        className={`flex items-center justify-between p-5 bg-white/[0.02] rounded-3xl border border-white/5 hover:bg-white/[0.04] transition-all ${onClick ? 'cursor-pointer' : ''}`}
+    >
         <div className="flex items-center gap-5">
             <div className={`px-3 py-1 bg-white/5 rounded-full text-[8px] font-black uppercase tracking-widest ${color} border border-white/5`}>
                 {status}
             </div>
-            <span className="text-xs font-bold text-gray-300">{msg}</span>
+            <span className="text-xs font-bold text-gray-300 line-clamp-1">{msg}</span>
         </div>
-        <span className="text-[9px] font-black text-muted-foreground uppercase tracking-tighter opacity-50">{time}</span>
+        <span className="text-[9px] font-black text-muted-foreground uppercase tracking-tighter opacity-50 shrink-0">{time}</span>
     </div>
 );
 

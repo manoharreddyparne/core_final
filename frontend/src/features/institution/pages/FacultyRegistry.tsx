@@ -387,7 +387,7 @@ export const FacultyRegistry = () => {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                     <div className="space-y-3">
                                         <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-2">Institutional Official Email</label>
-                                        <input type="email" className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-white outline-none focus:border-primary focus:bg-primary/[0.02] transition-all text-sm font-bold placeholder:text-white/10" value={newFaculty.official_email} onChange={e => setNewFaculty({ ...newFaculty, official_email: e.target.value })} placeholder="faculty@university.edu" />
+                                        <input type="email" required className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-white outline-none focus:border-primary focus:bg-primary/[0.02] transition-all text-sm font-bold placeholder:text-white/10" value={newFaculty.official_email} onChange={e => setNewFaculty({ ...newFaculty, official_email: e.target.value, email: e.target.value })} placeholder="faculty@university.edu" />
                                     </div>
                                     <div className="space-y-3">
                                         <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-2">Personal Alternate Email</label>

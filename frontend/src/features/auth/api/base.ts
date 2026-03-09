@@ -28,6 +28,11 @@ export const API_BASE_URL =
     ? `${import.meta.env.VITE_BACKEND_URL}/api/users/`
     : `http://localhost:8000/api/users/`;
 
+export const CORE_API_BASE_URL =
+  import.meta.env.VITE_BACKEND_URL
+    ? `${import.meta.env.VITE_BACKEND_URL}/api/`
+    : `http://localhost:8000/api/`;
+
 export const INST_API_BASE_URL =
   import.meta.env.VITE_BACKEND_URL
     ? `${import.meta.env.VITE_BACKEND_URL}/api/institution/`
@@ -40,6 +45,11 @@ export const apiClient = axios.create({
 
 export const instApiClient = axios.create({
   baseURL: INST_API_BASE_URL,
+  withCredentials: true,
+});
+
+export const coreApiClient = axios.create({
+  baseURL: CORE_API_BASE_URL,
   withCredentials: true,
 });
 
@@ -187,9 +197,10 @@ subscribeToTokenUpdates((token) => {
   }
 });
 
-// Apply to both clients
+// Apply to all clients
 attachInterceptors(apiClient);
 attachInterceptors(instApiClient);
+attachInterceptors(coreApiClient);
 
 /* ===================================
    RE-EXPORT low-level storage

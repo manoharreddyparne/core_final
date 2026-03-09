@@ -11,7 +11,7 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 
 from apps.auip_institution.authentication import TenantAuthentication
-from apps.auip_institution.permissions import IsTenantAdmin
+from apps.auip_institution.permissions import IsTenantAdmin, IsTenantFacultyOrAdmin
 from apps.identity.utils.response_utils import success_response, error_response
 
 logger = logging.getLogger(__name__)
@@ -29,7 +29,8 @@ class RegisteredStudentViewSet(viewsets.ModelViewSet):
     Path: /api/institution/students/
     """
     authentication_classes = [TenantAuthentication]
-    permission_classes = [IsTenantAdmin]
+    # 🛡️ Access Protocol: Admin and Faculty can access the registry
+    permission_classes = [IsTenantFacultyOrAdmin]
 
     from apps.auip_institution.serializers import StudentAcademicRegistrySerializer
     serializer_class = StudentAcademicRegistrySerializer
@@ -41,32 +42,30 @@ class RegisteredStudentViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         from apps.auip_institution.models import StudentAcademicRegistry, StudentAuthorizedAccount
         from django.db.models import Exists, OuterRef
-        from django_tenants.utils import schema_context
-        institution = self.request.user.institution
+        
+        # 🧬 Isolation Protocol: Inherit context from Tenant Middleware
+        active_account_subquery = StudentAuthorizedAccount.objects.filter(
+            email=OuterRef('official_email')
+        )
+        qs = StudentAcademicRegistry.objects.select_related(
+            'program_ref', 'department_ref', 'section_ref', 'semester_ref'
+        ).annotate(
+            is_active_account=Exists(active_account_subquery)
+        )
 
-        with schema_context(institution.schema_name):
-            active_account_subquery = StudentAuthorizedAccount.objects.filter(
-                email=OuterRef('official_email')
-            )
-            qs = StudentAcademicRegistry.objects.select_related(
-                'program_ref', 'department_ref', 'section_ref', 'semester_ref'
-            ).annotate(
-                is_active_account=Exists(active_account_subquery)
-            )
+        # 🔍 Apply Filters
+        section = self.request.query_params.get('section')
+        status_filter = self.request.query_params.get('status')
 
-            # 🔍 Apply Filters INSIDE schema context
-            section = self.request.query_params.get('section')
-            status_filter = self.request.query_params.get('status')
+        if section:
+            qs = qs.filter(section=section)
 
-            if section:
-                qs = qs.filter(section=section)
+        if status_filter == 'ACTIVE':
+            qs = qs.filter(is_active_account=True)
+        elif status_filter == 'SEEDED':
+            qs = qs.filter(is_active_account=False)
 
-            if status_filter == 'ACTIVE':
-                qs = qs.filter(is_active_account=True)
-            elif status_filter == 'SEEDED':
-                qs = qs.filter(is_active_account=False)
-
-            return qs
+        return qs
 
     def create(self, request, *args, **kwargs):
         from apps.auip_institution.models import StudentAcademicRegistry
@@ -94,26 +93,22 @@ class RegisteredStudentViewSet(viewsets.ModelViewSet):
     pagination_class = StudentPagination
 
     def list(self, request, *args, **kwargs):
-        """Ensure the entire list process (filtering, pagination, serialization) runs in tenant schema."""
-        from django_tenants.utils import schema_context
-        institution = self.request.user.institution
-        with schema_context(institution.schema_name):
-            queryset = self.filter_queryset(self.get_queryset())
-            page = self.paginate_queryset(queryset)
-            if page is not None:
-                serializer = self.get_serializer(page, many=True)
-                return self.get_paginated_response(serializer.data)
-            serializer = self.get_serializer(queryset, many=True)
-            return success_response("Students retrieved successfully", data=serializer.data)
+        """Ensure the list process (filtering, pagination, serialization) runs in tenant context."""
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(queryset, many=True)
+        return success_response("Students retrieved successfully", data=serializer.data)
 
     @action(detail=False, methods=['get'])
     def sections(self, request):
         """Get unique sections and student counts for stats cards."""
         from apps.auip_institution.models import StudentAcademicRegistry, StudentAuthorizedAccount
         from django_tenants.utils import schema_context
-        institution = self.request.user.institution
-
-        with schema_context(institution.schema_name):
+        schema = self.request.tenant.schema_name
+        with schema_context(schema):
             sections_qs = (
                 StudentAcademicRegistry.objects
                 .exclude(section__isnull=True).exclude(section='')
@@ -148,8 +143,7 @@ class RegisteredStudentViewSet(viewsets.ModelViewSet):
 
         roll_numbers = request.data.get('roll_numbers', [])
         section = request.data.get('section')
-        institution = request.user.institution
-        schema = institution.schema_name
+        schema = request.tenant.schema_name
         summary = {"invited": [], "already_activated": [], "not_found": [], "failed": []}
         normalized_rolls = [str(r).strip().upper() for r in roll_numbers if r]
 
@@ -251,9 +245,8 @@ class RegisteredStudentViewSet(viewsets.ModelViewSet):
         """Get graphical/stat data for student activations."""
         from apps.auip_institution.models import StudentPreSeededRegistry, StudentAcademicRegistry
         from django_tenants.utils import schema_context
-        institution = request.user.institution
-
-        with schema_context(institution.schema_name):
+        schema = request.tenant.schema_name
+        with schema_context(schema):
             total = StudentPreSeededRegistry.objects.count()
             activated = StudentPreSeededRegistry.objects.filter(is_activated=True).count()
             stats = []

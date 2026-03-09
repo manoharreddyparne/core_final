@@ -19,7 +19,7 @@ export const ChatSettings: React.FC<ChatSettingsProps> = ({ activeSessionDetail:
     const [pendingRequests, setPendingRequests] = useState<any[]>([]);
 
     // ── isAdmin must be derived before hooks (used as hook dependency) ──
-    const isAdmin = ['INST_ADMIN', 'ADMIN', 'FACULTY'].includes(user?.role || '');
+    const isAdmin = ['INST_ADMIN', 'INSTITUTION_ADMIN', 'ADMIN', 'FACULTY'].includes(user?.role || '');
     const sessionId = detail?.session_id ?? '';
     const sessionName = detail?.name ?? '';
 
@@ -154,7 +154,7 @@ export const ChatSettings: React.FC<ChatSettingsProps> = ({ activeSessionDetail:
                 </div>
 
                 {/* Invite Protocol Hub */}
-                {(user?.role === 'INST_ADMIN' || user?.role === 'ADMIN') && (
+                {(user?.role === 'INST_ADMIN' || user?.role === 'INSTITUTION_ADMIN' || user?.role === 'ADMIN') && (
                     <div className="space-y-4">
                         <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest pl-1">Link Governance</p>
                         <div className="bg-white/5 p-6 rounded-[2.5rem] border border-white/10 space-y-5 shadow-inner">

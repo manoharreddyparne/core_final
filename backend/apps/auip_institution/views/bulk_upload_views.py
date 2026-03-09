@@ -75,12 +75,12 @@ class TenantBulkStudentUploadView(APIView):
     # PREVIEW — returns diff, no DB writes
     # ─────────────────────────────────────────────────────────────────────────
     def _preview(self, request, rows):
-        institution = request.user.institution
+        schema = request.tenant.schema_name
         updates = []
         errors = []
         valid_records = []
 
-        with schema_context(institution.schema_name):
+        with schema_context(schema):
             from apps.auip_institution.models import StudentAcademicRegistry
             from apps.academic.models import Department, AcademicProgram, ClassSection, Semester
 
@@ -194,10 +194,10 @@ class TenantBulkStudentUploadView(APIView):
     # COMMIT CSV — direct fast commit bypassing model.save() hooks
     # ─────────────────────────────────────────────────────────────────────────
     def _commit_csv(self, request, rows):
-        institution = request.user.institution
+        schema = request.tenant.schema_name
         errors = []
 
-        with schema_context(institution.schema_name):
+        with schema_context(schema):
             from apps.auip_institution.models import StudentAcademicRegistry, StudentPreSeededRegistry
             from apps.academic.models import Department, AcademicProgram, ClassSection, Semester
 
@@ -283,10 +283,10 @@ class TenantBulkStudentUploadView(APIView):
     # COMMIT JSON — from DataGrid edits, uses bulk_update with update_fields
     # ─────────────────────────────────────────────────────────────────────────
     def _commit_json(self, request, students_data):
-        institution = request.user.institution
+        schema = request.tenant.schema_name
         errors = []
 
-        with schema_context(institution.schema_name):
+        with schema_context(schema):
             from apps.auip_institution.models import StudentAcademicRegistry, StudentPreSeededRegistry
             from apps.academic.models import Department, AcademicProgram, ClassSection, Semester
 

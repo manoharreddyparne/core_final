@@ -24,7 +24,7 @@ class ParticipantViewSet(viewsets.ViewSet):
         role = request.user.role
         
         # Point 6: Inst Admin not allowed to leave
-        if role == 'INST_ADMIN':
+        if role in ['INST_ADMIN', 'INSTITUTION_ADMIN']:
             return error_response("Inst Admin cannot leave their institutional threads.")
 
         with transaction.atomic():
@@ -48,8 +48,8 @@ class ParticipantViewSet(viewsets.ViewSet):
         my_role = request.user.role
         
         # Security: Only admins can remove others
-        if my_role not in ['INST_ADMIN', 'ADMIN']:
-            return error_response("Unauthorized", code=403)
+        if my_role not in ['INST_ADMIN', 'INSTITUTION_ADMIN', 'ADMIN']:
+            return error_response("Insufficient authority.", code=403)
             
         target_id = request.data.get('user_id')
         target_role = request.data.get('role')
