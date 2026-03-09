@@ -110,10 +110,26 @@ class SessionViewSet(viewsets.ViewSet):
         
         if not is_member:
             if is_kicked:
-                status_code = "KICKED"
-                can_join = False
-                requires_access = True
-                message = "You were removed from this thread by an administrator. Please request access if you believe this is an error."
+                # Check if they've already sent a re-entry request
+                from apps.social.models import JoinRequest
+                kick_join_req = JoinRequest.objects.filter(
+                    session=session, user_id=my_id, user_role=role
+                ).order_by('-created_at').first()
+                if kick_join_req and kick_join_req.status == 'PENDING':
+                    status_code = 'NEEDS_APPROVAL'
+                    can_join = False
+                    requires_access = True
+                    message = 'Your re-entry request is pending admin review.'
+                elif kick_join_req and kick_join_req.status == 'REJECTED':
+                    status_code = 'REJECTED'
+                    can_join = False
+                    message = 'Your re-entry request was rejected by the administrator.'
+                else:
+                    status_code = "KICKED"
+                    can_join = False
+                    requires_access = True
+                    message = "You were removed from this thread by an administrator. Please request access if you believe this is an error."
+
             # Check Invite Expiration
             elif session.invite_expiry_at and session.invite_expiry_at < timezone.now():
                 status_code = "EXPIRED"
@@ -152,11 +168,41 @@ class SessionViewSet(viewsets.ViewSet):
                         can_join = True
 
             elif session.open_invite:
-                can_join = True
-                status_code = "ELIGIBLE"
+                # Even for open-invite sessions, check for a pending or rejected JoinRequest
+                # (this handles the case where student was kicked and re-requested)
+                from apps.social.models import JoinRequest
+                join_req = JoinRequest.objects.filter(
+                    session=session, user_id=my_id, user_role=role
+                ).order_by('-created_at').first()
+                if join_req and join_req.status == 'PENDING':
+                    status_code = 'NEEDS_APPROVAL'
+                    can_join = False
+                    message = 'Your access request is pending review by the administrator.'
+                elif join_req and join_req.status == 'REJECTED':
+                    status_code = 'REJECTED'
+                    can_join = False
+                    message = 'Your access request was rejected by the administrator.'
+                else:
+                    can_join = True
+                    status_code = 'ELIGIBLE'
             else:
-                status_code = "STRANGER"
-                message = "Unauthorized access attempt to secure thread."
+                # Check JoinRequest for kicked users who re-requested
+                from apps.social.models import JoinRequest
+                join_req = JoinRequest.objects.filter(
+                    session=session, user_id=my_id, user_role=role
+                ).order_by('-created_at').first()
+                if join_req and join_req.status == 'PENDING':
+                    status_code = 'NEEDS_APPROVAL'
+                    can_join = False
+                    message = 'Your access request is awaiting admin approval.'
+                elif join_req and join_req.status == 'REJECTED':
+                    status_code = 'REJECTED'
+                    can_join = False
+                    message = 'Your access request was rejected by the administrator.'
+                else:
+                    status_code = 'STRANGER'
+                    message = 'Unauthorized access attempt to secure thread.'
+
 
         data = {
             "session_id": session.session_id,

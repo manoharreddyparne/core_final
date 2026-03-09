@@ -4,13 +4,16 @@ import { placementApi } from '../api';
 import { PlacementDrive, PlacementApplication } from '../types';
 import { RecruitmentFunnel } from '../components/RecruitmentFunnel';
 import PlacementDriveCard from '../components/PlacementDriveCard';
+import { Briefcase, X, CheckCircle2 } from 'lucide-react';
 
 const PlacementHub: React.FC = () => {
     const [drives, setDrives] = useState<PlacementDrive[]>([]);
     const [apps, setApps] = useState<PlacementApplication[]>([]);
     const [loading, setLoading] = useState(true);
-
     const [applying, setApplying] = useState<number | null>(null);
+
+    // Styled confirm modal state
+    const [confirmTarget, setConfirmTarget] = useState<{ id: number; company: string } | null>(null);
 
     const fetchData = async () => {
         try {
@@ -25,30 +28,25 @@ const PlacementHub: React.FC = () => {
         }
     };
 
-    useEffect(() => {
-        fetchData();
-    }, []);
+    useEffect(() => { fetchData(); }, []);
 
-    const handleApply = async (driveId: number, companyName: string) => {
-        if (!window.confirm(`Are you certain you wish to initiate the recruitment sequence for ${companyName}? This will synchronize your official resume with the firm.`)) {
-            return;
-        }
-        
+    const handleApply = (driveId: number, companyName: string) => {
+        setConfirmTarget({ id: driveId, company: companyName });
+    };
+
+    const confirmApply = async () => {
+        if (!confirmTarget) return;
+        const { id, company } = confirmTarget;
+        setConfirmTarget(null);
         try {
-            setApplying(driveId);
-            // using a valid placeholder URL for now
-            await placementApi.applyForDrive(driveId, "https://auip.edu/resumes/default.pdf");
-            
-            import('react-hot-toast').then(({ toast }) => {
-                toast.success(`Application for ${companyName} integrated into system.`);
-            });
-            
-            // refresh data
+            setApplying(id);
+            await placementApi.applyForDrive(id, "https://auip.edu/resumes/default.pdf");
+            const { toast } = await import('react-hot-toast');
+            toast.success(`Application for ${company} submitted successfully.`);
             await fetchData();
         } catch (error: any) {
-            import('react-hot-toast').then(({ toast }) => {
-                toast.error(error.response?.data?.message || "Failed to establish application.");
-            });
+            const { toast } = await import('react-hot-toast');
+            toast.error(error.response?.data?.message || "Failed to submit application.");
         } finally {
             setApplying(null);
         }
@@ -112,7 +110,7 @@ const PlacementHub: React.FC = () => {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6">
                         {openDrives.map(drive => (
-                            <PlacementDriveCard 
+                            <PlacementDriveCard
                                 key={drive.id}
                                 drive={drive}
                                 mode="student"
@@ -133,7 +131,7 @@ const PlacementHub: React.FC = () => {
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6">
                         {appliedDrives.map(app => (
-                            <PlacementDriveCard 
+                            <PlacementDriveCard
                                 key={app.id}
                                 drive={app.drive_details as any}
                                 mode="student"
@@ -153,7 +151,7 @@ const PlacementHub: React.FC = () => {
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6 opacity-60 grayscale hover:grayscale-0 transition-grayscale duration-500">
                         {completedDrives.map(app => (
-                            <PlacementDriveCard 
+                            <PlacementDriveCard
                                 key={app.id}
                                 drive={app.drive_details as any}
                                 mode="student"
@@ -162,6 +160,44 @@ const PlacementHub: React.FC = () => {
                         ))}
                     </div>
                 </section>
+            )}
+
+            {/* ── Styled Apply Confirmation Modal ──────────────────────────── */}
+            {confirmTarget && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={() => setConfirmTarget(null)} />
+                    <div className="relative z-10 w-full max-w-sm bg-[#0d1424] border border-white/10 rounded-[2.5rem] p-8 shadow-[0_40px_120px_rgba(0,0,0,0.9)] animate-in zoom-in-95 fade-in duration-300 space-y-6">
+                        {/* Icon */}
+                        <div className="flex items-center justify-center w-16 h-16 rounded-[1.5rem] bg-indigo-500/10 border border-indigo-500/20 mx-auto">
+                            <Briefcase className="w-8 h-8 text-indigo-400" />
+                        </div>
+
+                        {/* Title + body */}
+                        <div className="text-center space-y-2">
+                            <h3 className="text-lg font-black text-white tracking-tight">Initiate Application?</h3>
+                            <p className="text-sm text-gray-400 font-medium leading-relaxed">
+                                Apply for <span className="text-white font-bold">{confirmTarget.company}</span>?
+                                Your official resume will be synchronized with the firm.
+                            </p>
+                        </div>
+
+                        {/* Buttons */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <button
+                                onClick={() => setConfirmTarget(null)}
+                                className="py-4 bg-white/5 hover:bg-white/10 text-white rounded-2xl text-sm font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2"
+                            >
+                                <X className="w-4 h-4" /> Cancel
+                            </button>
+                            <button
+                                onClick={confirmApply}
+                                className="py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-sm font-black uppercase tracking-widest transition-all shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 active:scale-95"
+                            >
+                                <CheckCircle2 className="w-4 h-4" /> Apply
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

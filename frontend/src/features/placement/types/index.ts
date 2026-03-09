@@ -49,12 +49,12 @@ export interface PlacementDrive {
     eligibility_reason?: string;
 
     // Admin Fields
-    min_cgpa?: number;
-    min_ug_percentage?: number;
-    cgpa_to_percentage_multiplier?: number;
-    allowed_active_backlogs?: number;
-    min_10th_percent?: number;
-    min_12th_percent?: number;
+    min_cgpa?: number | string;
+    min_ug_percentage?: number | string;
+    cgpa_to_percentage_multiplier?: number | string;
+    allowed_active_backlogs?: number | string;
+    min_10th_percent?: number | string;
+    min_12th_percent?: number | string;
     eligible_branches?: string[];
     eligible_batches?: number[];
     is_broadcasted?: boolean;

@@ -69,6 +69,17 @@ class InviteViewSet(viewsets.ViewSet):
         """Point 3: Join via invite_link_token with Expiry & Open Mode."""
         session = ChatSession.objects.filter(invite_link_token=token).first()
         if not session: 
+            # Detect if this token belongs to a different institution (cross-tenant probe)
+            try:
+                from django_tenants.utils import get_tenant_model
+                TenantModel = get_tenant_model()
+                for tenant in TenantModel.objects.exclude(schema_name='public'):
+                    if tenant.schema_name != request.tenant.schema_name:
+                        with schema_context(tenant.schema_name):
+                            if ChatSession.objects.filter(invite_link_token=token).exists():
+                                return error_response(f"Protocol link belongs to a different institution. Cross-institution entry is not permitted.")
+            except Exception:
+                pass
             return error_response("Protocol link invalid or has been decommissioned.")
 
         # Check Expiry
@@ -170,8 +181,8 @@ class InviteViewSet(viewsets.ViewSet):
     @action(detail=False, methods=['post'])
     def generate_link(self, request):
         """Admin: generate/refresh a tokenized join link."""
-        if request.user.role not in ['INST_ADMIN', 'ADMIN', 'FACULTY']:
-             return error_response("Unauthorized", code=403)
+        if request.user.role not in ['INST_ADMIN', 'ADMIN']:
+             return error_response("Unauthorized. Governance access restricted to Institute Administrators.", code=403)
         
         session_id = request.data.get('session_id')
         session = ChatSession.objects.filter(session_id=session_id).first()

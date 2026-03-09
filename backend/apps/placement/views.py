@@ -170,7 +170,11 @@ class PlacementDriveViewSet(viewsets.ModelViewSet):
                 val_10th = s.history_data.get('10th_percent', s.history_data.get('ssc_percent', 'KEY_MISSING'))
                 sample_10th.append({
                     'roll': s.roll_number,
+                    'cgpa_field': float(s.cgpa) if s.cgpa is not None else None,
+                    'cgpa_in_history': s.history_data.get('cgpa', 'MISSING'),
                     '10th_raw': val_10th,
+                    '12th_raw': s.history_data.get('12th_percent', s.history_data.get('inter_percent', 'KEY_MISSING')),
+                    'backlogs': s.history_data.get('active_backlogs', 'KEY_MISSING'),
                     'all_keys': list(s.history_data.keys())
                 })
         
@@ -184,6 +188,7 @@ class PlacementDriveViewSet(viewsets.ModelViewSet):
                 'min_ug_pct': float(drive.min_ug_percentage or 0),
                 'branches': drive.eligible_branches,
                 'backlogs': drive.allowed_active_backlogs,
+                'batches': list(drive.eligible_batches or []),
             },
             'sample_10th_data': sample_10th,
         }
@@ -193,11 +198,45 @@ class PlacementDriveViewSet(viewsets.ModelViewSet):
         search_query = request.data.get('q', '').strip()
         page = int(request.data.get('page', 1))
         page_size = int(request.data.get('page_size', 50))
-        
+
+        # Quick per-step diagnostic (shows in network tab response)
+        from django.db.models import Q as DQ
+        from apps.auip_institution.models import StudentAcademicRegistry as SAR
+        _base = SAR.objects.all()
+        _step_counts = {'total': _base.count()}
+        _f = DQ()
+        if drive.min_10th_percent and float(drive.min_10th_percent) > 0:
+            v = float(drive.min_10th_percent)
+            _f &= (DQ(history_data__10th_percent__gte=v) | DQ(history_data__ssc_percent__gte=v))
+            _step_counts['after_10th'] = _base.filter(_f).count()
+        if drive.min_12th_percent and float(drive.min_12th_percent) > 0:
+            v = float(drive.min_12th_percent)
+            _f &= (DQ(history_data__12th_percent__gte=v) | DQ(history_data__inter_percent__gte=v))
+            _step_counts['after_12th'] = _base.filter(_f).count()
+        if drive.min_cgpa and float(drive.min_cgpa) > 0:
+            v = float(drive.min_cgpa)
+            _f &= (DQ(cgpa__gte=v) | DQ(history_data__cgpa__gte=v))
+            _step_counts['after_cgpa'] = _base.filter(_f).count()
+        if drive.allowed_active_backlogs is not None:
+            allowed = int(drive.allowed_active_backlogs)
+            _f &= (DQ(history_data__active_backlogs__isnull=True) | DQ(history_data__active_backlogs__lte=allowed))
+            _step_counts['after_backlogs'] = _base.filter(_f).count()
+        if drive.eligible_branches:
+            _bq = DQ()
+            for _b in drive.eligible_branches:
+                _bq |= DQ(branch__icontains=_b)
+            _f &= _bq
+            _step_counts['after_branches'] = _base.filter(_f).count()
+        if drive.eligible_batches:
+            _f &= (DQ(passout_year__in=drive.eligible_batches) | DQ(batch_year__in=drive.eligible_batches))
+            _step_counts['after_batches'] = _base.filter(_f).count()
+        _step_counts['eligible_batches_value'] = list(drive.eligible_batches or [])
+        debug_info['step_counts'] = _step_counts
+
         qualified_qs = EligibilityEngine.get_manifest_preview_qs(drive)
         
         # Apply Search Filtering within manifest
-        if search_query:
+        if search_query and search_query.lower() not in ['undefined', 'null']:
             from django.db.models import Q
             tokens = search_query.split()
             manifest_filter = Q()
@@ -207,6 +246,7 @@ class PlacementDriveViewSet(viewsets.ModelViewSet):
 
         total_count = qualified_qs.count()
         criteria_ids = set(EligibilityEngine.get_eligible_students_qs(drive).values_list('id', flat=True))
+
         
         from django.db.models import Exists, OuterRef
         from apps.auip_institution.models import StudentAuthorizedAccount

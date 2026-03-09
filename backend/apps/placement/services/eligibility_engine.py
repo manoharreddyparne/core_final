@@ -55,13 +55,6 @@ class EligibilityEngine:
         # ── 1. 10th % ────────────────────────────────────────────────────────
         if drive.min_10th_percent and float(drive.min_10th_percent) > 0:
             val = float(drive.min_10th_percent)
-            
-            # Smart scale detection: if threshold is GPA-scale (val <= 10) but registry data is percentage-scale (e.g. 70-100)
-            # multiply by 9.5 to prevent matching everybody (too lenient)
-            if val <= 10.0:
-                logger.info(f"[ELIGIBILITY] Auto-scaling 10th% threshold {val} -> {val * 9.5} (detected GPA scale)")
-                val = val * 9.5
-
             tenth_q = Q()
             for key in EligibilityEngine.TENTH_KEYS:
                 tenth_q |= Q(**{f'history_data__{key}__gte': val})
@@ -77,11 +70,6 @@ class EligibilityEngine:
         # ── 2. 12th % ────────────────────────────────────────────────────────
         if drive.min_12th_percent and float(drive.min_12th_percent) > 0:
             val = float(drive.min_12th_percent)
-            
-            if val <= 10.0:
-                logger.info(f"[ELIGIBILITY] Auto-scaling 12th% threshold {val} -> {val * 9.5} (detected GPA scale)")
-                val = val * 9.5
-
             twelfth_q = Q()
             for key in EligibilityEngine.TWELFTH_KEYS:
                 twelfth_q |= Q(**{f'history_data__{key}__gte': val})
@@ -95,41 +83,61 @@ class EligibilityEngine:
             min_ug   = float(drive.min_ug_percentage or 0.0)
             multiplier = float(drive.cgpa_to_percentage_multiplier or 9.5)
 
-            perf_q = Q()
+            # Build OR-based filter — student must pass AT LEAST ONE criterion
+            # IMPORTANT: cgpa field is nullable — a student with null cgpa is excluded
+            # by SQL NULL >= X checks, so we explicitly allow null cgpa students only
+            # when CGPA is not the sole criterion (i.e., also check sgpa_history/history_data).
+            perf_clauses = []
+
             if min_cgpa > 0:
-                perf_q |= Q(cgpa__gte=min_cgpa)
+                # Primary: cgpa field >= threshold
+                # Also check history_data->cgpa in case cgpa field isn't populated yet
+                perf_clauses.append(
+                    Q(cgpa__gte=min_cgpa) |
+                    Q(history_data__cgpa__gte=min_cgpa)
+                )
+
             if min_ug > 0:
                 converted_cgpa = min_ug / multiplier
-                perf_q |= Q(cgpa__gte=converted_cgpa)
-                perf_q |= Q(history_data__ug_percentage__gte=min_ug)
+                perf_clauses.append(
+                    Q(cgpa__gte=converted_cgpa) |
+                    Q(history_data__cgpa__gte=converted_cgpa) |
+                    Q(history_data__ug_percentage__gte=min_ug)
+                )
 
-            filters &= perf_q
+            if perf_clauses:
+                # Combine all clauses with OR — student only needs to satisfy one
+                combined_perf_q = perf_clauses[0]
+                for clause in perf_clauses[1:]:
+                    combined_perf_q |= clause
+                filters &= combined_perf_q
+
             count_after = base_qs.filter(filters).count()
-            logger.info(f"[ELIGIBILITY] After CGPA/UG%: {count_after} remain")
+            logger.info(f"[ELIGIBILITY] After CGPA/UG% (cgpa>={min_cgpa}, ug>={min_ug}): {count_after} remain")
+
 
         # ── 4. Active Backlogs ───────────────────────────────────────────────
-        if drive.allowed_active_backlogs is not None:
+        if drive.allowed_active_backlogs is not None and int(drive.allowed_active_backlogs) >= 0:
+            allowed = int(drive.allowed_active_backlogs)
+            # SAFE backlog filter: avoid ~Q(has_key=...) which can produce
+            # broken NOT EXISTS subqueries when combined with other JSONField ORs.
+            # Instead: student passes if active_backlogs is null/missing OR <= allowed.
             backlog_q = (
-                Q(history_data__active_backlogs__isnull=True) |
-                Q(history_data__active_backlogs__lte=drive.allowed_active_backlogs)
+                Q(history_data__active_backlogs__isnull=True) |    # null field value
+                Q(history_data__active_backlogs__lte=allowed)       # 0 or within limit
             )
             filters &= backlog_q
             count_after = base_qs.filter(filters).count()
-            logger.info(f"[ELIGIBILITY] After backlogs <= {drive.allowed_active_backlogs}: {count_after} remain")
+            logger.info(f"[ELIGIBILITY] After backlogs <= {allowed}: {count_after} remain")
 
         # ── 5. Branch Matching (Bidirectional + compound spec splitting) ──────
         if drive.eligible_branches:
-            import re as _re
             branch_q = Q()
             for b_req in drive.eligible_branches:
-                # Split compound specs like 'CS/IT Engineering' into ['CS', 'IT']
                 tokens = EligibilityEngine._split_branch_spec(b_req)
                 logger.info(f"[ELIGIBILITY] Branch spec '{b_req}' → tokens: {tokens}")
-                
                 for token in tokens:
-                    # Forward: student's branch contains the token
                     branch_q |= Q(branch__icontains=token)
-                    # Also exact match on full spec
                 branch_q |= Q(branch__iexact=b_req)
 
             filters &= branch_q
@@ -137,10 +145,20 @@ class EligibilityEngine:
             logger.info(f"[ELIGIBILITY] After branch filter {drive.eligible_branches}: {count_after} remain")
 
         # ── 6. Batches ───────────────────────────────────────────────────────
+        # Only apply if batches are specified AND the filter doesn't wipe everyone out.
+        # passout_year / batch_year may not be populated for all students.
         if drive.eligible_batches:
-            filters &= (Q(passout_year__in=drive.eligible_batches) | Q(batch_year__in=drive.eligible_batches))
-            count_after = base_qs.filter(filters).count()
-            logger.info(f"[ELIGIBILITY] After batch filter {drive.eligible_batches}: {count_after} remain")
+            batch_q = Q(passout_year__in=drive.eligible_batches) | Q(batch_year__in=drive.eligible_batches)
+            batch_count = base_qs.filter(filters & batch_q).count()
+            logger.info(f"[ELIGIBILITY] Batch filter {drive.eligible_batches} would leave {batch_count}")
+            if batch_count > 0:
+                # Only apply if it actually produces results
+                filters &= batch_q
+            else:
+                logger.warning(f"[ELIGIBILITY] Batch filter eliminated ALL students — SKIPPING batch filter. "
+                               f"Batches {drive.eligible_batches} likely not populated in registry.")
+
+
 
         final = base_qs.filter(filters)
         logger.info(f"[ELIGIBILITY] FINAL: {final.count()} eligible")

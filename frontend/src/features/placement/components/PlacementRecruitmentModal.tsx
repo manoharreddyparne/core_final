@@ -242,14 +242,19 @@ const PlacementRecruitmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess
             }
         });
 
-        // Numeric fields — force to '0' if empty
         const numericFields = [
             'min_cgpa', 'min_ug_percentage', 'cgpa_to_percentage_multiplier',
             'allowed_active_backlogs', 'min_10th_percent', 'min_12th_percent'
         ];
         numericFields.forEach(field => {
             const val = (newDriveForm as any)[field];
-            formData.append(field, (val !== undefined && val !== null && val !== '') ? String(val) : '0');
+            // Gracefully handle strings/numbers without sending "NaN"
+            const parsed = parseFloat(String(val));
+            if (!isNaN(parsed) && val !== '' && val !== null && val !== undefined) {
+                formData.append(field, String(parsed));
+            } else {
+                formData.append(field, '0');
+            }
         });
 
         // JSON Fields
@@ -302,7 +307,7 @@ const PlacementRecruitmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess
 
             const formData = prepareFormData();
             formData.append('page', String(page));
-            formData.append('q', query);
+            formData.append('q', query || '');
             formData.append('page_size', String(pageSize));
 
             const res = await placementApi.checkEligibility(formData);

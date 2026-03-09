@@ -107,7 +107,14 @@ export const ChatHub: React.FC = () => {
                             }
                         }
                     } catch (e: any) {
-                        toast.error(e.response?.data?.message || "Protocol link invalid or has been decommissioned.");
+                        const errMsg = e.response?.data?.message || "Protocol link invalid or has been decommissioned.";
+                        const isCrossInst = errMsg.toLowerCase().includes('institution') || errMsg.toLowerCase().includes('cross');
+                        toast.error(
+                            isCrossInst
+                                ? `⛔ Access Denied: This invite link belongs to a different institution. You cannot join across institutions.`
+                                : errMsg,
+                            { duration: 6000 }
+                        );
                     }
                 } else if (groupId) {
                     const found = sessData?.find((s: any) => s.session_id === groupId);
@@ -370,7 +377,8 @@ export const ChatHub: React.FC = () => {
                 mobileView={mobileView}
             />
 
-            <div className={`flex-1 flex flex-col min-w-0 ${mobileView === 'list' ? 'hidden sm:flex' : 'flex'}`}>
+            <div className={`flex-1 flex flex-col min-w-0 overflow-y-auto ${mobileView === 'list' ? 'hidden sm:flex' : 'flex'}`}>
+
                 {activeSession ? (
                     !isJoined ? (
                         <ChatJoinGate 

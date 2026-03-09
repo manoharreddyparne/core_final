@@ -61,10 +61,10 @@ TENANT_APPS = (
     "apps.notifications",
     "apps.governance",
     "apps.intelligence",
-    "apps.social",
-    "apps.chathub",
     "apps.resumes",
     "apps.core_brain",
+    "apps.social",       # Re-located to Tenant for isolation
+    "apps.chathub",      # Re-located to Tenant for isolation
 )
 
 INSTALLED_APPS = list(SHARED_APPS) + [app for app in TENANT_APPS if app not in SHARED_APPS]

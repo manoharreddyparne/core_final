@@ -18,11 +18,13 @@ export const ChatSettings: React.FC<ChatSettingsProps> = ({ activeSessionDetail:
     const [searchQuery, setSearchQuery] = useState('');
     const [pendingRequests, setPendingRequests] = useState<any[]>([]);
 
-    if (!detail) return null;
-
+    // ── isAdmin must be derived before hooks (used as hook dependency) ──
     const isAdmin = ['INST_ADMIN', 'ADMIN', 'FACULTY'].includes(user?.role || '');
+    const sessionId = detail?.session_id ?? '';
+    const sessionName = detail?.name ?? '';
 
     useEffect(() => {
+        if (!detail) return;
         if (isAdmin && searchQuery.length >= 2) {
              const timeoutId = setTimeout(() => {
                 socialApi.searchConnections(searchQuery).then(res => {
@@ -35,17 +37,19 @@ export const ChatSettings: React.FC<ChatSettingsProps> = ({ activeSessionDetail:
                 setConnections(Array.isArray(res) ? res : (res?.connections || []));
             });
         }
-    }, [isAdmin, searchQuery]);
+    }, [isAdmin, searchQuery, detail]);
 
     useEffect(() => {
-        if (isAdmin) {
-            socialApi.getInviteRequests().then(reqs => {
-                if (reqs && Array.isArray(reqs)) {
-                    setPendingRequests(reqs.filter((r: any) => r.session_id === detail.session_id || r.session_name === detail.name));
-                }
-            });
-        }
-    }, [isAdmin, detail.session_id, detail.name]);
+        if (!detail || !isAdmin) return;
+        socialApi.getInviteRequests().then(reqs => {
+            if (reqs && Array.isArray(reqs)) {
+                setPendingRequests(reqs.filter((r: any) => r.session_id === sessionId || r.session_name === sessionName));
+            }
+        });
+    }, [isAdmin, sessionId, sessionName]);
+
+    // ── Early return AFTER all hooks ──────────────────────────────────────
+    if (!detail) return null;
 
     const handleCopyLink = () => {
         if (!detail.invite_link) return;
@@ -150,77 +154,77 @@ export const ChatSettings: React.FC<ChatSettingsProps> = ({ activeSessionDetail:
                 </div>
 
                 {/* Invite Protocol Hub */}
-                <div className="space-y-4">
-                    <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest pl-1">Link Governance</p>
-                    <div className="bg-white/5 p-6 rounded-[2.5rem] border border-white/10 space-y-5 shadow-inner">
-                        {detail.invite_link ? (
-                            <div className="space-y-4">
-                                <div className="space-y-2">
-                                    <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest pl-1">Secure Join Token</p>
-                                    <div className="flex-1 bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center justify-between shadow-inner group-hover/governance:border-indigo-500/30 transition-colors">
-                                        <span className="text-[10px] text-gray-500 font-bold truncate max-w-[140px] tracking-tight">{detail.invite_link}</span>
-                                        <div className="flex items-center gap-1">
-                                            <button 
-                                                onClick={async () => {
-                                                    const tid = toast.loading("Rotating Protocol Token...");
-                                                    try {
-                                                        const res = await socialApi.generateInviteLink(detail.session_id);
-                                                        onUpdate({ ...detail, invite_link: res.invite_link });
-                                                        toast.success("Token Rotated.", { id: tid });
-                                                    } catch {
-                                                        toast.error("Handshake Failure.", { id: tid });
-                                                    }
-                                                }}
-                                                className="p-2 hover:bg-white/10 rounded-xl text-indigo-400/50 hover:text-indigo-400 transition-all hover:scale-110"
-                                                title="Rotate Link"
-                                            >
-                                                <RefreshCw className="w-3 h-3" />
-                                            </button>
-                                            <button onClick={handleCopyLink} className="p-2 hover:bg-white/10 rounded-xl text-indigo-400 transition-all hover:scale-110"><Copy className="w-4 h-4" /></button>
+                {(user?.role === 'INST_ADMIN' || user?.role === 'ADMIN') && (
+                    <div className="space-y-4">
+                        <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest pl-1">Link Governance</p>
+                        <div className="bg-white/5 p-6 rounded-[2.5rem] border border-white/10 space-y-5 shadow-inner">
+                            {detail.invite_link ? (
+                                <div className="space-y-4">
+                                    <div className="space-y-2">
+                                        <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest pl-1">Secure Join Token</p>
+                                        <div className="flex-1 bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center justify-between shadow-inner group-hover/governance:border-indigo-500/30 transition-colors">
+                                            <span className="text-[10px] text-gray-500 font-bold truncate max-w-[140px] tracking-tight">{detail.invite_link}</span>
+                                            <div className="flex items-center gap-1">
+                                                <button 
+                                                    onClick={async () => {
+                                                        const tid = toast.loading("Rotating Protocol Token...");
+                                                        try {
+                                                            const res = await socialApi.generateInviteLink(detail.session_id);
+                                                            onUpdate({ ...detail, invite_link: res.invite_link });
+                                                            toast.success("Token Rotated.", { id: tid });
+                                                        } catch {
+                                                            toast.error("Handshake Failure.", { id: tid });
+                                                        }
+                                                    }}
+                                                    className="p-2 hover:bg-white/10 rounded-xl text-indigo-400/50 hover:text-indigo-400 transition-all hover:scale-110"
+                                                    title="Rotate Link"
+                                                >
+                                                    <RefreshCw className="w-3 h-3" />
+                                                </button>
+                                                <button onClick={handleCopyLink} className="p-2 hover:bg-white/10 rounded-xl text-indigo-400 transition-all hover:scale-110"><Copy className="w-4 h-4" /></button>
+                                            </div>
                                         </div>
                                     </div>
+                                    <div className="grid grid-cols-1 gap-2">
+                                        <button 
+                                            onClick={handleCopyAnnouncement}
+                                            className="w-full py-4 bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-400 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 transition-all active:scale-95"
+                                        >
+                                            <Copy className="w-4 h-4" /> Copy Broadcast Template
+                                        </button>
+                                        <button 
+                                            onClick={async () => {
+                                                const tid = toast.loading("Establishing Automated Broadcast...");
+                                                try {
+                                                    await socialApi.establishAndBroadcast(detail.session_id);
+                                                    toast.success("Broadcast Orchestration Started!", { id: tid });
+                                                } catch {
+                                                    toast.error("Handshake Failure.", { id: tid });
+                                                }
+                                            }}
+                                            className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-[1.5rem] font-black text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 shadow-[0_15px_30px_rgba(79,70,229,0.3)] transition-all active:scale-95"
+                                        >
+                                            <Share2 className="w-4 h-4" /> Automated Broadcast
+                                        </button>
+                                    </div>
                                 </div>
-                                <div className="grid grid-cols-1 gap-2">
-                                    <button 
-                                        onClick={handleCopyAnnouncement}
-                                        className="w-full py-4 bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-400 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 transition-all active:scale-95"
-                                    >
-                                        <Copy className="w-4 h-4" /> Copy Broadcast Template
-                                    </button>
-                                    <button 
-                                        onClick={async () => {
-                                            const tid = toast.loading("Establishing Automated Broadcast...");
-                                            try {
-                                                await socialApi.establishAndBroadcast(detail.session_id);
-                                                toast.success("Broadcast Orchestration Started!", { id: tid });
-                                            } catch {
-                                                toast.error("Handshake Failure.", { id: tid });
-                                            }
-                                        }}
-                                        className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-[1.5rem] font-black text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 shadow-[0_15px_30px_rgba(79,70,229,0.3)] transition-all active:scale-95"
-                                    >
-                                        <Share2 className="w-4 h-4" /> Automated Broadcast
-                                    </button>
-                                </div>
-                            </div>
-                        ) : isAdmin && (
-                            <button 
-                                onClick={async () => {
-                                    try {
-                                        const link = await socialApi.generateInviteLink(detail.session_id);
-                                        onUpdate({ ...detail, invite_link: link });
-                                        toast.success("Protocol link established.");
-                                    } catch {
-                                        toast.error("Handshake Failure.");
-                                    }
-                                }}
-                                className="w-full py-4 bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-400 border border-indigo-500/20 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all"
-                            >
-                                Initialize Join Protocol
-                            </button>
-                        )}
+                            ) : (
+                                <button 
+                                    onClick={async () => {
+                                        try {
+                                            const link = await socialApi.generateInviteLink(detail.session_id);
+                                            onUpdate({ ...detail, invite_link: link });
+                                            toast.success("Protocol link established.");
+                                        } catch {
+                                            toast.error("Handshake Failure.");
+                                        }
+                                    }}
+                                    className="w-full py-4 bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-400 border border-indigo-500/20 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all"
+                                >
+                                    Initialize Join Protocol
+                                </button>
+                            )}
 
-                        {isAdmin && (
                             <div className="space-y-4 pt-4 border-t border-white/10">
                                 <div className="flex items-center justify-between group/toggle">
                                     <div className="space-y-0.5">
@@ -230,13 +234,12 @@ export const ChatSettings: React.FC<ChatSettingsProps> = ({ activeSessionDetail:
                                     <button 
                                         onClick={async () => {
                                             const newVal = !detail.open_invite;
-                                            // Optimistic Update
                                             onUpdate({ ...detail, open_invite: newVal });
                                             try {
                                                 await socialApi.updateGroupSettings(detail.session_id, detail.participants_metadata?.read_only_for_students, newVal);
                                                 toast.success(newVal ? "Protocol Perimeter Disabled" : "Perimeter Active");
                                             } catch {
-                                                onUpdate({ ...detail, open_invite: !newVal }); // Rollback
+                                                onUpdate({ ...detail, open_invite: !newVal });
                                                 toast.error("Governance override failed.");
                                             }
                                         }}
@@ -265,9 +268,9 @@ export const ChatSettings: React.FC<ChatSettingsProps> = ({ activeSessionDetail:
                                     </select>
                                 </div>
                             </div>
-                        )}
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* Governance */}
                 {isAdmin && (
@@ -444,7 +447,7 @@ export const ChatSettings: React.FC<ChatSettingsProps> = ({ activeSessionDetail:
                                         <button 
                                             onClick={() => setConfirmingPurge(p)}
                                             className="opacity-0 group-hover/p:opacity-100 p-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-xl transition-all hover:scale-110 active:scale-90"
-                                            title="Expel Participant"
+                                            title="Remove from group"
                                         >
                                             <ShieldAlert className="w-4 h-4" />
                                         </button>
@@ -477,7 +480,7 @@ export const ChatSettings: React.FC<ChatSettingsProps> = ({ activeSessionDetail:
                             <ShieldAlert className="w-8 h-8" />
                         </div>
                         <div className="space-y-2">
-                            <h4 className="text-lg font-black text-white uppercase tracking-tight">Expel Participant?</h4>
+                            <h3 className="text-sm font-black text-white uppercase tracking-widest">Remove Participant?</h3>
                             <p className="text-xs text-gray-400 leading-relaxed font-bold">
                                 You are about to purge <span className="text-white">{confirmingPurge.name}</span> from this session. Access will be revoked immediately.
                             </p>
@@ -485,7 +488,7 @@ export const ChatSettings: React.FC<ChatSettingsProps> = ({ activeSessionDetail:
                         <div className="grid grid-cols-2 gap-3">
                             <button onClick={() => setConfirmingPurge(null)} className="py-4 bg-white/5 hover:bg-white/10 text-white rounded-2xl text-[10px] font-black uppercase transition-all tracking-widest">Abort</button>
                             <button onClick={handlePurge} disabled={isUpdating} className="py-4 bg-red-600 hover:bg-red-500 text-white rounded-2xl text-[10px] font-black uppercase transition-all shadow-xl shadow-red-600/20 tracking-widest">
-                                {isUpdating ? 'PURGING...' : 'PURGE NODE'}
+                                {isUpdating ? 'Removing...' : 'Remove'}
                             </button>
                         </div>
                     </div>
