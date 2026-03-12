@@ -50,20 +50,24 @@ class RequestAdminAccessView(generics.GenericAPIView):
         # Support both 'identifier' (platform standard) and 'email'
         identifier = request.data.get("identifier") or request.data.get("email", "")
         email = identifier.strip().lower()
-        target_email = settings.SUPER_ADMIN_EMAIL.lower()
+
+        # Check if the user is a superuser
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        is_super = User.objects.filter(email=email, is_superuser=True).exists()
         
         # 🔥 DEBUG LOGGING
         try:
             with open("email_debug.log", "a") as f:
-                f.write(f"\\n--- Request at {time.time()} ---\\n")
-                f.write(f"Incoming Email: '{email}'\\n")
-                f.write(f"Target Email: '{target_email}'\\n")
-                f.write(f"Match: {email == target_email}\\n")
-                f.write(f"Backend: {settings.EMAIL_BACKEND}\\n")
+                f.write(f"\n--- Request at {time.time()} ---\n")
+                f.write(f"Incoming Email: '{email}'\n")
+                f.write(f"Is Superuser: {is_super}\n")
+                f.write(f"Backend: {settings.EMAIL_BACKEND}\n")
         except:
             pass
 
-        if email == target_email:
+        if is_super:
+            target_email = email
             # Burst Protection (3 minutes per user request)
             cooldown_key = f"jit_burst_{email}"
             ttl = cache.ttl(cooldown_key)
@@ -103,6 +107,12 @@ class RequestAdminAccessView(generics.GenericAPIView):
             # Generate and Send Ticket (Bound to Email)
             ticket = generate_jit_admin_ticket(email=target_email)
             access_url = f"{settings.FRONTEND_URL}/auth/secure-gateway?ticket={ticket}"
+            
+            # Print to stdout so user can see it in terminal, regardless of email status
+            print(f"\n=======================================================")
+            print(f"🔑 LOCAL DEV JIT LINK GENERATED FOR {target_email} 🔑")
+            print(f"URL: {access_url}")
+            print(f"=======================================================\n")
 
             # ✅ New JIT link = fresh start: clear all previous failure counters for this IP
             # Professional requirement: a legitimately requested new link should not carry
@@ -133,13 +143,13 @@ class RequestAdminAccessView(generics.GenericAPIView):
                 )
                 # Set 3 minute burst cooldown
                 cache.set(cooldown_key, True, 180) 
-                logger.info(f"✅ JIT Link sent to {target_email}")
+                logger.info(f"✅ JIT Link sent to {target_email} - URL: {access_url}")
                 with open("email_debug.log", "a") as f:
-                    f.write("Status: EMAIL SENT SUCCESSFULLY\\n")
+                    f.write("Status: EMAIL SENT SUCCESSFULLY\n")
             except Exception as e:
-                logger.error(f"Failed to send admin recovery email: {e}")
+                logger.error(f"Failed to send admin recovery email: {e} - URL: {access_url}")
                 with open("email_debug.log", "a") as f:
-                    f.write(f"Status: FAILED - {str(e)}\\n")
+                    f.write(f"Status: FAILED - {str(e)}\n")
 
         # Always return generic success to public
         return Response({
