@@ -51,4 +51,4 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="your-email@gmail.com")
 EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="your-app-password")
-DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="AUIP <your-email@gmail.com>")
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="Nexora <noreply@nexora.app>")

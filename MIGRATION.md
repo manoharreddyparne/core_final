@@ -1,4 +1,4 @@
-# AUIP Platform - Migration Tracking Document
+# Nexora - Migration Tracking Document
 
 ## Migration Date
 **Started**: February 10, 2026  
@@ -8,7 +8,7 @@
 
 ## Migration Overview
 
-This document tracks the migration from the old `exam_portal/` structure to the new industry-standard `AUIP-Platform/` structure.
+This document tracks the migration from the old `exam_portal/` structure to the new industry-standard `AUIP-Platform/` structure under the Nexora product brand.
 
 ### Migration Goals
 1. ✅ Complete backend/frontend separation
@@ -207,3 +207,4 @@ AUIP-Platform/
 **Migration Lead**: Development Team  
 **Documentation**: This file tracks all changes  
 **Questions**: Refer to docs/ folder for detailed guides
+

@@ -24,12 +24,12 @@ class LandingContent(SingletonModel):
         blank=True, default="",
         help_text="Full URL to your logo image (PNG/SVG, recommended transparent background). Leave blank to show text logo."
     )
-    logo_alt        = models.CharField(max_length=80, default="AUIP Platform", help_text="Alt text for logo image.")
+    logo_alt        = models.CharField(max_length=80, default="Nexora", help_text="Alt text for logo image.")
     favicon_url     = models.URLField(blank=True, default="", help_text="URL to 32×32 favicon (ICO or PNG).")
 
     # ── SEO ──────────────────────────────────────────────────────────────────
-    seo_title       = models.CharField(max_length=120, default="AUIP – The Operating System for Higher Education")
-    seo_description = models.TextField(default="AUIP Platform connects students, faculty, and administration through AI-powered, zero-trust digital infrastructure.")
+    seo_title       = models.CharField(max_length=120, default="Nexora – The Operating System for Higher Education")
+    seo_description = models.TextField(default="Nexora connects students, faculty, and administration through AI-powered, zero-trust digital infrastructure.")
     seo_og_image    = models.URLField(blank=True, default="", help_text="Open Graph image (1200×630px recommended).")
 
     # ── Announcement Banner ──────────────────────────────────────────────────
@@ -47,7 +47,7 @@ class LandingContent(SingletonModel):
     hero_heading       = models.TextField(default="The Operating System for Higher Education")
     hero_subtext       = models.TextField(
         default=(
-            "AUIP connects students, faculty, and administration through an "
+            "Nexora connects students, faculty, and administration through an "
             "AI-powered, unified digital infrastructure. Experience zero-trust "
             "security and intelligent academic governance."
         )
@@ -81,7 +81,7 @@ class LandingContent(SingletonModel):
     about_heading = models.TextField(default="Built for scale, designed for performance.")
     about_body    = models.TextField(
         default=(
-            "The Adaptive University Intelligence Platform (AUIP) replaces fragmented "
+            "Nexora replaces fragmented "
             "legacy systems with a singular, high-performance ecosystem. Powered by "
             "advanced Machine Learning analytics and robust Tenant Schema isolation, "
             "we ensure uncompromised data integrity."
@@ -139,7 +139,7 @@ class LandingContent(SingletonModel):
     )
 
     # ── Whitepaper ────────────────────────────────────────────────────────────
-    whitepaper_heading  = models.CharField(max_length=120, default="The AUIP Whitepaper")
+    whitepaper_heading  = models.CharField(max_length=120, default="The Nexora Whitepaper")
     whitepaper_subtext  = models.TextField(
         default=(
             "Dive deep into our technical architecture, AI implementation frameworks, "
@@ -152,10 +152,10 @@ class LandingContent(SingletonModel):
 
     # ── Footer ────────────────────────────────────────────────────────────────
     footer_tagline  = models.CharField(max_length=200, default="Advancing global education through intelligent computing algorithms and robust infrastructure.")
-    contact_email   = models.EmailField(default="contact@auip.edu")
+    contact_email   = models.EmailField(default="contact@nexora.app")
     contact_phone   = models.CharField(max_length=30, blank=True, default="")
     contact_address = models.TextField(blank=True, default="")
-    copyright_text  = models.CharField(max_length=200, default="© 2026 AUIP Foundation. All Systems Operational.")
+    copyright_text  = models.CharField(max_length=200, default="© 2026 Nexora Foundation. All Systems Operational.")
 
     # Social links (empty → hidden)
     social_twitter  = models.URLField(blank=True, default="")
@@ -357,3 +357,4 @@ class TeamMember(models.Model):
             "github":    self.github,
             "twitter":   self.twitter,
         }
+

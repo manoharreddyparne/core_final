@@ -1,4 +1,4 @@
-# Backend Dockerfile for AUIP Platform
+# Backend Dockerfile for Nexora
 FROM python:3.11-slim
 
 # Set environment variables
@@ -34,5 +34,6 @@ RUN DJANGO_SETTINGS_MODULE=auip_core.settings.development python manage.py colle
 # Expose port
 EXPOSE 8000
 
-# Run migrations and start server
-CMD ["sh", "-c", "python manage.py migrate && daphne -b 0.0.0.0 -p 8000 auip_core.asgi:application"]
+# High-Performance Entrypoint: PID 1 signal propagation enabled.
+# Migrations must be run once via 'docker compose run backend python manage.py migrate'
+CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "auip_core.asgi:application"]

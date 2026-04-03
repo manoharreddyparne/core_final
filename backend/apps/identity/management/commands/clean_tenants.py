@@ -33,8 +33,8 @@ PROTECTED_SCHEMAS = {
     'pgsodium', 'pgsodium_masks', 'cron',
 }
 
-# Only schemas with these prefixes will be considered AUIP tenant schemas
-AUIP_SCHEMA_PREFIXES = ('inst_', 'tenant_', 'school_', 'univ_', 'college_')
+# Only schemas with these prefixes will be considered tenant schemas.
+TENANT_SCHEMA_PREFIXES = ('inst_', 'tenant_', 'school_', 'univ_', 'college_')
 
 
 class Command(BaseCommand):
@@ -63,7 +63,7 @@ class Command(BaseCommand):
         target_schema = options.get('schema')
 
         self.stdout.write('\n' + '='*60)
-        self.stdout.write('  AUIP -- Tenant Schema Cleanup Tool')
+        self.stdout.write('  Nexora -- Tenant Schema Cleanup Tool')
         self.stdout.write('='*60)
 
         if not confirm:
@@ -85,10 +85,10 @@ class Command(BaseCommand):
             """, [tuple(PROTECTED_SCHEMAS)])
             raw_schemas = [row[0] for row in cursor.fetchall()]
 
-        # Only include schemas that look like AUIP tenant schemas
+        # Only include schemas that look like tenant schemas.
         all_schemas = [
             s for s in raw_schemas
-            if s.startswith(AUIP_SCHEMA_PREFIXES)
+            if s.startswith(TENANT_SCHEMA_PREFIXES)
         ]
 
         # Also include schemas from the Institution table (in case they use different prefix)
@@ -204,3 +204,4 @@ class Command(BaseCommand):
             f'Database is clean and ready for fresh testing.'
         )
         self.stdout.write('='*60 + '\n')
+

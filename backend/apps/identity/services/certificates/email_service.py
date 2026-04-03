@@ -55,12 +55,12 @@ def send_approval_email(institution, activation_url=None):
 <body>
 <div class="wrapper">
   <div class="header">
-    <h1>AUIP PLATFORM</h1>
-    <p>Academic University Integration Portal - Governance Network</p>
+    <h1>Nexora</h1>
+    <p>Digital Campus Infrastructure - Governance Network</p>
   </div>
   <div class="body">
     <p style="color:#aaa;font-size:13px;">Dear Administrator,</p>
-    <p style="font-size:15px;color:#ddd;">We are pleased to inform you that your institution has been <strong style="color:#55cc88;">officially approved</strong> and integrated into the AUIP Distributed Governance Network.</p>
+    <p style="font-size:15px;color:#ddd;">We are pleased to inform you that your institution has been <strong style="color:#55cc88;">officially approved</strong> and integrated into the Nexora Distributed Governance Network.</p>
 
     <div class="inst-name">{institution.name}</div>
     <div class="domain">Network Node: {institution.domain}</div>
@@ -81,7 +81,7 @@ def send_approval_email(institution, activation_url=None):
       </div>
       <div class="cert-row">
         <span class="cert-label">Certificate Authority</span>
-        <span class="cert-value">AUIP Intermediate CA</span>
+        <span class="cert-value">Nexora Intermediate CA</span>
       </div>
       <div class="cert-row">
         <span class="cert-label">Signature Algorithm</span>
@@ -110,9 +110,9 @@ def send_approval_email(institution, activation_url=None):
     <p style="color:#555;font-size:11px;margin-top:28px;">This certificate is digitally signed using X.509 PKI infrastructure. Any modification invalidates its authenticity. The attached PDF contains an embedded PAdES-B digital signature verifiable in Adobe Acrobat.</p>
   </div>
   <div class="footer">
-    <p>AUIP Platform - Institutional Certification Authority</p>
+    <p>Nexora - Institutional Certification Authority</p>
     <p>Certificate ID: {institution.certificate_id}</p>
-    <p>(c) {issued_str[:4]} AUIP Platform. All rights reserved.</p>
+    <p>(c) {issued_str[:4]} Nexora. All rights reserved.</p>
   </div>
 </div>
 </body>
@@ -123,7 +123,7 @@ def send_approval_email(institution, activation_url=None):
         msg = EmailMessage(
             subject=f"[Approved] {institution.name} - Institutional Approval & Digital Certificate",
             body=html_body,
-            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@auip.edu"),
+            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@nexora.app"),
             to=[institution.contact_email],
         )
         msg.content_subtype = "html"
@@ -136,7 +136,7 @@ def send_approval_email(institution, activation_url=None):
                     with default_storage.open(cert_filename, "rb") as f:
                         pdf_bytes = f.read()
                     msg.attach(
-                        filename=f"AUIP_Certificate_{institution.slug}.pdf",
+                        filename=f"Nexora_Certificate_{institution.slug}.pdf",
                         content=pdf_bytes,
                         mimetype="application/pdf",
                     )
@@ -215,13 +215,13 @@ def send_activation_email(institution) -> bool:
 <body>
 <div class="wrapper">
   <div class="header">
-    <h1>AUIP PLATFORM</h1>
-    <p>Academic University Integration Portal - Sovereign Governance Network</p>
+    <h1>Nexora</h1>
+    <p>Digital Campus Infrastructure - Sovereign Governance Network</p>
     <span class="badge">✦ SOVEREIGN MEMBER</span>
   </div>
   <div class="body">
     <p style="color:#94a3b8;font-size:13px;">Dear Administrator,</p>
-    <p style="font-size:15px;color:#e2e8f0;">Congratulations. <strong style="color:#10b981;">{institution.name}</strong> has successfully completed governance activation and is now a <strong style="color:#10b981;">Sovereign Member</strong> of the AUIP Distributed Governance Network.</p>
+    <p style="font-size:15px;color:#e2e8f0;">Congratulations. <strong style="color:#10b981;">{institution.name}</strong> has successfully completed governance activation and is now a <strong style="color:#10b981;">Sovereign Member</strong> of the Nexora Distributed Governance Network.</p>
 
     <div class="inst-name">{institution.name}</div>
     <div class="domain">Network Domain: {institution.domain}</div>
@@ -242,7 +242,7 @@ def send_activation_email(institution) -> bool:
       </div>
       <div class="cert-row">
         <span class="cert-label">Certificate Authority</span>
-        <span class="cert-value">AUIP Intermediate CA</span>
+        <span class="cert-value">Nexora Intermediate CA</span>
       </div>
       <div class="cert-row">
         <span class="cert-label">Signature Algorithm</span>
@@ -269,12 +269,12 @@ def send_activation_email(institution) -> bool:
       <a class="btn btn-secondary" href="{dashboard_url}">Go to Dashboard</a>
     </p>
 
-    <p style="color:#334155;font-size:11px;margin-top:28px;border-top:1px solid #0f2137;padding-top:16px;">This Sovereign Certificate expires on <strong style="color:#10b981;">{expires_str}</strong>. You will receive renewal notices 30 and 7 days before expiry. Certificate renewal will be available through the AUIP Governance Portal.</p>
+    <p style="color:#334155;font-size:11px;margin-top:28px;border-top:1px solid #0f2137;padding-top:16px;">This Sovereign Certificate expires on <strong style="color:#10b981;">{expires_str}</strong>. You will receive renewal notices 30 and 7 days before expiry. Certificate renewal will be available through the Nexora Governance Portal.</p>
   </div>
   <div class="footer">
-    <p>AUIP Platform - Sovereign Institutional Certification Authority</p>
+    <p>Nexora - Sovereign Institutional Certification Authority</p>
     <p>Activation Certificate ID: {institution.activation_cert_id}</p>
-    <p>&copy; {year} AUIP Platform. All rights reserved.</p>
+    <p>&copy; {year} Nexora. All rights reserved.</p>
   </div>
 </div>
 </body>
@@ -283,9 +283,9 @@ def send_activation_email(institution) -> bool:
 
     try:
         msg = EmailMessage(
-            subject=f"[AUIP] Sovereign Activation Certificate Issued — {institution.name}",
+            subject=f"[Nexora] Sovereign Activation Certificate Issued — {institution.name}",
             body=html_body,
-            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@auip.edu"),
+            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@nexora.app"),
             to=[institution.contact_email],
         )
         msg.content_subtype = "html"
@@ -298,7 +298,7 @@ def send_activation_email(institution) -> bool:
                     with default_storage.open(cert_filename, "rb") as f:
                         pdf_bytes = f.read()
                     msg.attach(
-                        filename=f"AUIP_SovereignCert_{institution.slug}.pdf",
+                        filename=f"Nexora_SovereignCert_{institution.slug}.pdf",
                         content=pdf_bytes,
                         mimetype="application/pdf",
                     )
@@ -357,7 +357,7 @@ def send_expiry_warning_email(institution, days_remaining: int) -> bool:
 <body>
 <div class="wrapper">
   <div class="header">
-    <h1>AUIP PLATFORM</h1>
+    <h1>Nexora</h1>
     <p style="color:#94a3b8;">{urgency_label}</p>
   </div>
   <div class="body">
@@ -380,10 +380,10 @@ def send_expiry_warning_email(institution, days_remaining: int) -> bool:
       <a class="btn" href="{renewal_url}">Renew Certificate Now</a>
     </p>
 
-    <p style="color:#475569;font-size:11px;">If you believe this is an error or have questions, contact AUIP Platform governance support.</p>
+    <p style="color:#475569;font-size:11px;">If you believe this is an error or have questions, contact Nexora governance support.</p>
   </div>
   <div class="footer">
-    <p>AUIP Platform - Institutional Certification Authority</p>
+    <p>Nexora - Institutional Certification Authority</p>
     <p>Institution: {institution.name} &nbsp;|&nbsp; Domain: {institution.domain}</p>
   </div>
 </div>
@@ -394,9 +394,9 @@ def send_expiry_warning_email(institution, days_remaining: int) -> bool:
     try:
         urgency_prefix = "⚠️" if days_remaining == 30 else "🚨"
         msg = EmailMessage(
-            subject=f"{urgency_prefix} [AUIP] Certificate Expiry Warning — {days_remaining} Days Remaining | {institution.name}",
+            subject=f"{urgency_prefix} [Nexora] Certificate Expiry Warning — {days_remaining} Days Remaining | {institution.name}",
             body=html_body,
-            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@auip.edu"),
+            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@nexora.app"),
             to=[institution.contact_email],
         )
         msg.content_subtype = "html"
@@ -406,4 +406,5 @@ def send_expiry_warning_email(institution, days_remaining: int) -> bool:
     except Exception as e:
         logger.error(f"[ExpiryEmail] Failed for {institution.contact_email}: {e}")
         return False
+
 

@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>AUIP Platform — Technical Whitepaper</title>
-<meta name="description" content="The official technical whitepaper for the Adaptive University Intelligence Platform (AUIP) — architecture, security model, AI governance, and multi-tenant data isolation." />
+<title>Nexora — Technical Whitepaper</title>
+<meta name="description" content="The official technical whitepaper for the Nexora — architecture, security model, AI governance, and multi-tenant data isolation." />
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -346,7 +346,7 @@
 <!-- Navigation -->
 <nav>
   <div class="nav-inner">
-    <div class="nav-logo">AUIP <span>Whitepaper</span></div>
+    <div class="nav-logo">Nexora <span>Whitepaper</span></div>
     <div class="nav-actions">
       <a href="javascript:window.print()" class="btn btn-ghost">🖨 Print</a>
       <a href="/" class="btn btn-primary">↗ Platform</a>
@@ -368,7 +368,7 @@
     </div>
     <div class="cover-meta-item">
       <span class="cover-meta-label">Platform</span>
-      <span class="cover-meta-value">AUIP Foundation</span>
+      <span class="cover-meta-value">Nexora Foundation</span>
     </div>
     <div class="cover-meta-item">
       <span class="cover-meta-label">Version</span>
@@ -380,7 +380,7 @@
     </div>
     <div class="cover-meta-item">
       <span class="cover-meta-label">Contact</span>
-      <span class="cover-meta-value">contact@auip.edu</span>
+      <span class="cover-meta-value">contact@nexora.app</span>
     </div>
   </div>
 </div>
@@ -391,7 +391,7 @@
   <ol>
     <li><a href="#abstract">Abstract</a></li>
     <li><a href="#problem">Problem Statement</a></li>
-    <li><a href="#model">The AUIP Identity Model</a>
+    <li><a href="#model">The Nexora Identity Model</a>
       <ol class="sub">
         <li><a href="#model">Institution-Provisioned Identity</a></li>
         <li><a href="#lifecycle">Student Lifecycle State Machine</a></li>
@@ -422,8 +422,8 @@
 <section id="abstract">
   <div class="section-badge blue">○ Section 1</div>
   <h2 class="section-title">Abstract</h2>
-  <p>The Adaptive University Intelligence Platform (AUIP) is an enterprise-grade, cloud-native operating system for higher education institutions. It replaces fragmented legacy workflows — manual Excel-based placement tracking, self-service student sign-up portals, and institutional data silos — with a single, intelligence-driven ecosystem.</p>
-  <p>AUIP is built on four foundational pillars: <strong>institution-provisioned identity</strong>, <strong>zero-trust security</strong>, <strong>strict PostgreSQL schema-based multi-tenancy</strong>, and an <strong>AI Governance Brain</strong> that provides placement readiness scoring and personalized interventions.</p>
+  <p>The Nexora is an enterprise-grade, cloud-native operating system for higher education institutions. It replaces fragmented legacy workflows — manual Excel-based placement tracking, self-service student sign-up portals, and institutional data silos — with a single, intelligence-driven ecosystem.</p>
+  <p>Nexora is built on four foundational pillars: <strong>institution-provisioned identity</strong>, <strong>zero-trust security</strong>, <strong>strict PostgreSQL schema-based multi-tenancy</strong>, and an <strong>AI Governance Brain</strong> that provides placement readiness scoring and personalized interventions.</p>
   <p>The platform is currently in active development under Sprint 2 (Student Pre-Seeding &amp; Activation), with core authentication, multi-tenancy, and institutional onboarding completed in Sprint 1.</p>
 
   <div class="callout blue">
@@ -463,10 +463,10 @@
 <!-- ═══════════════════════════════════════════════════════ 3. IDENTITY MODEL -->
 <section id="model">
   <div class="section-badge purple">○ Section 3</div>
-  <h2 class="section-title">The AUIP Identity Model</h2>
+  <h2 class="section-title">The Nexora Identity Model</h2>
 
   <h3>3.1 Institution-Provisioned Identity</h3>
-  <p>AUIP fundamentally rethinks how student accounts are created. The platform operates on a <strong>pre-seeded identity model</strong>: universities upload their student roster (via CSV or manual entry), and the system creates internal identity records <em>without allocating any user account resources</em>.</p>
+  <p>Nexora fundamentally rethinks how student accounts are created. The platform operates on a <strong>pre-seeded identity model</strong>: universities upload their student roster (via CSV or manual entry), and the system creates internal identity records <em>without allocating any user account resources</em>.</p>
 
   <p>Each student is assigned a unique <strong>STU_REF</strong> (e.g., <code>STU_2025_0142</code>) — the canonical identity anchor. Email is used only for communication and verification, not as an identity key. This separation means:</p>
 
@@ -582,10 +582,10 @@ PostgreSQL Database
   <div class="section-badge red">○ Section 5</div>
   <h2 class="section-title">Security Model — Quantum Shield</h2>
 
-  <p>AUIP's security architecture is built around <strong>defense in depth</strong>: six independent layers, each one capable of catching what the previous layer missed.</p>
+  <p>Nexora's security architecture is built around <strong>defense in depth</strong>: six independent layers, each one capable of catching what the previous layer missed.</p>
 
   <h3>5.1 Quantum Shield — Quad-Segment Cookie Fragmentation</h3>
-  <p>Traditional applications store the refresh JWT as a single HttpOnly cookie. If that cookie is ever stolen via XSS, MITM, or browser exploit, the attacker gains complete session access. AUIP eliminates this attack vector entirely.</p>
+  <p>Traditional applications store the refresh JWT as a single HttpOnly cookie. If that cookie is ever stolen via XSS, MITM, or browser exploit, the attacker gains complete session access. Nexora eliminates this attack vector entirely.</p>
   <p>The refresh JWT (<code>header.payload.signature</code>) is split into 4 separate cookies with different security properties. <strong>All 4 segments are required to reconstruct a valid token.</strong> Stealing any subset is cryptographically useless.</p>
 
   <div class="table-wrap">
@@ -662,7 +662,7 @@ Layer 3: Device Fingerprint
   <div class="section-badge purple">○ Section 6</div>
   <h2 class="section-title">AI Governance Brain</h2>
 
-  <p>The Governance Brain is AUIP's intelligence layer — an advisory engine that aggregates student performance data across academics, mock tests, interviews, and projects to produce a <strong>Placement Readiness Score (0–100)</strong> for every student, updated daily.</p>
+  <p>The Governance Brain is Nexora's intelligence layer — an advisory engine that aggregates student performance data across academics, mock tests, interviews, and projects to produce a <strong>Placement Readiness Score (0–100)</strong> for every student, updated daily.</p>
 
   <div class="callout blue">
     <span class="callout-icon">🧠</span>
@@ -710,7 +710,7 @@ Layer 3: Device Fingerprint
   <div class="section-badge green">○ Section 7</div>
   <h2 class="section-title">Placement Management Engine</h2>
 
-  <p>AUIP replaces Excel-based placement workflows with a dynamic, rule-engine-driven system. TPOs create drives with compound eligibility criteria; the engine evaluates all students automatically and in real-time.</p>
+  <p>Nexora replaces Excel-based placement workflows with a dynamic, rule-engine-driven system. TPOs create drives with compound eligibility criteria; the engine evaluates all students automatically and in real-time.</p>
 
   <h3>7.1 Dynamic Eligibility Engine</h3>
   <p>Criteria are defined using structured AND/OR/nested logic:</p>
@@ -813,7 +813,7 @@ Layer 3: Device Fingerprint
     <li>Each institution's data is physically isolated in its own PostgreSQL schema. Cross-tenant access is structurally impossible — not merely policy-enforced.</li>
     <li>Student academic records (CGPA, 10th/12th marks, semester grades) are stored in a secured tenant schema, visible only to the institution's authorised administrators and the student themselves.</li>
     <li>The platform does not share, sell, or process student data for any purpose outside the institution's explicit operational scope.</li>
-    <li>AUIP is architected for GDPR compliance: all personal data fields are identifiable, exportable, and deletable on request.</li>
+    <li>Nexora is architected for GDPR compliance: all personal data fields are identifiable, exportable, and deletable on request.</li>
   </ul>
 
   <h3>9.2 Acceptable Use</h3>
@@ -826,7 +826,7 @@ Layer 3: Device Fingerprint
 
   <h3>9.3 Security Responsibilities</h3>
   <ul class="policy-list">
-    <li>Institutions are responsible for the accuracy of pre-seeded student data. AUIP validates format and deduplication but cannot verify ground-truth academic records.</li>
+    <li>Institutions are responsible for the accuracy of pre-seeded student data. Nexora validates format and deduplication but cannot verify ground-truth academic records.</li>
     <li>Administrators must not share credentials. Each role (Super Admin, Institution Admin, Faculty, Student) has strictly scoped permissions with no privilege escalation path.</li>
     <li>The platform maintains detailed <code>LoginSession</code> records. Suspicious sessions (IP change, device fingerprint mismatch) are automatically deactivated and reported.</li>
     <li>Password reset tokens are single-use and time-limited (24-hour default). Unused tokens are invalidated when a new reset request is made.</li>
@@ -845,12 +845,12 @@ Layer 3: Device Fingerprint
 <section id="conclusion">
   <div class="section-badge green">○ Section 10</div>
   <h2 class="section-title">Conclusion</h2>
-  <p>AUIP is not a new face on an old workflow. It is a ground-up rethinking of how universities manage student identity, placement, and academic governance. By making identity <em>institution-provisioned</em>, security <em>structurally enforced</em> (not just policy-enforced), and decision-making <em>AI-assisted</em> (not AI-automated), AUIP provides a platform that is simultaneously more secure, more efficient, and more equitable than any existing system.</p>
+  <p>Nexora is not a new face on an old workflow. It is a ground-up rethinking of how universities manage student identity, placement, and academic governance. By making identity <em>institution-provisioned</em>, security <em>structurally enforced</em> (not just policy-enforced), and decision-making <em>AI-assisted</em> (not AI-automated), Nexora provides a platform that is simultaneously more secure, more efficient, and more equitable than any existing system.</p>
   <p>The core authentication and multi-tenancy infrastructure is complete and battle-tested. The platform is now actively building the student lifecycle, placement, and AI governance layers — all on a foundation designed to carry them reliably at institutional scale.</p>
 
   <div class="callout purple">
     <span class="callout-icon">🚀</span>
-    <span>AUIP is available for institutional pilot partnerships. Contact <strong>contact@auip.edu</strong> to schedule a technical demonstration or to begin the institution onboarding process.</span>
+    <span>Nexora is available for institutional pilot partnerships. Contact <strong>contact@nexora.app</strong> to schedule a technical demonstration or to begin the institution onboarding process.</span>
   </div>
 </section>
 
@@ -858,12 +858,13 @@ Layer 3: Device Fingerprint
 
 <footer>
   <div class="wrap">
-    <p><strong>AUIP Foundation</strong> — Advanced Universal Intelligence Platform</p>
+    <p><strong>Nexora Foundation</strong> — Advanced Universal Intelligence Platform</p>
     <p>Whitepaper v1.0 · February 2026 · Lead Architect: Parne Manohar Reddy</p>
-    <p>Contact: <a href="mailto:contact@auip.edu">contact@auip.edu</a></p>
-    <p style="margin-top:16px; font-size:11px;">© 2026 AUIP Foundation. This document is provided for informational purposes. All architectural details are accurate as of Sprint 2. Roadmap items are subject to change.</p>
+    <p>Contact: <a href="mailto:contact@nexora.app">contact@nexora.app</a></p>
+    <p style="margin-top:16px; font-size:11px;">© 2026 Nexora Foundation. This document is provided for informational purposes. All architectural details are accurate as of Sprint 2. Roadmap items are subject to change.</p>
   </div>
 </footer>
 
 </body>
 </html>
+

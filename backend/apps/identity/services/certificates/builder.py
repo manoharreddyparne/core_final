@@ -66,11 +66,11 @@ def _draw_certificate_pdf(institution, cert_pem, serial_hex, fingerprint_hex, ex
     # ── Header: platform name ─────────────────────────────────────────
     c.setFont("Helvetica-Bold", 11)
     c.setFillColor(colors.HexColor("#c9a84c"))
-    c.drawCentredString(w / 2, h - 70, "A U I P   P L A T F O R M")
+    c.drawCentredString(w / 2, h - 70, "N E X O R A")
 
     c.setFont("Helvetica", 9)
     c.setFillColor(colors.HexColor("#aaaaaa"))
-    c.drawCentredString(w / 2, h - 85, "Academic University Integration Portal  ·  Distributed Governance Network")
+    c.drawCentredString(w / 2, h - 85, "Nexora Digital Campus Infrastructure - Distributed Governance Network")
 
     # ── Divider ───────────────────────────────────────────────────────
     c.setStrokeColor(colors.HexColor("#c9a84c"))
@@ -85,7 +85,7 @@ def _draw_certificate_pdf(institution, cert_pem, serial_hex, fingerprint_hex, ex
     c.setFont("Helvetica", 13)
     c.setFillColor(colors.HexColor("#c9a84c"))
     c.drawCentredString(w / 2, h - 175, "This certifies that the institution named below has been formally approved")
-    c.drawCentredString(w / 2, h - 192, "and integrated into the AUIP Distributed Governance Network.")
+    c.drawCentredString(w / 2, h - 192, "and integrated into the Nexora Distributed Governance Network.")
 
     # ── Institution name ─────────────────────────────────────────────
     c.setFont("Helvetica-Bold", 36)
@@ -118,7 +118,7 @@ def _draw_certificate_pdf(institution, cert_pem, serial_hex, fingerprint_hex, ex
     meta_block(col3_x, row_y, "Valid Until", expires_at.strftime("%Y-%m-%d"), "#55cc88")
 
     row_y2 = row_y - 50
-    meta_block(col1_x, row_y2, "Certificate Authority", "AUIP Intermediate CA")
+    meta_block(col1_x, row_y2, "Certificate Authority", "Nexora Intermediate CA")
     meta_block(col2_x, row_y2, "Signature Algorithm", "SHA-256 with RSA-4096")
     meta_block(col3_x, row_y2, "Certificate Status", "ACTIVE  ✓", "#55cc88")
 
@@ -151,7 +151,7 @@ def _draw_certificate_pdf(institution, cert_pem, serial_hex, fingerprint_hex, ex
 
     c.setFont("Helvetica-Bold", 9)
     c.setFillColor(colors.HexColor("#c9a84c"))
-    c.drawString(60, 60, "AUIP Platform  ·  Institutional Certification Authority")
+    c.drawString(60, 60, "Nexora - Institutional Certification Authority")
 
     c.setFont("Helvetica", 8)
     c.setFillColor(colors.HexColor("#666677"))
@@ -268,11 +268,11 @@ def _draw_activation_pdf(institution, cert_pem, serial_hex, fingerprint_hex, exp
     # ── Header ──────────────────────────────────────────────────────────────
     c.setFont("Helvetica-Bold", 11)
     c.setFillColor(colors.HexColor("#10b981"))
-    c.drawCentredString(w / 2, h - 70, "A U I P   P L A T F O R M")
+    c.drawCentredString(w / 2, h - 70, "N E X O R A")
 
     c.setFont("Helvetica", 9)
     c.setFillColor(colors.HexColor("#6ee7b7"))
-    c.drawCentredString(w / 2, h - 85, "Academic University Integration Portal  ·  Sovereign Governance Network")
+    c.drawCentredString(w / 2, h - 85, "Nexora Digital Campus Infrastructure - Sovereign Governance Network")
 
     # ── Divider ─────────────────────────────────────────────────────────────
     c.setStrokeColor(colors.HexColor("#10b981"))
@@ -287,7 +287,7 @@ def _draw_activation_pdf(institution, cert_pem, serial_hex, fingerprint_hex, exp
     c.setFont("Helvetica", 12)
     c.setFillColor(colors.HexColor("#10b981"))
     c.drawCentredString(w / 2, h - 170, "This certifies that the institution named below has completed governance activation")
-    c.drawCentredString(w / 2, h - 186, "and is now a fully sovereign member of the AUIP Distributed Governance Network.")
+    c.drawCentredString(w / 2, h - 186, "and is now a fully sovereign member of the Nexora Distributed Governance Network.")
 
     # ── Institution Name ─────────────────────────────────────────────────────
     c.setFont("Helvetica-Bold", 34)
@@ -321,7 +321,7 @@ def _draw_activation_pdf(institution, cert_pem, serial_hex, fingerprint_hex, exp
     meta_block(col3_x, row_y, "Valid Until",   expires_at.strftime("%Y-%m-%d"), "#10b981")
 
     row_y2 = row_y - 48
-    meta_block(col1_x, row_y2, "Certificate Authority", "AUIP Intermediate CA")
+    meta_block(col1_x, row_y2, "Certificate Authority", "Nexora Intermediate CA")
     meta_block(col2_x, row_y2, "Signature Algorithm",   "SHA-256 with RSA-4096")
     meta_block(col3_x, row_y2, "Trust Level",           "SOVEREIGN  ✓", "#10b981")
 
@@ -360,7 +360,7 @@ def _draw_activation_pdf(institution, cert_pem, serial_hex, fingerprint_hex, exp
 
     c.setFont("Helvetica-Bold", 9)
     c.setFillColor(colors.HexColor("#10b981"))
-    c.drawString(60, 60, "AUIP Platform  ·  Sovereign Institutional Certification Authority")
+    c.drawString(60, 60, "Nexora - Sovereign Institutional Certification Authority")
 
     c.setFont("Helvetica", 8)
     c.setFillColor(colors.HexColor("#475569"))
@@ -426,4 +426,5 @@ def generate_activation_certificate(institution_id: int) -> str | None:
     ])
 
     return institution.activation_cert_url
+
 

@@ -6,8 +6,10 @@ import {
     Trophy, BarChart3, ArrowRight, ArrowLeft, Maximize2, Shield,
     Play, Timer, Star, Zap
 } from 'lucide-react';
-import { apiClient, coreApiClient } from '../../auth/api/base';
+import { coreApiClient } from '../../auth/api/base';
 import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../auth/context/AuthProvider/AuthProvider';
 
 interface Option {
     id: number;
@@ -64,7 +66,7 @@ const MockTestHub: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [result, setResult] = useState<QuizResult | null>(null);
-    const [attemptId, setAttemptId] = useState<number | null>(null);
+    const [attemptId, setAttemptId] = useState<string | null>(null);
 
     // Anti-cheat
     const [tabSwitchCount, setTabSwitchCount] = useState(0);
@@ -103,11 +105,12 @@ const MockTestHub: React.FC = () => {
                 setWarningCount(prev => prev + 1);
                 
                 // Log to server
-                coreApiClient.post('exams/anti_cheat/', {
-                    attempt_id: attemptId,
-                    event_type: 'TAB_SWITCH',
-                    details: `User switched tab (count: ${newCount})`
-                });
+                if (attemptId) {
+                    coreApiClient.post(`exams/exam_attempts/${attemptId}/log_violation/`, {
+                        event_type: 'TAB_SWITCH',
+                        details: { count: newCount, source: 'visibilitychange' }
+                    });
+                }
 
                 toast.error(`⚠️ Tab switch detected (${newCount}). This is recorded.`, { duration: 3000 });
                 if (newCount >= 10) { // More lenient for mock tests but still tracked
@@ -140,9 +143,28 @@ const MockTestHub: React.FC = () => {
         document.documentElement.requestFullscreen?.().then(() => setIsFullscreen(true)).catch(() => { });
     };
 
+    const navigate = useNavigate();
+    const { user } = useAuth();
+    const role = user?.role?.toLowerCase();
+    const isManager = ['faculty', 'teacher', 'admin', 'institution_admin', 'inst_admin'].includes(role || '');
+
     const handleStartExam = async (exam: Exam) => {
-        setSelectedExam(exam);
-        setPhase('BRIEF');
+        navigate(`/exam-portal/${exam.id}`);
+    };
+
+    const handleGenerateAI = async (exam: Exam) => {
+        const tid = toast.loading('AI Architect is designing questions...');
+        try {
+            await coreApiClient.post(`exams/${exam.id}/generate-ai-questions/`, {
+                topic: exam.title,
+                count: 5,
+                type: 'MCQ'
+            });
+            toast.success('Neural mapping complete. Questions generated.', { id: tid });
+            fetchExams();
+        } catch (err) {
+            toast.error('AI Architect busy. Try again later.', { id: tid });
+        }
     };
 
     const handleBeginTest = async () => {
@@ -275,12 +297,23 @@ const MockTestHub: React.FC = () => {
                                     </span>
                                 </div>
                             </div>
-                            <button
-                                onClick={() => handleStartExam(exam)}
-                                className={`mt-6 w-full py-4 ${exam.is_mock ? 'bg-primary' : 'bg-red-600'} text-white font-black text-[10px] uppercase tracking-widest rounded-2xl shadow-xl hover:scale-105 transition-all flex items-center justify-center gap-2`}
-                            >
-                                Enter Session
-                            </button>
+                            <div className="mt-6 flex gap-3">
+                                <button
+                                    onClick={() => handleStartExam(exam)}
+                                    className={`flex-1 py-4 ${exam.is_mock ? 'bg-primary' : 'bg-red-600'} text-white font-black text-[10px] uppercase tracking-widest rounded-2xl shadow-xl hover:scale-105 transition-all flex items-center justify-center gap-2`}
+                                >
+                                    Launch Portal
+                                </button>
+                                {isManager && (
+                                    <button
+                                        onClick={() => handleGenerateAI(exam)}
+                                        className="w-14 h-14 bg-white/5 border border-white/10 text-primary rounded-2xl hover:bg-primary/20 transition-all flex items-center justify-center group"
+                                        title="Generate AI Questions"
+                                    >
+                                        <Zap className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     ))}
                 </div>

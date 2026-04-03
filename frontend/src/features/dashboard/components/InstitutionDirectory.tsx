@@ -3,7 +3,7 @@
  * Public-facing section for LandingPage.
  *
  * Features:
- *  - Live search/filter over AUIP-approved institutions
+ *  - Live search/filter over Nexora-approved institutions
  *  - Expandable detail card (description, contact, domain)
  *  - Direct links to Approval + Sovereign certificate verify portal
  *  - "Verify Certificate" CTA that any visitor can use
@@ -17,8 +17,9 @@ import {
     ChevronDown, ChevronUp, Globe, Mail, Hash,
     BadgeCheck, Lock
 } from "lucide-react";
+import { API_CONFIG } from "../../../config/api";
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const API = API_CONFIG.BASE;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -116,7 +117,7 @@ export function InstitutionDirectory() {
                         }}
                     >
                         <ShieldCheck className="w-3.5 h-3.5" />
-                        AUIP Certified Network
+                        Nexora Certified Network
                     </div>
                     <h2 className="text-3xl md:text-5xl font-black tracking-tight">
                         Member Institutions
@@ -125,7 +126,7 @@ export function InstitutionDirectory() {
                         className="text-base md:text-lg max-w-xl mx-auto leading-relaxed"
                         style={{ color: "var(--text-secondary)" }}
                     >
-                        Every institution on AUIP holds a verifiable X.509 digital
+                        Every institution on Nexora holds a verifiable X.509 digital
                         certificate. Anyone can check authenticity — no login required.
                     </p>
                 </div>
@@ -446,7 +447,7 @@ export function InstitutionDirectory() {
                     </div>
                     <h3 className="text-xl font-black">Got a Certificate to Verify?</h3>
                     <p className="text-sm max-w-md mx-auto" style={{ color: "var(--text-secondary)" }}>
-                        If you received a certificate from an AUIP-registered institution or
+                        If you received a certificate from a Nexora-registered institution or
                         institution admin, you can verify its authenticity here — instantly,
                         without creating an account.
                     </p>
@@ -540,3 +541,4 @@ function CertDateCard({
         </div>
     );
 }
+

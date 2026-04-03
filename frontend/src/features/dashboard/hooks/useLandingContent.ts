@@ -3,8 +3,9 @@
 // Falls back to env-based defaults if the API is unavailable.
 
 import { useState, useEffect } from "react";
+import { API_CONFIG } from "../../../config/api";
 
-const API_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
+const API_URL = API_CONFIG.BASE;
 const ENDPOINT = `${API_URL}/api/users/public/site-config/`;
 
 export interface NavLink { label: string; href: string; }
@@ -98,12 +99,12 @@ export interface LandingContent {
 const FALLBACK: LandingContent = {
     brand: {
         logo_url: "",
-        logo_alt: "AUIP Platform",
+        logo_alt: "Nexora",
         favicon_url: "",
     },
     seo: {
-        title: "AUIP – The Operating System for Higher Education",
-        description: "AUIP Platform connects students, faculty, and administration through AI-powered, zero-trust digital infrastructure.",
+        title: "Nexora - The Operating System for Higher Education",
+        description: "Nexora connects students, faculty, and administration through AI-powered, zero-trust digital infrastructure.",
         og_image: "",
     },
     banner: {
@@ -115,7 +116,7 @@ const FALLBACK: LandingContent = {
     hero: {
         badge: "Enterprise-Grade Academic Cloud",
         heading: import.meta.env.VITE_APP_TAGLINE || "The Operating System for Higher Education",
-        subtext: "AUIP connects students, faculty, and administration through an AI-powered, unified digital infrastructure. Zero-trust security meets intelligent academic governance.",
+        subtext: "Nexora connects students, faculty, and administration through an AI-powered, unified digital infrastructure. Zero-trust security meets intelligent academic governance.",
         cta_primary: "Access Portals",
         cta_secondary: "Read Whitepaper",
     },
@@ -139,7 +140,7 @@ const FALLBACK: LandingContent = {
     about: {
         badge: "Next-Generation Infrastructure",
         heading: "Built for scale, designed for performance.",
-        body: "The Adaptive University Intelligence Platform (AUIP) replaces fragmented legacy systems with a singular, high-performance ecosystem. Powered by advanced ML analytics and robust Tenant Schema isolation, we ensure uncompromised data integrity.",
+        body: "Nexora replaces fragmented legacy systems with a singular, high-performance ecosystem. Powered by advanced ML analytics and robust tenant schema isolation, we ensure uncompromised data integrity.",
         bullets: [
             "Multi-tenant architecture ensuring isolated data lakes.",
             "AI-driven talent discovery and placement matching.",
@@ -164,7 +165,7 @@ const FALLBACK: LandingContent = {
     testimonials: { enabled: false, items: [] },
     faq: { enabled: false, items: [] },
     whitepaper: {
-        heading: "The AUIP Whitepaper",
+        heading: "The Nexora Whitepaper",
         subtext: "Dive deep into our technical architecture, AI implementation frameworks, and the economic model of next-generation higher education systems.",
         pdf_url: "",
         // Hosted locally — viewable at /whitepaper.html in the same Vite server
@@ -172,8 +173,8 @@ const FALLBACK: LandingContent = {
     },
     footer: {
         tagline: import.meta.env.VITE_APP_TAGLINE || "Advancing global education through intelligent computing algorithms.",
-        contact_email: import.meta.env.VITE_CONTACT_EMAIL || "contact@auip.edu",
-        copyright: import.meta.env.VITE_COPYRIGHT || "© 2026 AUIP Foundation. All Systems Operational.",
+        contact_email: import.meta.env.VITE_CONTACT_EMAIL || "contact@nexora.app",
+        copyright: import.meta.env.VITE_COPYRIGHT || "© 2026 Nexora Foundation. All Systems Operational.",
         socials: {},
     },
     nav: [
@@ -184,7 +185,7 @@ const FALLBACK: LandingContent = {
     ],
 };
 
-const CACHE_KEY = "auip_landing_content_v2";
+const CACHE_KEY = "nexora_landing_content_v2";
 const CACHE_TTL = 5 * 60 * 1000; // 5 min in ms
 
 export function useLandingContent() {
@@ -242,3 +243,4 @@ function deepMerge<T extends object>(fallback: T, override: Partial<T>): T {
     }
     return result;
 }
+

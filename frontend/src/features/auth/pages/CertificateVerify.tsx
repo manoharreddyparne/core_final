@@ -7,8 +7,9 @@
 
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
+import { API_CONFIG } from "../../../config/api";
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const API = API_CONFIG.BASE;
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -96,13 +97,13 @@ export default function CertificateVerify() {
                 {/* ── Header ── */}
                 <div style={styles.header}>
                     <Link to="/" style={styles.logo}>
-                        <span style={{ color: accent }}>AUIP</span>
+                        <span style={{ color: accent }}>Nexora</span>
                         <span style={{ color: "#94a3b8", fontSize: 13, marginLeft: 8 }}>
                             Certificate Verification Portal
                         </span>
                     </Link>
                     <p style={styles.headerSub}>
-                        Academic University Integration Portal · Institutional Trust Authority
+                        Nexora Digital Campus Infrastructure - Institutional Trust Authority
                     </p>
                 </div>
 
@@ -133,7 +134,7 @@ export default function CertificateVerify() {
                                 </h1>
                                 <p className="text-gray-500 text-sm mt-3 leading-relaxed">
                                     {error === "Failed to reach verification server."
-                                        ? "The AUIP trust node is currently unreachable. Please check your network connection or try again later."
+                                        ? "The Nexora trust node is currently unreachable. Please check your network connection or try again later."
                                         : "This certificate identifier does not exist in our distributed governance ledger or may have been tampered with."}
                                 </p>
                             </div>
@@ -142,7 +143,7 @@ export default function CertificateVerify() {
                                     to="/"
                                     className="inline-block w-full py-4 bg-white/5 border border-white/10 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-white/10 transition-all"
                                 >
-                                    Return to AUIP Global
+                                    Return to Nexora Global
                                 </Link>
                                 <p className="text-[10px] text-gray-700 mt-6 font-medium uppercase tracking-[0.2em]">
                                     Reference Trace: {certId?.slice(0, 8).toUpperCase()}
@@ -166,7 +167,7 @@ export default function CertificateVerify() {
                             }}
                         >
                             <span style={{ fontSize: 36 }}>
-                                {isValid ? "✅" : isExpired ? "⏰" : "❓"}
+                                {isValid ? "?" : isExpired ? "?" : "?"}
                             </span>
                             <div>
                                 <div
@@ -181,8 +182,8 @@ export default function CertificateVerify() {
                                 </div>
                                 <div style={{ color: "#94a3b8", fontSize: 13, marginTop: 4 }}>
                                     {isSovereign
-                                        ? "Sovereign Activation Certificate · AUIP Governance Network"
-                                        : "Provisional Approval Certificate · AUIP Trust Authority"}
+                                        ? "Sovereign Activation Certificate ? Nexora Governance Network"
+                                        : "Provisional Approval Certificate · Nexora Trust Authority"}
                                 </div>
                             </div>
                             <div
@@ -331,7 +332,7 @@ export default function CertificateVerify() {
                         <div style={styles.footerNote}>
                             <p>
                                 This certificate was digitally signed using X.509 PKI standards with PAdES-B digital signature.
-                                Any alteration to the certificate renders it invalid. Verified by AUIP Platform Certification Authority.
+                                Any alteration to the certificate renders it invalid. Verified by Nexora Certification Authority.
                             </p>
                             <p style={{ marginTop: 8, color: "#334155" }}>
                                 Certificate ID: <code style={{ color: "#475569" }}>{data.certificate.id}</code>
@@ -518,3 +519,4 @@ const styles = {
         lineHeight: 1.6,
     },
 };
+

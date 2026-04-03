@@ -1,4 +1,4 @@
-# AUIP - Adaptive University Intelligence Platform
+# Nexora
 
 > **A Governance-Brain Driven, Personalized, and Placement-Centric University Operating System**
 
@@ -9,7 +9,7 @@
 
 ## Overview
 
-AUIP is an enterprise-grade platform that transforms university placement operations from manual Excel-based workflows to an intelligent, adaptive system that:
+Nexora is an enterprise-grade platform that transforms university placement operations from manual Excel-based workflows to an intelligent, adaptive system that:
 
 - ✅ **Eliminates manual Excel operations** in placement management
 - ✅ **Personalizes student preparation** using AI and historical data
@@ -148,8 +148,8 @@ AUIP-Platform/
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/auip-platform.git
-cd auip-platform
+git clone https://github.com/your-org/nexora.git
+cd AUIP-Platform
 
 # Copy environment variables
 cp backend/.env.example backend/.env
@@ -265,7 +265,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 Developed with ❤️ for modern universities
 
-**Contact**: support@auip-platform.com
+**Contact**: contact@nexora.app
 
 ---
 
@@ -277,3 +277,4 @@ Developed with ❤️ for modern universities
 - 📅 Phase 4: Intelligence Service (ML/AI)
 - 📅 Phase 5: Real-time Notifications & Analytics
 - 📅 Phase 6: Mobile Apps (iOS & Android)
+

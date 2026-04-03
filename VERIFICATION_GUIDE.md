@@ -1,4 +1,4 @@
-# AUIP Platform - Manual Verification Guide
+# Nexora - Manual Verification Guide
 
 This guide outlines the steps to verify the **Premium UI Revolution** and the **Institutional Control Hub**.
 
@@ -9,7 +9,7 @@ If your IDE (VS Code) shows errors like "Cannot find module 'lucide-react'" or "
 Multi-project repositories (with both backend/frontend) can confuse VS Code. 
 
 1. **Delete Redundant Configs**: I have already deleted `tsconfig.app.json` and `tsconfig.node.json` to reduce confusion.
-2. **Direct Folder Opening**: It is highly recommended to open the `c:\Manohar\AUIP\AUIP-Platform\frontend` folder **directly** as its own workspace in VS Code.
+2. **Direct Folder Opening**: It is highly recommended to open the `C:\Manohar\AUIP\AUIP-Platform\frontend` folder **directly** as its own workspace in VS Code.
 3. **Sync Dependencies**: Run `npm install` in that terminal.
 4. **Restart TS Server**: Press `Ctrl+Shift+P` -> **"TypeScript: Restart TS Server"**. I have simplified the `tsconfig.json` to a single-file structure which is much more robust for IDE discovery.
 
@@ -76,3 +76,4 @@ Ensure both backend and frontend are running:
 - **Turnstile Error**: If Turnstile fails, ensure you have a stable internet connection or check the `TURNSTILE_SITE_KEY` in `backend/.env`.
 - **API Errors**: Check the backend logs: `docker-compose logs -f backend`.
 - **Blank Screen**: Ensure the port 3000 is correctly mapped. Check `frontend` logs: `docker-compose logs -f frontend`.
+
