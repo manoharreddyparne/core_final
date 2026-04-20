@@ -9,16 +9,13 @@ services:
     plan: free
     region: singapore
     healthCheckPath: /api/users/auth/config/
-    scaling:
-      minReplicas: 1
-      maxReplicas: 3
     envVars:
       - key: DJANGO_SETTINGS_MODULE
         value: auip_core.settings.production
       - key: DATABASE_URL
-        sync: false # Set in Dashboard
+        sync: false
       - key: REDIS_URL
-        sync: false # Set in Dashboard
+        sync: false
       - key: DEBUG
         value: "False"
 
@@ -29,8 +26,7 @@ services:
     rootDir: backend
     dockerContext: .
     dockerfile: Dockerfile
-    dockerCommand: daphne -b 0.0.0.0 -p 8000 auip_core.asgi:application # Fallback if celery fails
-    # NOTE: In Render Worker UI, set Command to: celery -A auip_core worker --loglevel=info
+    dockerCommand: celery -A auip_core worker --loglevel=info
     envVars:
       - key: DJANGO_SETTINGS_MODULE
         value: auip_core.settings.production
@@ -46,7 +42,7 @@ services:
     rootDir: backend
     dockerContext: .
     dockerfile: Dockerfile
-    # NOTE: In Render Beat UI, set Command to: celery -A auip_core beat --loglevel=info
+    dockerCommand: celery -A auip_core beat --loglevel=info
     envVars:
       - key: DJANGO_SETTINGS_MODULE
         value: auip_core.settings.production
@@ -54,8 +50,3 @@ services:
         sync: false
       - key: REDIS_URL
         sync: false
-
-databases:
-  - name: auip-db
-    plan: free
-    region: singapore
