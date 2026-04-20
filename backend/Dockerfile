@@ -28,12 +28,18 @@ COPY . .
 # Create necessary directories
 RUN mkdir -p /app/logs /app/media /app/static
 
+# Ensure startup script is executable
+RUN chmod +x start_cloud.sh
+
+# Default environment variables
+ENV PORT=8000
+ENV SERVICE_TYPE=api
+
 # Collect static files (for production)
 RUN DJANGO_SETTINGS_MODULE=auip_core.settings.development python manage.py collectstatic --noinput || true
 
 # Expose port
 EXPOSE 8000
 
-# High-Performance Entrypoint: PID 1 signal propagation enabled.
-# Migrations must be run once via 'docker compose run backend python manage.py migrate'
-CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "auip_core.asgi:application"]
+# Universal entrypoint
+CMD ["./start_cloud.sh"]
