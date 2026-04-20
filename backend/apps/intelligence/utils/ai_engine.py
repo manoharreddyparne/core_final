@@ -17,7 +17,7 @@ def call_gemini_ai(prompt, system_instruction=None, context_data=None):
         genai.configure(api_key=api_key)
         
         # Combine system instruction and context
-        full_system_msg = system_instruction or "You are AUIP Assistant, a professional AI mentor for university students."
+        full_system_msg = system_instruction or "You are Nexora Assistant, a professional AI mentor for university students."
         if context_data:
             full_system_msg += f"\n\nStudent Context:\n{context_data}"
         
@@ -50,6 +50,7 @@ def analyze_behavior_with_ai(behavior_logs):
     Uses AI to analyze behavior patterns and suggest governance updates.
     """
     prompt = f"Analyze these student behavior logs and provide a productivity score (0-100) and identify any policy risks:\n{behavior_logs}"
-    system_instr = "You are the AUIP Governance Brain. You specialize in behavioral analysis and academic integrity."
+    system_instr = "You are the Nexora Governance Brain. You specialize in behavioral analysis and academic integrity."
     
     return call_gemini_ai(prompt, system_instruction=system_instr)
+

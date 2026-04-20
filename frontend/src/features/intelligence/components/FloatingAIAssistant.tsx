@@ -189,20 +189,20 @@ export const FloatingAIAssistant: React.FC = () => {
                         <div className="flex items-center gap-4">
                             <div className="relative group/bot">
                                 <div className="w-14 h-14 rounded-2xl overflow-hidden bg-gradient-to-br from-blue-500/20 to-purple-600/20 flex items-center justify-center border border-white/10 shadow-2xl transition-transform group-hover/bot:scale-110">
-                                    <img
-                                        src="/futuristic_ai_avatar.png"
-                                        alt="AI Core"
-                                        className="w-full h-full object-cover animate-pulse"
-                                        onError={(e) => {
-                                            (e.target as HTMLImageElement).src = 'https://cdn-icons-png.flaticon.com/512/4712/4712109.png';
-                                        }}
-                                    />
+                                <img
+                                    src="/auip_ai_core.png"
+                                    alt="AI Bot"
+                                    className="w-full h-full object-cover rounded-full animate-float-slow mix-blend-screen"
+                                    onError={(e) => {
+                                        (e.target as HTMLImageElement).src = 'https://cdn-icons-png.flaticon.com/512/4712/4712109.png';
+                                    }}
+                                />
                                 </div>
                                 <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-4 border-[#070b14] animate-pulse"></div>
                             </div>
                             <div>
                                 <h3 className="text-white font-black tracking-tighter text-lg leading-tight flex items-center gap-2">
-                                    AUIP Brain
+                                    Nexora Brain
                                     <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-blue-500/10 text-blue-400 text-[8px] font-black uppercase tracking-widest border border-blue-500/20">v4.0 Alpha</span>
                                 </h3>
                                 <div className="flex items-center gap-2 mt-1">
@@ -340,7 +340,7 @@ export const FloatingAIAssistant: React.FC = () => {
                                                                         key={j}
                                                                         onClick={() => {
                                                                             if (url.startsWith('http')) {
-                                                                                const cleanUrl = url.includes('?') ? `${url}&source=AUIP` : `${url}?source=AUIP`;
+                                                                                const cleanUrl = url.includes('?') ? `${url}&source=Nexora` : `${url}?source=Nexora`;
                                                                                 window.open(cleanUrl, '_blank', 'noopener,noreferrer');
                                                                             } else {
                                                                                 navigate(url);
@@ -410,7 +410,7 @@ export const FloatingAIAssistant: React.FC = () => {
                                 <Send className="w-6 h-6 rotate-45 -mt-0.5 -ml-1" />
                             </button>
                         </div>
-                        <p className="text-center text-[8px] text-gray-600 uppercase font-black tracking-[0.3em] mt-4 opacity-50">Powered by AUIP Contextual Engine v4</p>
+                        <p className="text-center text-[8px] text-gray-600 uppercase font-black tracking-[0.3em] mt-4 opacity-50">Powered by Nexora Contextual Engine v4</p>
                     </div>
                 </div>
             )}
@@ -433,34 +433,45 @@ export const FloatingAIAssistant: React.FC = () => {
 
                     <button
                         onClick={() => !isDragging && setIsOpen(!isOpen)}
-                        className={`w-24 h-24 rounded-full flex items-center justify-center text-white transition-all duration-700 relative z-10 active:scale-90 border-4 drag-handle
+                        className={`w-16 h-16 rounded-full flex items-center justify-center text-white transition-all duration-700 relative z-10 active:scale-95 border-2 drag-handle group/btn
                             ${isOpen
                                 ? 'bg-red-500 border-red-400 rotate-90 shadow-[0_0_60px_rgba(239,68,68,0.6)] ring-8 ring-red-500/10'
-                                : 'bg-[#0a0f1d] border-white/10 shadow-[0_30px_70px_-15px_rgba(37,99,235,0.8)] hover:scale-110'
+                                : 'bg-[#0a0f1d] border-white/10 shadow-[0_20px_50px_-10px_rgba(37,99,235,0.7)] hover:scale-105 hover:shadow-blue-500/50'
                             }
                         `}
                     >
+                        {/* Rotating holographic ring */}
+                        {!isOpen && (
+                            <div className="absolute inset-[-4px] border-t-2 border-l-2 border-blue-500/50 rounded-full animate-spin-slow pointer-events-none group-hover/btn:border-blue-400"></div>
+                        )}
+                        {!isOpen && (
+                            <div className="absolute inset-[-4px] border-b-2 border-r-2 border-primary/30 rounded-full animate-spin-reverse pointer-events-none group-hover/btn:border-primary/50"></div>
+                        )}
+
                         {isOpen ? (
-                            <X className="w-10 h-10" />
+                            <X className="w-8 h-8" />
                         ) : (
-                            <div className="relative w-full h-full p-1 group-hover:rotate-6 transition-transform">
+                            <div className="relative w-full h-full p-1 overflow-hidden rounded-full">
+                                {/* Scanner Line */}
+                                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-400 to-transparent z-20 animate-scan"></div>
+                                
                                 <img
-                                    src="/futuristic_ai_avatar.png"
+                                    src="/auip_ai_core.png"
                                     alt="AI Bot"
-                                    className="w-full h-full object-cover rounded-full animate-float-slow"
+                                    className="w-full h-full object-cover rounded-full animate-float-slow mix-blend-screen"
                                     onError={(e) => {
                                         (e.target as HTMLImageElement).src = 'https://cdn-icons-png.flaticon.com/512/4712/4712109.png';
                                     }}
                                 />
-                                <div className="absolute inset-0 bg-blue-500/20 rounded-full blur-xl group-hover:bg-blue-500/40 transition-all animate-pulse"></div>
+                                <div className="absolute inset-0 bg-blue-500/10 rounded-full blur-md group-hover:bg-blue-500/30 transition-all animate-pulse"></div>
                             </div>
                         )}
 
                         {!isOpen && (
-                            <div className="absolute top-2 right-2 z-20">
-                                <span className="flex h-5 w-5">
+                            <div className="absolute top-1 right-1 z-20">
+                                <span className="flex h-4 w-4">
                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                                    <span className="relative inline-flex rounded-full h-5 w-5 bg-green-500 border-2 border-[#0a0f1d]"></span>
+                                    <span className="relative inline-flex rounded-full h-4 w-4 bg-green-500 border-2 border-[#0a0f1d]"></span>
                                 </span>
                             </div>
                         )}
@@ -468,9 +479,9 @@ export const FloatingAIAssistant: React.FC = () => {
 
                     {/* Tooltip */}
                     {!isOpen && (
-                        <div className="absolute right-24 top-1/2 -translate-y-1/2 px-4 py-2 bg-white text-black text-[10px] font-black uppercase tracking-widest rounded-xl whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all shadow-2xl pointer-events-none translate-x-4 group-hover:translate-x-0">
-                            AI Core Support
-                            <div className="absolute top-1/2 -right-1 -translate-y-1/2 border-t-[6px] border-t-transparent border-b-[6px] border-b-transparent border-l-[6px] border-l-white"></div>
+                        <div className="absolute right-20 top-1/2 -translate-y-1/2 px-4 py-2 bg-black/80 backdrop-blur-md border border-white/10 text-white text-[9px] font-black uppercase tracking-widest rounded-xl whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all shadow-2xl pointer-events-none translate-x-4 group-hover:translate-x-0">
+                            Neural Support Core
+                            <div className="absolute top-1/2 -right-1 -translate-y-1/2 border-t-[6px] border-t-transparent border-b-[6px] border-b-transparent border-l-[6px] border-l-black/80"></div>
                         </div>
                     )}
                 </div>
@@ -479,12 +490,27 @@ export const FloatingAIAssistant: React.FC = () => {
             <style>{`
                 @keyframes float {
                     0%, 100% { transform: translateY(0) scale(1); }
-                    50% { transform: translateY(-8px) scale(1.02); }
+                    50% { transform: translateY(-5px) scale(1.03); }
+                }
+                @keyframes scan {
+                    0% { transform: translateY(-100%); opacity: 0; }
+                    50% { opacity: 1; }
+                    100% { transform: translateY(200%); opacity: 0; }
                 }
                 .animate-float-slow {
                     animation: float 4s ease-in-out infinite;
+                }
+                .animate-scan {
+                    animation: scan 2s linear infinite;
+                }
+                .animate-spin-slow {
+                    animation: spin 6s linear infinite;
+                }
+                .animate-spin-reverse {
+                    animation: spin 8s linear infinite reverse;
                 }
             `}</style>
         </div>
     );
 };
+

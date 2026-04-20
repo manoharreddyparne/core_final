@@ -11,7 +11,7 @@ export const NewsletterPage: React.FC = () => {
         { name: "Microsoft", role: "Redmond, WA", color: "from-blue-500 to-blue-600" },
         { name: "Google", role: "Mountain View, CA", color: "from-green-500 to-green-600" },
         { name: "Amazon AWS", role: "Seattle, WA", color: "from-orange-500 to-orange-600" },
-        { name: "AUIP Tech Labs", role: "HQ", color: "from-indigo-500 to-indigo-600" }
+        { name: "Nexora Tech Labs", role: "HQ", color: "from-indigo-500 to-indigo-600" }
     ];
 
     useEffect(() => {
@@ -121,3 +121,4 @@ export const NewsletterPage: React.FC = () => {
         </div>
     );
 };
+

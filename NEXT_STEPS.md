@@ -1,6 +1,6 @@
 # Project Development - Next Steps & Feature Confirmation
 
-We have successfully implemented the foundational backend infrastructure for the next phase of the AUIP Platform. Below is a summary of the features completed and the proposed roadmap.
+We have successfully implemented the foundational backend infrastructure for the next phase of the Nexora. Below is a summary of the features completed and the proposed roadmap.
 
 ## 🚀 Recently Implemented Features (Backend)
 
@@ -41,3 +41,4 @@ We have successfully implemented the foundational backend infrastructure for the
 
 ## ❓ Action Required
 Please review the above features and confirm if this aligns with your vision. Once confirmed, we will begin building the Frontend components for these services.
+

@@ -181,9 +181,10 @@ export default function SecureDevice() {
         )}
 
         <p className="text-center text-[10px] font-mono uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
-          Trust stored as per AUIP Adaptive MFA policy
+          Trust stored as per Nexora Adaptive MFA policy
         </p>
       </div>
     </div>
   );
 }
+

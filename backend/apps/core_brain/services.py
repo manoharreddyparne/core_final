@@ -355,7 +355,7 @@ class BrainOrchestrator:
             full_name = getattr(user, 'email', 'Unknown User')
 
         system_prompt = f"""
-        YOU ARE: AUIP Intelligence Brain - An industry-grade, highly professional AI assistant for the AUIP University platform.
+        YOU ARE: Nexora Intelligence Brain - An industry-grade, highly professional AI assistant for the Nexora University platform.
         {role_context}
         
         USER CONTEXT:
@@ -524,3 +524,4 @@ class SelfHealingSupportService:
             ticket.ai_diagnosis = "Our automated healing agent is currently undergoing maintenance. A human support agent has been assigned to your ticket."
             ticket.status = 'OPEN'
             ticket.save()
+

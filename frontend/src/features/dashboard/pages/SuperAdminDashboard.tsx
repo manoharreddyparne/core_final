@@ -77,7 +77,7 @@ const SuperAdminDashboard: React.FC = () => {
                         <LayoutDashboard className="w-8 h-8 text-indigo-400" />
                         Global Governance Hub
                     </h1>
-                    <p className="text-slate-400 mt-1">Real-time status of the AUIP Distributed Academic Network</p>
+                    <p className="text-slate-400 mt-1">Real-time status of the Nexora Distributed Academic Network</p>
                 </div>
                 <div className="flex items-center gap-3">
                     <button
@@ -229,3 +229,4 @@ const SuperAdminDashboard: React.FC = () => {
 };
 
 export default SuperAdminDashboard;
+

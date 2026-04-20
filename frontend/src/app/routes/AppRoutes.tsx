@@ -40,6 +40,7 @@ import TPOAnalyticsDashboard from "../../features/intelligence/pages/TPOAnalytic
 import MockTestHub from "../../features/quizzes/pages/MockTestHub";
 import ResearchHub from "../../features/projects/pages/ResearchHub";
 import AcademicHub from "../../features/academic/pages/AcademicHub";
+import { ExamPortalPage } from "../../features/exams/pages/ExamPortalPage";
 
 import FacultyAcademicWorkforce from "../../features/academic/pages/FacultyAcademicWorkforce";
 import CertificateVerify from "../../features/auth/pages/CertificateVerify";
@@ -488,6 +489,15 @@ export const AppRoutes = () => {
         <Route path="/settings/sessions" element={<SecuritySessions />} />
       </Route>
 
+
+      <Route
+        path="/exam-portal/:id"
+        element={
+          <ProtectedRoute allowedRoles={["student", "faculty", "institution_admin", "admin"]}>
+            <ExamPortalPage />
+          </ProtectedRoute>
+        }
+      />
 
       {/* FALLBACK */}
       <Route path="/404" element={<PageNotFound />} />

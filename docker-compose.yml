@@ -1,31 +1,11 @@
 services:
-  # PostgreSQL Database
-  #  postgres:
-  #    image: postgres:15-alpine
-  #    container_name: auip-postgres
-  #    environment:
-  #      POSTGRES_DB: auip_db
-  #      POSTGRES_USER: auip_user
-  #      POSTGRES_PASSWORD: auip_password_dev
-  #    volumes:
-  #      - postgres_data:/var/lib/postgresql/data
-  #    ports:
-  #      - "5432:5432"
-  #    networks:
-  #      - auip-network
-  #    healthcheck:
-  #      test: [ "CMD-SHELL", "pg_isready -U auip_user -d auip_db" ]
-  #      interval: 10s
-  #      timeout: 5s
-  #      retries: 5
-
   # Redis Cache
   redis:
     image: redis:7-alpine
     container_name: auip-redis
     command: redis-server --appendonly yes
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     restart: always
     networks:
       - auip-network
@@ -35,58 +15,84 @@ services:
       timeout: 5s
       retries: 5
 
-  # Backend (Django)
+  # Backend Cluster (Scaled)
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: auip-backend
-    command: sh -c "python manage.py runserver 0.0.0.0:8000"
     volumes:
       - ./backend:/app
       - backend_static:/app/static
       - backend_media:/app/media
-    ports:
-      - "8000:8000"
     env_file:
       - ./backend/.env
     environment:
       - REDIS_HOST=redis
-      - REDIS_URL=redis://redis:6379/0
-      - DB_HOST=aws-1-ap-southeast-1.pooler.supabase.com
-      - TURNSTILE_ENABLED=True
-      - LLM_API_BASE=${LLM_API_BASE}
-      - LLM_MODEL=${LLM_MODEL}
+      - REDIS_URL=redis://redis:${REDIS_PORT:-6379}/0
+      - DB_HOST=${DB_HOST:-aws-1-ap-southeast-1.pooler.supabase.com}
     depends_on:
       redis:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-H", "User-Agent: AUIP-HealthChecker/1.0", "-f", "http://localhost:8000/api/users/auth/config/"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      replicas: ${AUTOSCALE_MIN:-3}
     restart: always
     networks:
       - auip-network
-    dns:
-      - 8.8.8.8
-      - 8.8.4.4
 
-  # Ollama Local AI (Commented out to prevent laptop hanging)
-  # Uncomment only if you have 16GB+ RAM and a GPU
-  # ollama:
-  #   image: ollama/ollama:latest
-  #   container_name: auip-ollama
-  #   volumes:
-  #     - ollama_data:/root/.ollama
-  #   ports:
-  #     - "11434:11434"
-  #   restart: always
-  #   networks:
-  #     - auip-network
+  # Migration Job (Runs once to prevent deadlocks in scaled clusters)
+  migrate:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: python manage.py migrate_schemas --schema=public --noinput
+    volumes:
+      - ./backend:/app
+    env_file:
+      - ./backend/.env
+    environment:
+      - DB_HOST=${DB_HOST:-aws-1-ap-southeast-1.pooler.supabase.com}
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - auip-network
 
-  # Celery Worker (async tasks: cert generation, emails)
+  # Load Balancer (Entry point)
+  nginx:
+    image: nginx:alpine
+    container_name: auip-gateway
+    volumes:
+      - ./infrastructure/nginx/nginx.conf.template:/etc/nginx/nginx.conf.template:ro
+      - ./infrastructure/nginx/docker-entrypoint.sh:/docker-entrypoint.sh:ro
+      - backend_static:/app/static
+      - backend_media:/app/media
+    environment:
+      - BACKEND_PORT=${BACKEND_PORT:-8000}
+      - SERVER_NAME=${SERVER_NAME:-localhost}
+    entrypoint: ["/bin/sh", "/docker-entrypoint.sh"]
+    ports:
+      - "${GATEWAY_PORT:-8000}:80"
+    depends_on:
+      - backend
+    networks:
+      - auip-network
+    restart: always
+
+  # Celery Worker
   celery-worker:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: auip-celery-worker
-    command: sh -c "celery -A auip_core worker --loglevel=info --concurrency=2 -Q default,certificates,emails"
+    command: celery -A auip_core worker --loglevel=info --concurrency=4 -Q celery,certificates,emails
     volumes:
       - ./backend:/app
       - backend_media:/app/media
@@ -94,8 +100,8 @@ services:
       - ./backend/.env
     environment:
       - REDIS_HOST=redis
-      - REDIS_URL=redis://redis:6379/0
-      - DB_HOST=aws-1-ap-southeast-1.pooler.supabase.com
+      - REDIS_URL=redis://redis:${REDIS_PORT:-6379}/0
+      - DB_HOST=${DB_HOST:-aws-1-ap-southeast-1.pooler.supabase.com}
     depends_on:
       redis:
         condition: service_healthy
@@ -103,27 +109,24 @@ services:
     networks:
       - auip-network
 
-  # Celery Beat (periodic scheduler: daily expiry checks)
+  # Celery Beat (Periodic Task Scheduler)
   celery-beat:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: auip-celery-beat
-    command: sh -c "celery -A auip_core beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler"
+    command: celery -A auip_core beat --loglevel=info
     volumes:
       - ./backend:/app
-      - backend_media:/app/media
     env_file:
       - ./backend/.env
     environment:
       - REDIS_HOST=redis
-      - REDIS_URL=redis://redis:6379/0
-      - DB_HOST=aws-1-ap-southeast-1.pooler.supabase.com
+      - REDIS_URL=redis://redis:${REDIS_PORT:-6379}/0
+      - DB_HOST=${DB_HOST:-aws-1-ap-southeast-1.pooler.supabase.com}
     depends_on:
       redis:
         condition: service_healthy
-      backend:
-        condition: service_started
     restart: always
     networks:
       - auip-network
@@ -138,21 +141,18 @@ services:
       - ./frontend:/app
       - /app/node_modules
     ports:
-      - "3000:3000"
+      - "${FRONTEND_PORT:-3000}:3000"
     environment:
-      - VITE_API_URL=http://localhost:8000
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:8000}
     depends_on:
-      - backend
+      - nginx
     restart: always
     networks:
       - auip-network
 
 volumes:
-  postgres_data:
   backend_static:
   backend_media:
-  ollama_data:
-
 
 networks:
   auip-network:

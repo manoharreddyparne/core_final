@@ -52,6 +52,7 @@ class NetworkViewSet(viewsets.ViewSet):
     @action(detail=False, methods=['get'])
     def discover(self, request):
         from apps.auip_institution.models import StudentAcademicRegistry, FacultyAcademicRegistry
+        from apps.identity.models import User
         search = request.query_params.get('search', '')
         my_id = self._get_my_id(request)
         user_role = getattr(request.user, 'role', 'STUDENT')
@@ -62,6 +63,20 @@ class NetworkViewSet(viewsets.ViewSet):
         
         connected_set = set((c['following_id'], c['following_role']) for c in connected_ids_roles)
         data = []
+
+        # SuperAdmins (Visible to InstAdmins)
+        if user_role in ['INST_ADMIN', 'INSTITUTION_ADMIN', 'ADMIN']:
+            sa_qs = User.objects.filter(role='SUPER_ADMIN')
+            if search: sa_qs = sa_qs.filter(Q(username__icontains=search) | Q(email__icontains=search))
+            for sa in sa_qs[:5]:
+                 if (sa.id, 'SUPER_ADMIN') not in connected_set:
+                     data.append({
+                         "id": sa.id, 
+                         "name": "Nexora Global Support", 
+                         "role": "SUPER_ADMIN", 
+                         "avatar": "🤖",
+                         "is_ai_support": True
+                     })
 
         # Students
         s_qs = StudentAcademicRegistry.objects.all()
@@ -82,7 +97,10 @@ class NetworkViewSet(viewsets.ViewSet):
     @action(detail=False, methods=['get'])
     def connections(self, request):
         my_id = self._get_my_id(request)
-        user_role = request.user.role
+        user_role = getattr(request.user, 'role', 'STUDENT')
+
+        if user_role == 'SUPER_ADMIN':
+            return success_response("Connections retrieved", data={"connections": []})
 
         # Mutual Connections
         friends_conns = Connection.objects.filter(
@@ -159,3 +177,4 @@ class NetworkViewSet(viewsets.ViewSet):
                 })
 
         return success_response("Network scan complete", data=results)
+

@@ -88,7 +88,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='landingcontent',
             name='logo_alt',
-            field=models.CharField(default='AUIP Platform', help_text='Alt text for logo image.', max_length=80),
+            field=models.CharField(default='Nexora', help_text='Alt text for logo image.', max_length=80),
         ),
         migrations.AddField(
             model_name='landingcontent',
@@ -191,3 +191,4 @@ class Migration(migrations.Migration):
             field=models.URLField(blank=True, default='/whitepaper.html', help_text='URL for the iframe viewer (set to /whitepaper.html to use the built-in page).'),
         ),
     ]
+

@@ -5,8 +5,10 @@ import { useProfile } from "../hooks/userProfile";
 import { socialApi } from "@/features/social/api";
 import { toast } from "react-hot-toast";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "../../auth/context/AuthProvider/AuthProvider";
 
 export default function MyProfile() {
+  const { user: authUser } = useAuth();
   const { profile, load, loading } = useProfile();
   const navigate = useNavigate();
   const [networkStats, setNetworkStats] = useState<any>(null);
@@ -15,11 +17,14 @@ export default function MyProfile() {
   const [modalLoading, setModalLoading] = useState(false);
 
   const loadNetwork = useCallback(async () => {
+    if (authUser?.role === 'SUPER_ADMIN') return;
     try {
       const stats = await socialApi.getNetworkStats();
       setNetworkStats(stats);
-    } catch (e) { console.error("Stats failed", e); }
-  }, []);
+    } catch (e) { 
+      console.warn("[MyProfile] Social stats suppressed for this identity level."); 
+    }
+  }, [authUser?.role]);
 
   useEffect(() => {
     load();
@@ -92,8 +97,16 @@ export default function MyProfile() {
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary/50 to-transparent" />
             <div className="relative mx-auto w-32 h-32">
               <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="relative w-full h-full glass bg-white/5 border-white/10 rounded-[2.5rem] flex items-center justify-center shadow-2xl">
-                <User className="w-16 h-16 text-primary" />
+              <div className={`w-24 h-24 sm:w-32 sm:h-32 rounded-[2rem] ${authUser?.role === 'SUPER_ADMIN' ? 'bg-black' : 'premium-gradient'} flex items-center justify-center shadow-2xl relative z-10 overflow-hidden`}>
+                {authUser?.role === 'SUPER_ADMIN' ? (
+                   <img 
+                    src="/auip_ai_core.png" 
+                    alt="Nexora AI" 
+                    className="w-full h-full object-contain mix-blend-screen "
+                  />
+                ) : (
+                  <User className="w-16 h-16 text-white" />
+                )}
               </div>
             </div>
 
@@ -106,44 +119,46 @@ export default function MyProfile() {
                 <p className="text-[10px] font-black text-primary uppercase tracking-widest">{user.role}</p>
               </div>
 
-              {/* Premium Professional Network Stats */}
-              <div className="flex items-center justify-center gap-4 sm:gap-8 md:gap-10 mt-8 pt-6 border-t border-white/5">
-                <div
-                  onClick={() => openConnections('followers')}
-                  className="flex flex-col items-center group cursor-pointer hover:scale-105 transition-all duration-300 min-w-[70px]"
-                >
-                  <p className="text-xl md:text-2xl lg:text-3xl font-black text-white group-hover:text-primary transition-colors">
-                    {networkStats?.followers_count || 0}
-                  </p>
-                  <p className="text-[8px] md:text-[9px] text-gray-400 font-black uppercase tracking-widest mt-1 opacity-60 group-hover:opacity-100 transition-opacity whitespace-nowrap">Followers</p>
-                </div>
+                {/* Stats Container - Hidden for SuperAdmin as they are a Platform Governor, not a Social User */}
+                {authUser?.role !== 'SUPER_ADMIN' && (
+                  <div className="flex items-center justify-center gap-4 sm:gap-8 md:gap-10 mt-8 pt-6 border-t border-white/5">
+                    <div
+                      onClick={() => openConnections('followers')}
+                      className="flex flex-col items-center group cursor-pointer hover:scale-105 transition-all duration-300 min-w-[70px]"
+                    >
+                      <p className="text-xl md:text-2xl lg:text-3xl font-black text-white group-hover:text-primary transition-colors">
+                        {networkStats?.followers_count || 0}
+                      </p>
+                      <p className="text-[8px] md:text-[9px] text-gray-400 font-black uppercase tracking-widest mt-1 opacity-60 group-hover:opacity-100 transition-opacity whitespace-nowrap">Followers</p>
+                    </div>
 
-                <div className="w-px h-8 bg-white/5 shrink-0" />
+                    <div className="w-px h-8 bg-white/5 shrink-0" />
 
-                <div
-                  onClick={() => openConnections('following')}
-                  className="flex flex-col items-center group cursor-pointer hover:scale-105 transition-all duration-300 min-w-[70px]"
-                >
-                  <p className="text-xl md:text-2xl lg:text-3xl font-black text-white group-hover:text-primary transition-colors">
-                    {networkStats?.following_count || 0}
-                  </p>
-                  <p className="text-[8px] md:text-[9px] text-gray-400 font-black uppercase tracking-widest mt-1 opacity-60 group-hover:opacity-100 transition-opacity whitespace-nowrap">Following</p>
-                </div>
+                    <div
+                      onClick={() => openConnections('following')}
+                      className="flex flex-col items-center group cursor-pointer hover:scale-105 transition-all duration-300 min-w-[70px]"
+                    >
+                      <p className="text-xl md:text-2xl lg:text-3xl font-black text-white group-hover:text-primary transition-colors">
+                        {networkStats?.following_count || 0}
+                      </p>
+                      <p className="text-[8px] md:text-[9px] text-gray-400 font-black uppercase tracking-widest mt-1 opacity-60 group-hover:opacity-100 transition-opacity whitespace-nowrap">Following</p>
+                    </div>
 
-                <div className="w-px h-8 bg-white/5 shrink-0" />
+                    <div className="w-px h-8 bg-white/5 shrink-0" />
 
-                <div
-                  onClick={() => openConnections('connections')}
-                  className="flex flex-col items-center group relative cursor-pointer hover:scale-105 transition-all duration-300 min-w-[70px]"
-                >
-                  <div className="absolute -inset-2 bg-primary/5 rounded-full blur-lg group-hover:bg-primary/10 transition-all opacity-0 group-hover:opacity-100" />
-                  <p className="text-xl md:text-2xl lg:text-3xl font-black text-white relative group-hover:text-primary transition-colors">
-                    {networkStats?.friends_count || 0}
-                  </p>
-                  <p className="text-[8px] md:text-[9px] text-primary font-black uppercase tracking-widest mt-1 relative opacity-80 group-hover:opacity-100 transition-opacity whitespace-nowrap">Conns</p>
-                </div>
+                    <div
+                      onClick={() => openConnections('connections')}
+                      className="flex flex-col items-center group relative cursor-pointer hover:scale-105 transition-all duration-300 min-w-[70px]"
+                    >
+                      <div className="absolute -inset-2 bg-primary/5 rounded-full blur-lg group-hover:bg-primary/10 transition-all opacity-0 group-hover:opacity-100" />
+                      <p className="text-xl md:text-2xl lg:text-3xl font-black text-white relative group-hover:text-primary transition-colors">
+                        {networkStats?.friends_count || 0}
+                      </p>
+                      <p className="text-[8px] md:text-[9px] text-primary font-black uppercase tracking-widest mt-1 relative opacity-80 group-hover:opacity-100 transition-opacity whitespace-nowrap">Conns</p>
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
 
             <div className="pt-6 border-t border-white/5 space-y-3">
               <div className="flex items-center gap-3 text-white/50 bg-white/[0.02] p-4 rounded-2xl border border-white/5">
@@ -225,6 +240,46 @@ export default function MyProfile() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <AcademicStatCard icon={<Building2 />} label="Professional Designation" value={roleInfo.designation} />
               <AcademicStatCard icon={<GraduationCap />} label="Academic Department" value={roleInfo.department} />
+            </div>
+          ) : authUser?.role === 'SUPER_ADMIN' ? (
+            <div className="space-y-6">
+              <div className="glass p-10 rounded-[3rem] border-primary/20 bg-primary/5">
+                <div className="flex items-center gap-6">
+                  <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                    <ShieldCheck className="w-8 h-8" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-black text-white uppercase italic tracking-tighter leading-none">Infrastructure Connectivity</h3>
+                    <p className="text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em] mt-2">Manage relationships with Institution Administrators (Tenants)</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div 
+                  onClick={() => openConnections('connections')}
+                  className="glass p-8 rounded-[2.5rem] border-white/5 hover:border-white/10 transition-all cursor-pointer group bg-white/[0.01]"
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Connected Tenants</p>
+                    <Users className="w-4 h-4 text-primary group-hover:scale-110 transition-transform" />
+                  </div>
+                  <p className="text-3xl font-black text-white uppercase italic tracking-tighter">Active Channels</p>
+                  <p className="text-xs text-gray-500 mt-2">Direct secure comms established with institutional leaders.</p>
+                </div>
+
+                <div 
+                  onClick={() => navigate('/chat-hub')}
+                  className="glass p-8 rounded-[2.5rem] border-white/5 hover:border-white/10 transition-all cursor-pointer group bg-white/[0.01]"
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Support Core</p>
+                    <MessageSquare className="w-4 h-4 text-primary group-hover:scale-110 transition-transform" />
+                  </div>
+                  <p className="text-3xl font-black text-white uppercase italic tracking-tighter">Global Hub</p>
+                  <p className="text-xs text-gray-500 mt-2">Centralized neural hub for answering tenant inquiries.</p>
+                </div>
+              </div>
             </div>
           ) : (
             <div className="glass p-12 rounded-[3.5rem] border-white/5 flex flex-col items-center justify-center text-center space-y-4">
@@ -361,3 +416,4 @@ const AcademicStatCard = ({ icon, label, value }: { icon: React.ReactNode, label
     </p>
   </div>
 );
+

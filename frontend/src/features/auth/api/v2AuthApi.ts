@@ -138,7 +138,12 @@ export const v2AuthApi = {
      * SuperAdmin: Verify JIT Access Ticket.
      */
     verifyAdminTicket: async (ticket: string): Promise<{ valid: boolean }> => {
-        const res = await apiClient.post<{ valid: boolean }>("auth/admin/verify-ticket/", { ticket });
+        // Enforce a strict 10s timeout for the handshake to prevent UI hangs
+        const res = await apiClient.post<{ valid: boolean }>(
+            "auth/admin/verify-ticket/", 
+            { ticket },
+            { timeout: 10000 } 
+        );
         return res.data;
     },
 

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { getAccessToken } from "../../auth/utils/tokenStorage";
+import { API_CONFIG } from "../../../config/api";
 
 export interface ChatMessage {
     id: number | string;
@@ -193,8 +194,7 @@ export const useChatSocket = (activeSession: any | null, currentUserId?: number,
         if (rawWsBase) {
             wsBase = rawWsBase.replace(/\/ws\/.*$/, '/ws').replace(/\/+$/, '');
         } else {
-            const httpBase = (import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000') as string;
-            wsBase = httpBase.replace(/^http/, 'ws') + '/ws';
+            wsBase = API_CONFIG.WS + '/ws';
         }
 
         const wsUrl = `${wsBase}/chat/${targetSessionId}/?token=${token}`;

@@ -44,7 +44,7 @@ def _trigger_lockout(ip, user_agent, identifier, count):
 
         subject = f"🚨 SECURITY INCIDENT: Sustained Authentication Breach ({int(time.time())})"
         message = (
-            f"URGENT: AUIP Platform Security Guard has neutralized a sustained attack.\n\n"
+            f"URGENT: Nexora Security Guard has neutralized a sustained attack.\n\n"
             f"INTRA-GATE ANALYSIS:\n"
             f"-----------------------------------\n"
             f"Suspicious IP: {ip}\n"
@@ -56,7 +56,7 @@ def _trigger_lockout(ip, user_agent, identifier, count):
             f"COUNTER-MEASURE ACTION:\n"
             f"Status: IP BLACKLISTED\n"
             f"Effect: Access to all Auth Gateway nodes (Login, Registration, JIT) is revoked for {BLOCK_DURATION // 60} minutes.\n\n"
-            f"System Node: AUIP-CORE-V2 // SECURITY-V2"
+            f"System Node: Nexora-CORE-V2 // SECURITY-V2"
         )
         
         send_mail(
@@ -108,3 +108,4 @@ def unblock_ip(ip):
     """
     cache.delete(GLOBAL_IP_BLOCK_KEY.format(ip=ip))
     logger.info(f"[SECURITY] ✅ Manual unblock executed for IP {ip}")
+

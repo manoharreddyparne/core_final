@@ -50,7 +50,7 @@ class CertificateValidityMiddleware:
                     # for now or block. Let's block for maximum security.
                     return JsonResponse({
                         "error": "Access Revoked",
-                        "detail": "No valid digital certificate found for this node. Contact AUIP Governance.",
+                        "detail": "No valid digital certificate found for this node. Contact Nexora Governance.",
                         "code": "CERTIFICATE_MISSING"
                     }, status=403)
 
@@ -302,3 +302,4 @@ class SilentRotationMiddleware:
             logger.debug(f"[SILENT-ROTATE] Skip/Fail: {e}")
 
         return response
+

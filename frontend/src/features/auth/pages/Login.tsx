@@ -59,7 +59,7 @@ export default function Login() {
           </div>
           <div className="space-y-1">
             <h1 className="text-4xl font-black tracking-tighter">
-              AUIP <span className="text-primary italic">Portal</span>
+              Nexora <span className="text-primary italic">Portal</span>
             </h1>
             <p className="text-[10px] text-gray-500 uppercase tracking-[0.3em] font-black">
               Institutional Intelligence Gateway
@@ -170,6 +170,8 @@ export default function Login() {
               <div className="space-y-1 px-1 text-center">
                 <input
                   type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
                   value={otp}
                   onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   className="w-full bg-transparent border-b-4 border-white/10 focus:border-primary px-4 py-4 text-4xl text-center font-black tracking-[0.5em] outline-none transition-all placeholder:text-gray-800"
@@ -210,7 +212,7 @@ export default function Login() {
           {/* Bottom Branding */}
           <div className="text-center pt-2">
             <p className="text-[10px] text-gray-600 font-bold uppercase tracking-widest leading-relaxed">
-              Secured by AUIP Zero-Trust Infrastructure
+              Secured by Nexora Zero-Trust Infrastructure
             </p>
           </div>
         </div>
@@ -250,3 +252,4 @@ export default function Login() {
     </div>
   );
 }
+

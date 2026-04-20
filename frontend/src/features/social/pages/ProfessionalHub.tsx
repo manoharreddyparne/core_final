@@ -97,7 +97,7 @@ const ProfessionalHub: React.FC = () => {
                         Social & <span className="text-primary NOT-italic">Professional</span> Hub
                     </h1>
                     <p className="text-muted-foreground mt-2 font-medium">
-                        Your personalized network powered by the AUIP Intelligence Matrix.
+                        Your personalized network powered by the Nexora Intelligence Matrix.
                     </p>
                 </div>
                 <button
@@ -280,3 +280,4 @@ const ProfessionalHub: React.FC = () => {
 };
 
 export default ProfessionalHub;
+

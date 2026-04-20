@@ -1,0 +1,73 @@
+[33mcommit 8de827bbbadea17ac2599e845f37b4950a571625[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m
+Author: manoharreddyparne <parnemanoharreddy19@gmail.com>
+Date:   Thu Mar 12 15:02:33 2026 +0530
+
+    pre-check checkpoint
+
+[1mdiff --git a/backend/apps/identity/views/admin/jit_verify.py b/backend/apps/identity/views/admin/jit_verify.py[m
+[1mindex d455d3a..5da110a 100644[m
+[1m--- a/backend/apps/identity/views/admin/jit_verify.py[m
+[1m+++ b/backend/apps/identity/views/admin/jit_verify.py[m
+[36m@@ -50,20 +50,24 @@[m [mclass RequestAdminAccessView(generics.GenericAPIView):[m
+         # Support both 'identifier' (platform standard) and 'email'[m
+         identifier = request.data.get("identifier") or request.data.get("email", "")[m
+         email = identifier.strip().lower()[m
+[31m-        target_email = settings.SUPER_ADMIN_EMAIL.lower()[m
+[32m+[m
+[32m+[m[32m        # Check if the user is a superuser[m
+[32m+[m[32m        from django.contrib.auth import get_user_model[m
+[32m+[m[32m        User = get_user_model()[m
+[32m+[m[32m        is_super = User.objects.filter(email=email, is_superuser=True).exists()[m
+         [m
+         # 🔥 DEBUG LOGGING[m
+         try:[m
+             with open("email_debug.log", "a") as f:[m
+[31m-                f.write(f"\\n--- Request at {time.time()} ---\\n")[m
+[31m-                f.write(f"Incoming Email: '{email}'\\n")[m
+[31m-                f.write(f"Target Email: '{target_email}'\\n")[m
+[31m-                f.write(f"Match: {email == target_email}\\n")[m
+[31m-                f.write(f"Backend: {settings.EMAIL_BACKEND}\\n")[m
+[32m+[m[32m                f.write(f"\n--- Request at {time.time()} ---\n")[m
+[32m+[m[32m                f.write(f"Incoming Email: '{email}'\n")[m
+[32m+[m[32m                f.write(f"Is Superuser: {is_super}\n")[m
+[32m+[m[32m                f.write(f"Backend: {settings.EMAIL_BACKEND}\n")[m
+         except:[m
+             pass[m
+ [m
+[31m-        if email == target_email:[m
+[32m+[m[32m        if is_super:[m
+[32m+[m[32m            target_email = email[m
+             # Burst Protection (3 minutes per user request)[m
+             cooldown_key = f"jit_burst_{email}"[m
+             ttl = cache.ttl(cooldown_key)[m
+[36m@@ -103,6 +107,12 @@[m [mclass RequestAdminAccessView(generics.GenericAPIView):[m
+             # Generate and Send Ticket (Bound to Email)[m
+             ticket = generate_jit_admin_ticket(email=target_email)[m
+             access_url = f"{settings.FRONTEND_URL}/auth/secure-gateway?ticket={ticket}"[m
+[32m+[m[41m            [m
+[32m+[m[32m            # Print to stdout so user can see it in terminal, regardless of email status[m
+[32m+[m[32m            print(f"\n=======================================================")[m
+[32m+[m[32m            print(f"🔑 LOCAL DEV JIT LINK GENERATED FOR {target_email} 🔑")[m
+[32m+[m[32m            print(f"URL: {access_url}")[m
+[32m+[m[32m            print(f"=======================================================\n")[m
+ [m
+             # ✅ New JIT link = fresh start: clear all previous failure counters for this IP[m
+             # Professional requirement: a legitimately requested new link should not carry[m
+[36m@@ -133,13 +143,13 @@[m [mclass RequestAdminAccessView(generics.GenericAPIView):[m
+                 )[m
+                 # Set 3 minute burst cooldown[m
+                 cache.set(cooldown_key, True, 180) [m
+[31m-                logger.info(f"✅ JIT Link sent to {target_email}")[m
+[32m+[m[32m                logger.info(f"✅ JIT Link sent to {target_email} - URL: {access_url}")[m
+                 with open("email_debug.log", "a") as f:[m
+[31m-                    f.write("Status: EMAIL SENT SUCCESSFULLY\\n")[m
+[32m+[m[32m                    f.write("Status: EMAIL SENT SUCCESSFULLY\n")[m
+             except Exception as e:[m
+[31m-                logger.error(f"Failed to send admin recovery email: {e}")[m
+[32m+[m[32m                logger.error(f"Failed to send admin recovery email: {e} - URL: {access_url}")[m
+                 with open("email_debug.log", "a") as f:[m
+[31m-                    f.write(f"Status: FAILED - {str(e)}\\n")[m
+[32m+[m[32m                    f.write(f"Status: FAILED - {str(e)}\n")[m
+ [m
+         # Always return generic success to public[m
+         return Response({[m

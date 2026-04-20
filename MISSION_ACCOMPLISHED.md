@@ -1,6 +1,6 @@
-# 🚀 AUIP Platform: "The All-in-One Go" Implementation Complete
+# 🚀 Nexora: "The All-in-One Go" Implementation Complete
 
-I have successfully developed the complete backend ecosystem for the AUIP Platform, integrating **Real-time AI (Gemini 1.5 Flash)**, **Governance Brain**, **ATS Tracking**, and **Social Collaboration**.
+I have successfully developed the complete backend ecosystem for the Nexora, integrating **Real-time AI (Gemini 1.5 Flash)**, **Governance Brain**, **ATS Tracking**, and **Social Collaboration**.
 
 ## 🧠 1. Governance Brain (The Soul of the System)
 - **Continuous Behavioral Tracking**: Middleware captures student interactions to build a "Maturity Model."
@@ -46,3 +46,4 @@ I have successfully developed the complete backend ecosystem for the AUIP Platfo
 3. **Explore**: Login as a student to see the "Intelligence Hub" and "Resume Studio" in action.
 
 **Mission Accomplished: All requested features have been developed and integrated into the ecosystem.**
+

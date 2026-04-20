@@ -12,6 +12,12 @@ def broadcast_institution_change(sender, instance, created, **kwargs):
     """
     Broadcast institution registration or status update to Super Admins.
     """
+    # During provisioning, the UnifiedProvisioningTracker handles WS broadcasts.
+    # Skip here to avoid flooding the superadmin channel with duplicate signals
+    # that trigger fetchInstitutions() causing 503 avalanches.
+    if instance.status == "PROVISIONING" and not created:
+        return
+
     channel_layer = get_channel_layer()
     if not channel_layer:
         return

@@ -64,6 +64,7 @@ class PublicConfigView(APIView):
         return Response({
             "turnstile_site_key": settings.TURNSTILE_SITE_KEY,
             "turnstile_enabled": settings.TURNSTILE_ENABLED,
-            "app_name": "AUIP Platform",
+            "app_name": "Nexora",
             "environment": "development" if settings.DEBUG else "production"
         })
+

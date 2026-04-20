@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 class GovernanceBrain:
     """
-    The core cognitive engine of the AUIP platform.
+    The core cognitive engine of the Nexora platform.
     Responsible for behavioral scoring, risk assessment, and policy enforcement.
     """
     
@@ -109,3 +109,4 @@ class GovernanceBrain:
         state.save()
         
         logger.info(f"Governance Brain global retraining complete. New version: {state.model_version}")
+

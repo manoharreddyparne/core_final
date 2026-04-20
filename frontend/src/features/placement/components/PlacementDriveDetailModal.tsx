@@ -171,7 +171,7 @@ const PlacementDriveDetailModal: React.FC<Props> = ({ drive, isOpen, onClose, on
                                             <FileText className="w-4 h-4 text-indigo-400 group-hover:scale-110 transition-transform" />
                                             View JD Document
                                         </button>
-                                        <p className="text-[9px] text-gray-500 font-bold mt-3 text-center uppercase tracking-widest leading-relaxed">Verified by AUIP Neural Core</p>
+                                        <p className="text-[9px] text-gray-500 font-bold mt-3 text-center uppercase tracking-widest leading-relaxed">Verified by Nexora Neural Core</p>
                                     </div>
                                 )}
                             </div>
@@ -226,3 +226,4 @@ const PlacementDriveDetailModal: React.FC<Props> = ({ drive, isOpen, onClose, on
 };
 
 export default PlacementDriveDetailModal;
+

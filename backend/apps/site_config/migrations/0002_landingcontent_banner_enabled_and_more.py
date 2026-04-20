@@ -103,7 +103,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='landingcontent',
             name='seo_description',
-            field=models.TextField(default='AUIP Platform connects students, faculty, and administration through AI-powered, zero-trust digital infrastructure.'),
+            field=models.TextField(default='Nexora connects students, faculty, and administration through AI-powered, zero-trust digital infrastructure.'),
         ),
         migrations.AddField(
             model_name='landingcontent',
@@ -113,7 +113,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='landingcontent',
             name='seo_title',
-            field=models.CharField(default='AUIP – The Operating System for Higher Education', max_length=120),
+            field=models.CharField(default='Nexora – The Operating System for Higher Education', max_length=120),
         ),
         migrations.AddField(
             model_name='landingcontent',
@@ -171,3 +171,4 @@ class Migration(migrations.Migration):
             field=models.BooleanField(default=False),
         ),
     ]
+

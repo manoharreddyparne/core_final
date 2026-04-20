@@ -146,9 +146,17 @@ export const DiscoveryHub = () => {
                                 <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
 
                                 <div className="flex justify-between items-start mb-6">
-                                    <div className="w-16 h-16 rounded-[1.8rem] premium-gradient-soft flex items-center justify-center text-white text-2xl font-black shadow-2xl relative">
-                                        {person.avatar}
-                                        <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-4 border-[#121826]"></div>
+                                    <div className={`w-16 h-16 rounded-[1.8rem] ${person.is_ai_support || person.role === 'SUPER_ADMIN' ? 'bg-black' : 'premium-gradient-soft'} flex items-center justify-center text-white text-2xl font-black shadow-2xl relative overflow-hidden`}>
+                                        {person.is_ai_support || person.role === 'SUPER_ADMIN' ? (
+                                            <img 
+                                                src="/auip_ai_core.png" 
+                                                alt="AI Support" 
+                                                className="w-full h-full object-contain mix-blend-screen "
+                                            />
+                                        ) : (
+                                            <span className="relative z-10">{person.avatar}</span>
+                                        )}
+                                        <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-4 border-[#121826] z-20"></div>
                                     </div>
                                     <div className={`px-3 py-1.5 rounded-full border text-[9px] font-black uppercase tracking-widest shadow-sm ${getRoleBadgeColor(person.role)}`}>
                                         {person.role}

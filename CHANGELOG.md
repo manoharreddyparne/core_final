@@ -1,6 +1,6 @@
 # Change Log
 
-All notable changes to the AUIP Platform will be documented in this file.
+All notable changes to the Nexora will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -39,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Migration from exam_portal
 
-This version represents a complete restructuring of the exam portal project into an enterprise-grade AUIP platform.
+This version represents a complete restructuring of the exam portal project into an enterprise-grade Nexora platform.
 
 See [MIGRATION.md](MIGRATION.md) for detailed migration notes.
+

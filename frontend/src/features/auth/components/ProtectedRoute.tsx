@@ -33,8 +33,30 @@ const ProtectedRoute = ({ children, allowedRoles }: Props) => {
    */
   if (bootstrapping) {
     return (
-      <div className="w-full flex items-center justify-center py-16 text-gray-500">
-        Initializing session…
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0a0a0b] text-white">
+        {/* Background Decorative Elements */}
+        <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-primary/20 blur-[120px] rounded-full" />
+        <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-500/10 blur-[120px] rounded-full" />
+        
+        <div className="text-center space-y-6 animate-in fade-in duration-700">
+          <div className="relative mx-auto w-24 h-24">
+            <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full animate-pulse" />
+            <div className="w-24 h-24 border-4 border-white/5 rounded-full flex items-center justify-center relative overflow-hidden">
+               <div className="absolute inset-0 border-t-4 border-primary rounded-full animate-spin" />
+               <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center backdrop-blur-3xl border border-white/10">
+                  <div className="w-2 h-8 bg-primary rounded-full animate-pulse" />
+               </div>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <p className="text-[10px] text-primary font-black uppercase tracking-[0.4em] animate-pulse">
+              Initializing Session...
+            </p>
+            <p className="text-[8px] text-gray-600 font-bold uppercase tracking-widest">
+              Securing Neural Channels // Verify Protocol
+            </p>
+          </div>
+        </div>
       </div>
     );
   }

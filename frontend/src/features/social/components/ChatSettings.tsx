@@ -73,7 +73,7 @@ export const ChatSettings: React.FC<ChatSettingsProps> = ({ activeSessionDetail:
 
     const handleCopyAnnouncement = () => {
         if (!detail.invite_link) return;
-        const msg = `[AUIP NOTIFICATION]: Join the ${detail.name} for official recruitment updates.\n\nAccess Protocol: ${detail.invite_link}\n\nSecurity: E2EE Active`;
+        const msg = `[Nexora NOTIFICATION]: Join the ${detail.name} for official recruitment updates.\n\nAccess Protocol: ${detail.invite_link}\n\nSecurity: E2EE Active`;
         navigator.clipboard.writeText(msg);
         toast.success("Broadcast template captured.");
     };
@@ -520,3 +520,4 @@ export const ChatSettings: React.FC<ChatSettingsProps> = ({ activeSessionDetail:
         </div>
     );
 };
+

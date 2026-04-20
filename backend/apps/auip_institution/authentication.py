@@ -4,6 +4,7 @@ from django.db import connection
 from django_tenants.utils import schema_context
 from apps.auip_tenant.models import Client
 from apps.identity.models.institution import Institution
+from apps.identity.models import User # Added this
 import logging
 
 logger = logging.getLogger(__name__)
@@ -28,11 +29,10 @@ class TenantAuthentication(JWTAuthentication):
             return None
 
         # Check for Tenant Context
-        if 'schema' not in validated_token:
-            # Not a tenant token, let other auth classes handle it
+        schema_name = validated_token.get('schema')
+        if not schema_name or schema_name == 'public':
+            # Not a tenant token or is a global token, let other auth classes handle it
             return None
-
-        schema_name = validated_token['schema']
         user_id = validated_token['user_id']
         role = validated_token.get('role')
         jti = validated_token.get('jti')
@@ -117,7 +117,16 @@ class TenantAuthentication(JWTAuthentication):
             target_id = validated_token.get('tenant_user_id', user_id)
             user = acc_model.objects.get(id=target_id)
         except acc_model.DoesNotExist:
-            raise exceptions.AuthenticationFailed('User not found in tenant schema', code='user_not_found')
+            # ✅ Case 2: Standard Global User (SuperAdmin, Admin, etc.)
+            try:
+                user = User.objects.get(id=user_id)
+            except User.DoesNotExist:
+                # Last resort: Try looking in public schema explicitly
+                with schema_context('public'):
+                    try:
+                        user = User.objects.get(id=user_id)
+                    except User.DoesNotExist:
+                        raise exceptions.AuthenticationFailed("User identity not found", code="user_not_found")
 
         if not user.is_active:
             raise exceptions.AuthenticationFailed('User is inactive', code='user_inactive')

@@ -1,4 +1,25 @@
 {
     "css.lint.unknownAtRules": "ignore",
-    "scss.lint.unknownAtRules": "ignore"
+    "scss.lint.unknownAtRules": "ignore",
+    "python.analysis.diagnosticSeverityOverrides": {
+        "reportMissingImports": "none",
+        "reportMissingTypeStubs": "none",
+        "reportMissingModuleSource": "none",
+        "reportUnresolvedImport": "none",
+        "reportGeneralTypeIssues": "none"
+    },
+    "python.analysis.typeCheckingMode": "off",
+    "python.linting.enabled": false,
+    "python.analysis.diagnosticMode": "openFilesOnly",
+    "pyre.enabled": false,
+    "pyre2.enabled": false,
+    "pyre.command": "echo 'Disabled'",
+    "pyre2.command": "echo 'Disabled'",
+    "python.linting.pyreEnabled": false,
+    "python.analysis.ignore": [
+        "**/*.py"
+    ],
+    "files.exclude": {
+        "**/__pycache__": true
+    }
 }

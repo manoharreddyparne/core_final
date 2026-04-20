@@ -1,23 +1,5 @@
-// src/features/projects/api.ts
-import axios from "axios";
-import { getAccessToken } from "../auth/utils/tokenStorage";
-
-const BASE_URL = import.meta.env.VITE_BACKEND_URL
-    ? `${import.meta.env.VITE_BACKEND_URL}/api/`
-    : `http://localhost:8000/api/`;
-
-const projectsClient = axios.create({
-    baseURL: BASE_URL,
-    withCredentials: true,
-});
-
-projectsClient.interceptors.request.use((config) => {
-    const token = getAccessToken();
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-});
+import { coreApiClient as projectsClient } from "../auth/api/base";
+import { API_CONFIG } from "../../config/api";
 
 export const projectsApi = {
     getProjects: async (search: string = '', ordering: string = '-created_at') => {

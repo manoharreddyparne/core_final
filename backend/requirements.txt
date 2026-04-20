@@ -61,3 +61,5 @@ celery[redis]==5.4.0
 django-celery-beat==2.7.0
 django-celery-results==2.5.1
 redis==5.0.1
+django-filter==25.1
+drf-spectacular==0.29.0

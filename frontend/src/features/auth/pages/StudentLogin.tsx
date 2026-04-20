@@ -150,7 +150,7 @@ export default function StudentLogin() {
 
                     <div className="text-center pt-2 border-t" style={{ borderColor: "var(--border)" }}>
                         <p className="text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2" style={{ color: "var(--text-muted)" }}>
-                            <ShieldCheck className="w-3 h-3" /> Secured by AUIP Zero-Trust Infrastructure
+                            <ShieldCheck className="w-3 h-3" /> Secured by Nexora Zero-Trust Infrastructure
                         </p>
                     </div>
                 </div>
@@ -175,3 +175,4 @@ export default function StudentLogin() {
         </div>
     );
 }
+

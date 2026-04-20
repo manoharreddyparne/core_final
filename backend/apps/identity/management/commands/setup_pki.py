@@ -17,7 +17,7 @@ from apps.identity.services.certificates.pki import (
 
 
 class Command(BaseCommand):
-    help = "Generate the AUIP Root CA and Intermediate CA for the PKI system. Run ONCE during setup."
+    help = "Generate the Nexora Root CA and Intermediate CA for the PKI system. Run ONCE during setup."
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -52,3 +52,4 @@ class Command(BaseCommand):
         self.stdout.write("   Intermediate CA key: mediafiles/pki/intermediate_ca.key")
         self.stdout.write("")
         self.stdout.write(self.style.SUCCESS("PKI setup complete. Institution certificates can now be issued."))
+

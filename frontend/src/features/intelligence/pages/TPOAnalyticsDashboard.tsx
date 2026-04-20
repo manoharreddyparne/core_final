@@ -164,13 +164,13 @@ const TPOAnalyticsDashboard: React.FC = () => {
             )
         ].join('\n');
 
-        const fullCsv = `AUIP Placement Analytics Report\nGenerated: ${new Date().toLocaleString()}\n\nSummary\nTotal Students,${stats.total_students}\nPlaced Students,${stats.placed_students}\nPlacement %,${stats.placement_percentage}%\nAvg Package,${stats.avg_package}\nTotal Drives,${stats.total_drives}\nActive Drives,${stats.active_drives}\nCompanies,${stats.companies_visited}\n\nDrive-wise Report\n${csv}${branchCsv}${batchCsv}`;
+        const fullCsv = `Nexora Placement Analytics Report\nGenerated: ${new Date().toLocaleString()}\n\nSummary\nTotal Students,${stats.total_students}\nPlaced Students,${stats.placed_students}\nPlacement %,${stats.placement_percentage}%\nAvg Package,${stats.avg_package}\nTotal Drives,${stats.total_drives}\nActive Drives,${stats.active_drives}\nCompanies,${stats.companies_visited}\n\nDrive-wise Report\n${csv}${branchCsv}${batchCsv}`;
 
         const blob = new Blob([fullCsv], { type: 'text/csv' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `AUIP_Placement_Analytics_${new Date().toISOString().split('T')[0]}.csv`;
+        a.download = `Nexora_Placement_Analytics_${new Date().toISOString().split('T')[0]}.csv`;
         a.click();
         URL.revokeObjectURL(url);
         toast.success('Full analytics report exported');
@@ -433,7 +433,7 @@ const TPOAnalyticsDashboard: React.FC = () => {
             {stats && (
                 <div className="text-center">
                     <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.3em]">
-                        ● Live data from AUIP Placement Engine — No estimates or mock data
+                        ● Live data from Nexora Placement Engine — No estimates or mock data
                     </p>
                 </div>
             )}
@@ -442,3 +442,4 @@ const TPOAnalyticsDashboard: React.FC = () => {
 };
 
 export default TPOAnalyticsDashboard;
+

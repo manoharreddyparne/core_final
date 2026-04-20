@@ -89,7 +89,7 @@ export const RegisterUniversity = () => {
                     <div className="space-y-4">
                         <h1 className="text-4xl font-black text-white">Application Received</h1>
                         <p className="text-muted-foreground text-lg">
-                            Thank you for applying to join the AUIP Platform. Our team will review your details and get back to you at <span className="text-white font-bold">{formData.contact_email}</span> within 24-48 hours.
+                            Thank you for applying to join the Nexora. Our team will review your details and get back to you at <span className="text-white font-bold">{formData.contact_email}</span> within 24-48 hours.
                         </p>
                     </div>
                     <button
@@ -263,3 +263,4 @@ export const RegisterUniversity = () => {
         </div>
     );
 };
+

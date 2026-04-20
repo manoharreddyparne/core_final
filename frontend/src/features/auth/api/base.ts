@@ -22,21 +22,11 @@ import {
 /* ===================================
    🔗 BASE CONFIG
 =================================== */
+import { API_CONFIG } from "../../../config/api";
 
-export const API_BASE_URL =
-  import.meta.env.VITE_BACKEND_URL
-    ? `${import.meta.env.VITE_BACKEND_URL}/api/users/`
-    : `http://localhost:8000/api/users/`;
-
-export const CORE_API_BASE_URL =
-  import.meta.env.VITE_BACKEND_URL
-    ? `${import.meta.env.VITE_BACKEND_URL}/api/`
-    : `http://localhost:8000/api/`;
-
-export const INST_API_BASE_URL =
-  import.meta.env.VITE_BACKEND_URL
-    ? `${import.meta.env.VITE_BACKEND_URL}/api/institution/`
-    : `http://localhost:8000/api/institution/`;
+export const API_BASE_URL = API_CONFIG.USERS;
+export const CORE_API_BASE_URL = API_CONFIG.API;
+export const INST_API_BASE_URL = API_CONFIG.INSTITUTION;
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -99,15 +89,21 @@ const processQueue = (error: any, token: string | null = null) => {
 
 import { AxiosInstance } from "axios";
 
+import { BrowserIntegrityService } from "../../exams/services/integrityService";
+
 // ✅ Shared Interceptor Logic
 export const attachInterceptors = (client: AxiosInstance) => {
   // Request Interceptor
   client.interceptors.request.use(
     (config) => {
+      // 1. Auth Header
       const token = getAccessToken();
-      if (token) {
-        config.headers["Authorization"] = `Bearer ${token}`;
-      }
+      if (token) config.headers["Authorization"] = `Bearer ${token}`;
+      
+      // 2. Security Integrity Handshake
+      const integrityHeaders = BrowserIntegrityService.getHeader();
+      Object.assign(config.headers, integrityHeaders);
+      
       return config;
     },
     (error) => Promise.reject(error)

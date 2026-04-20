@@ -60,7 +60,7 @@ export const StudentRegistry = () => {
         const sample = ["2024-CSE-001", "P. Manohar Reddy", "B.Tech", "CSE", "2024", "1", "personal@gmail.com", "manohar@university.edu", "9876543210", "2005-06-15", "Guardian", "Male", "GEN", "2024", "2028", "9.50", "95.5", "98.2", "0"];
         const blob = new Blob([[headers.join(","), sample.join(",")].join("\n")], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
-        Object.assign(document.createElement("a"), { href: url, download: "AUIP_Student_Template.csv" }).click();
+        Object.assign(document.createElement("a"), { href: url, download: "Nexora_Student_Template.csv" }).click();
         URL.revokeObjectURL(url);
         toast.success("Template downloaded");
     };
@@ -325,3 +325,4 @@ const CollisionEscListener = ({ onEsc }: { onEsc: () => void }) => {
 };
 
 export default StudentRegistry;
+

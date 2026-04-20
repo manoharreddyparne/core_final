@@ -37,7 +37,8 @@ const BroadcastProgressOverlay: React.FC<Props> = ({ driveId, onComplete, onClos
             if (!mountedRef.current) return;
             const token = getAccessToken();
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const host = window.location.hostname === 'localhost' ? 'localhost:8000' : window.location.host;
+            const envBase = import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL || '';
+            const host = envBase ? new URL(envBase).host : window.location.host;
             const wsUrl = token
                 ? `${protocol}//${host}/ws/placement/broadcast/${driveId}/?token=${token}`
                 : `${protocol}//${host}/ws/placement/broadcast/${driveId}/`;

@@ -8,10 +8,12 @@ class Institution(models.Model):
     """
     class RegistrationStatus(models.TextChoices):
         PENDING = "PENDING", "Pending Approval"
+        PROVISIONING = "PROVISIONING", "Provisioning in Progress"
         APPROVED = "APPROVED", "Approved"
         REJECTED = "REJECTED", "Rejected"
         REVIEW = "REVIEW", "Under Review"
         MORE_INFO = "MORE_INFO", "More Info Requested"
+        ABORTED = "ABORTED", "Provisioning Aborted"
 
     name = models.CharField(max_length=255, unique=True)
     slug = models.SlugField(max_length=100, unique=True)
@@ -53,9 +55,9 @@ class Institution(models.Model):
     certificate_serial      = models.CharField(max_length=128, blank=True, null=True, help_text="X.509 serial number (hex)")
     certificate_fingerprint = models.CharField(max_length=256, blank=True, null=True, help_text="SHA-256 fingerprint of the X.509 certificate")
 
-    # ── Sovereign Activation Certificate (issued after admin activates account) ──
+    # Sovereign Activation Certificate (issued after admin activates account)
     # Elevated trust scope: clientAuth + emailProtection + codeSigning EKU
-    # 1-year validity — annual renewal cycle
+    # 1-year validity - annual renewal cycle
     activation_cert_id          = models.UUIDField(null=True, blank=True, unique=True, default=None, help_text="Sovereign activation certificate identifier")
     activation_cert_issued_at   = models.DateTimeField(null=True, blank=True)
     activation_cert_expires_at  = models.DateTimeField(null=True, blank=True)
@@ -82,3 +84,50 @@ class InstitutionAdmin(models.Model):
 
     def __str__(self):
         return f"{self.user.email} - {self.institution.name} Admin"
+
+
+class SchemaUpdateHistory(models.Model):
+    """
+    Audit trail for schema migrations applied to institutional databases.
+    Tracks every sync operation for future-proof accountability.
+    """
+    class UpdateStatus(models.TextChoices):
+        IN_PROGRESS = "IN_PROGRESS", "In Progress"
+        SUCCESS = "SUCCESS", "Success"
+        FAILED = "FAILED", "Failed"
+        PARTIAL = "PARTIAL", "Partial (Some migrations failed)"
+
+    institution = models.ForeignKey(
+        Institution, on_delete=models.CASCADE, related_name="schema_updates"
+    )
+    schema_name = models.CharField(max_length=63)
+    version_label = models.CharField(
+        max_length=50, 
+        help_text="Auto-generated version label, e.g. v1, v2"
+    )
+    migrations_applied = models.JSONField(
+        default=list, 
+        help_text="List of migration names that were applied"
+    )
+    migrations_count = models.IntegerField(default=0)
+    started_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    duration_seconds = models.FloatField(null=True, blank=True)
+    triggered_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="schema_updates_triggered"
+    )
+    status = models.CharField(
+        max_length=20, 
+        choices=UpdateStatus.choices, 
+        default=UpdateStatus.IN_PROGRESS
+    )
+    error_message = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['-started_at']
+        verbose_name = "Schema Update History"
+        verbose_name_plural = "Schema Update Histories"
+
+    def __str__(self):
+        return f"{self.schema_name} - {self.version_label} ({self.status})"

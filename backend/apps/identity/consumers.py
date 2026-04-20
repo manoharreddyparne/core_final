@@ -93,7 +93,14 @@ class SessionConsumer(AsyncWebsocketConsumer):
             data = json.loads(text_data)
             action = data.get("action")
 
-            if action == "update_location":
+            if action == "ack":
+                # High-fidelity feedback loop for institutional provisioning
+                seq = data.get("seq")
+                schema = data.get("schema_name")
+                logger.debug(f"[WS-ACK] Client confirmed sequence {seq} for {schema}")
+                # Log or track for audit/performance metrics
+                
+            elif action == "update_location":
                 jti = data.get("jti")
                 latitude = data.get("latitude")
                 longitude = data.get("longitude")

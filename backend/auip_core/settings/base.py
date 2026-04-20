@@ -121,6 +121,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "apps.identity.middleware.AccessTokenSessionMiddleware",
     "apps.identity.middleware.SilentRotationMiddleware",
+    "apps.exams.security.guardian.SecurityGuardianMiddleware",
     
     # AUIP Intelligence & Governance Hub
     "apps.core_brain.middleware.BehaviorTrackingMiddleware",
@@ -236,16 +237,23 @@ REFRESH_COOKIE_MAX_AGE = int(REFRESH_COOKIE_AGE.total_seconds())
 # CORS & CSRF (Development Resilience)
 # -----------------------------
 CORS_ALLOW_CREDENTIALS = True
+from corsheaders.defaults import default_headers
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    "x-asep-integrity",
+]
+
+FRONTEND_URL = config("FRONTEND_URL", default="http://localhost:3000")
+FRONTEND_PORT = config("FRONTEND_PORT", default="3000")
 
 if DEBUG:
     # Blanket permission for local development to prevent origin mismatch lockouts
     CORS_ALLOW_ALL_ORIGINS = True
     CSRF_TRUSTED_ORIGINS = [
-        "http://localhost:3000",
+        FRONTEND_URL,
+        f"http://localhost:{FRONTEND_PORT}",
+        f"http://127.0.0.1:{FRONTEND_PORT}",
         "http://localhost:5173",
-        "http://127.0.0.1:3000",
         "http://127.0.0.1:5173",
-        "http://0.0.0.0:3000"
     ]
 else:
     CORS_ALLOW_ALL_ORIGINS = False
@@ -254,8 +262,6 @@ else:
     
     _CSRF_BASE = config("CSRF_TRUSTED_ORIGINS", default="").split(",")
     CSRF_TRUSTED_ORIGINS = [o for o in _CSRF_BASE if o]
-
-FRONTEND_URL = config("FRONTEND_URL", default="http://localhost:3000")
 
 # -----------------------------
 # ROOT & TEMPLATES

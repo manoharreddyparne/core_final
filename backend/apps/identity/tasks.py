@@ -1,5 +1,5 @@
 """
-AUIP Identity Celery Tasks
+Nexora Identity Celery Tasks
 All certificate generation, email sending, and periodic expiry checks run here — async, retriable.
 
 Queues:
@@ -200,39 +200,28 @@ def provision_institution_task(self, institution_id: int):
         institution = Institution.objects.get(id=institution_id)
         schema_name = institution.schema_name
         reg_data = institution.registration_data or {}
+        initial_users = reg_data.get("initial_users", [])
+        total_seeds = len(initial_users)
         
-        layer = get_channel_layer()
+        from apps.identity.utils.multitenancy import UnifiedProvisioningTracker
+        tracker = UnifiedProvisioningTracker(schema_name, total_seeds=total_seeds)
 
-        def send_ws(msg, progress):
-            if layer:
-                async_to_sync(layer.group_send)(
-                    "superadmin_updates",
-                    {
-                        "type": "institution_update",
-                        "data": {
-                            "type": "PROVISION_PROGRESS",
-                            "schema_name": schema_name,
-                            "progress": progress,
-                            "message": msg
-                        }
-                    }
-                )
-
-        # 1. Create Schema (Progress: 10% - 85%)
-        # create_institution_schema internally sends WS updates during migrations
-        send_ws("Initializing isolation kernel...", 5)
-        created = create_institution_schema(
+        # 1. Create Schema (Phase 0: Workspace Setup)
+        tracker.track_work(0, "Allocating vault resources...")
+        tracker.track_work(0, "Configuring network isolation...")
+        tracker.track_work(0, "Initializing isolation kernel...")
+        create_institution_schema(
             schema_name,
             name=institution.name,
-            domain=institution.domain
+            domain=institution.domain,
+            tracker=tracker
         )
+        tracker.track_work(0, "Vault readiness confirmed.")
+        tracker.track_work(0, "Infrastructure stabilized.")
         
-        if not created:
-             # If already created, just proceed
-             send_ws("Schema already exists, moving to seeding...", 85)
-        
-        # 2. Seed Logic (Progress: 85% - 95%)
-        send_ws("Seeding registry tables...", 86)
+        # 2. Seed Logic (Phase indices 1 & 2)
+        tracker.track_work(2, "Preparing component registry...") 
+        tracker.track_work(2, "Seeding registry tables...")
         initial_users = reg_data.get("initial_users", [])
         
         with schema_context(schema_name):
@@ -245,14 +234,23 @@ def provision_institution_task(self, institution_id: int):
             )
 
             if not initial_users:
+                tracker.track_work(2, "Seeding default Admin boundary...", units=1) # Treat as 1 seed unit
                 AdminPreSeededRegistry.objects.get_or_create(
                     identifier=institution.contact_email,
                     defaults={"is_activated": False}
                 )
+                tracker.track_work(2, "Default identity established.")
             else:
-                for u in initial_users:
+                total = len(initial_users)
+                tracker.track_work(2, f"Queuing {total} identity records...")
+                for i, u in enumerate(initial_users):
                     identifier = u.get("identifier")
                     role = u.get("role", "STUDENT")
+                    
+                    # Update progress for every user
+                    sub_msg = f"Injecting {role.title()} identity records..."
+                    tracker.track_work(2, sub_msg, units=1)
+
                     if identifier:
                         if role == 'ADMIN':
                             model = AdminPreSeededRegistry
@@ -269,13 +267,18 @@ def provision_institution_task(self, institution_id: int):
                             defaults=defaults
                         )
         
-        # 3. Provision Admin User (Progress: 95% - 98%)
-        send_ws("Provisioning administrative edge...", 96)
+        # 3. Provision Admin User (Phase index 3: Applying Security Rules)
+        tracker.track_work(3, "Opening neural gateway...")
+        tracker.track_work(3, "Provisioning administrative edge gateway...")
         admin_name = reg_data.get("admin_name", "") or reg_data.get("contact_person", "")
+        # ... logic ...
+        if isinstance(admin_name, list):
+            admin_name = " ".join(map(str, admin_name))
         name_parts = admin_name.strip().split() if admin_name else []
         first_name = name_parts[0] if name_parts else ""
         last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
 
+        tracker.track_work(3, "Creating institutional primary user...")
         admin_user, user_created = User.objects.get_or_create(
             email=institution.contact_email,
             defaults={
@@ -297,31 +300,206 @@ def provision_institution_task(self, institution_id: int):
                 admin_user.first_time_login = True
                 admin_user.save(update_fields=["role", "need_password_reset", "first_time_login"])
 
+        tracker.track_work(3, "Assigning neural security roles...")
         InstitutionAdmin.objects.get_or_create(
             user=admin_user,
             institution=institution,
             defaults={"role_description": reg_data.get("designation", "Administrator")}
         )
 
-        # 4. Generate Activation link + Cert Task
-        send_ws("Generating governance tokens...", 99)
+        # 4. Governance Link
+        tracker.track_work(4, "Establishing neural governance link...")
+        tracker.track_work(4, "Generating RSA-4096 tokens...")
         activation_token = generate_activation_token(institution.id, institution.contact_email, "ADMIN")
         activation_url = get_activation_url(activation_token, role="ADMIN")
         
         send_approval_certificate_email_task.delay(institution.id, activation_url)
 
         # 5. Finalize
+        tracker.track_work(4, "Synchronizing neural matrix...")
         institution.is_setup_complete = True
         institution.status = Institution.RegistrationStatus.APPROVED
         institution.save()
         
-        send_ws("Environment LIVE", 100)
+        tracker.track_work(4, "Encrypting final handoff...")
+        tracker.complete("Institution Ecosystem LIVE")
         logger.info(f"[PROVISION-TASK] Successfully provisioned {institution.name}")
 
     except Exception as exc:
-        logger.error(f"[PROVISION-TASK] Failed for institution {institution_id}: {exc}", exc_info=True)
-        # Attempt to inform UI of failure
+        logger.error(f"[PROVISION-TASK] Critical failure for institution {institution_id}: {exc}", exc_info=True)
+        # Inform UI of failure with a premium message instead of raw crash
         try:
-             send_ws(f"ERROR: {str(exc)}", -1)
+             tracker.report(42, "Recalibrating Shield Layers (Optimizing Retry)...")
         except: pass
         raise self.retry(exc=exc, max_retries=1)
+
+@shared_task(
+    bind=True,
+    queue="certificates",
+    name="apps.identity.tasks.sync_schema_task",
+)
+def sync_schema_task(self, institution_id: int, request_user_id: int = None):
+    """
+    Background task to sync a specific institution's schema.
+    Handles structural repair + migrations.
+    """
+    import time
+    from django.utils import timezone
+    from django.core.management import call_command
+    from apps.identity.models.institution import Institution, SchemaUpdateHistory, User
+    from apps.identity.utils.multitenancy import (
+        get_schema_sync_status_detailed, 
+        repair_missing_tables, 
+        UnifiedProvisioningTracker, 
+        WSProgressStream
+    )
+    
+    try:
+        institution = Institution.objects.get(id=institution_id)
+        schema_name = institution.schema_name
+        request_user = User.objects.get(id=request_user_id) if request_user_id else None
+        
+        status_info = get_schema_sync_status_detailed(schema_name)
+        missing_tables = status_info.get("missing_tables", [])
+        
+        # 1. Start Audit Trail
+        existing_count = SchemaUpdateHistory.objects.filter(institution=institution).count()
+        version_label = f"v{existing_count + 1}"
+        history = SchemaUpdateHistory.objects.create(
+            institution=institution,
+            schema_name=schema_name,
+            version_label=version_label,
+            triggered_by=request_user,
+            status=SchemaUpdateHistory.UpdateStatus.IN_PROGRESS
+        )
+        
+        tracker = UnifiedProvisioningTracker(schema_name)
+        out = WSProgressStream(tracker)
+        start_time = time.time()
+        
+        # 2. Repair Phase
+        if missing_tables:
+            tracker.track_work(1, f"Found {len(missing_tables)} missing tables. Repairing...")
+            repair_results = repair_missing_tables(schema_name, missing_tables)
+            for res in repair_results:
+                tracker.track_work(1, res)
+        
+        # 3. Migration Phase
+        call_command('migrate_schemas', schema=schema_name, interactive=False, verbosity=1, stdout=out, stderr=out)
+        output = out.getvalue()
+        
+        # 4. Finalize
+        applied = [line.strip().replace('Applying ', '').replace('...', '').strip() 
+                    for line in output.split('\n') if 'Applying ' in line]
+        
+        history.status = SchemaUpdateHistory.UpdateStatus.SUCCESS
+        history.migrations_applied = applied
+        history.migrations_count = len(applied)
+        history.completed_at = timezone.now()
+        history.duration_seconds = round(time.time() - start_time, 2)
+        history.save()
+        
+        # Final broadcast
+        tracker.complete("Synchronization Complete.")
+        return True
+    except Exception as e:
+        logger.error(f"[SYNC-TASK] Failed: {e}", exc_info=True)
+        return False
+
+@shared_task(
+    queue="certificates",
+    name="apps.identity.tasks.sync_all_schemas_task",
+)
+def sync_all_schemas_task():
+    """
+    Global Background Task: Syncs ALL institution schemas.
+    """
+    from django.core.management import call_command
+    from apps.identity.utils.multitenancy import UnifiedProvisioningTracker, WSProgressStream, get_schema_sync_status_detailed, get_migration_loader
+    from apps.identity.models.institution import Institution
+    
+    tracker = UnifiedProvisioningTracker("global_platform")
+    
+    try:
+        # Pre-flight Check: Is there actually work to do?
+        logger.warning("[SYNC-ALL] Running pre-flight ecosystem check...")
+        loader = get_migration_loader()
+        institutions = Institution.objects.filter(status=Institution.RegistrationStatus.APPROVED)
+        needs_update = False
+        
+        for inst in institutions:
+            status = get_schema_sync_status_detailed(inst.schema_name, loader=loader)
+            if not status.get("is_current"):
+                needs_update = True
+                break
+                
+        if not needs_update:
+            logger.info("[SYNC-ALL] Pre-flight skipped: Ecosystem already fully synchronized.")
+            tracker.complete("Ecosystem fully synchronized. No missing tables.")
+            return True
+
+        # Heavy migration path
+        out = WSProgressStream(tracker)
+        logger.warning("[SYNC-ALL] Triggering global migration cascade...")
+        call_command('migrate_schemas', interactive=False, verbosity=1, stdout=out, stderr=out)
+        
+        # Ensure completion signal
+        tracker.complete("Global Platform Synchronized.")
+        return True
+    except Exception as e:
+        logger.error(f"[SYNC-ALL] Global sync failed: {e}")
+        tracker.track_work(4, f"Global Sync Error: {str(e)}")
+        return False
+
+@shared_task(
+    queue="certificates",
+    name="apps.identity.tasks.monitor_ecosystem_health_task",
+)
+def monitor_ecosystem_health_task():
+    """
+    Ecosystem Heartbeat: Periodically verifies health for all schemas.
+    Instead of every client polling (O(N*M)), the server checks once (O(N))
+    and broadcasts only if a discrepancy is found.
+    """
+    from apps.identity.models.institution import Institution
+    from apps.identity.utils.multitenancy import get_schema_sync_status_detailed, get_migration_loader
+    from channels.layers import get_channel_layer
+    from asgiref.sync import async_to_sync
+    import time
+    
+    loader = get_migration_loader()
+    institutions = Institution.objects.filter(status=Institution.RegistrationStatus.APPROVED)
+    channel_layer = get_channel_layer()
+    
+    discrepancies = []
+    
+    for inst in institutions:
+        try:
+            # Fast-path health check
+            status = get_schema_sync_status_detailed(inst.schema_name, loader=loader)
+            if not status.get("is_current"):
+                discrepancies.append({
+                    "slug": inst.slug,
+                    "schema": inst.schema_name,
+                    "status_code": status.get("status_code"),
+                    "missing_tables_count": status.get("missing_tables_count", 0),
+                    "pending_count": status.get("pending_count", 0)
+                })
+        except Exception as e:
+            logger.error(f"[HEARTBEAT] Check failed for {inst.slug}: {e}")
+
+    # Broadcast to all logged-in Admins if any structural change is detected
+    if discrepancies and channel_layer:
+        async_to_sync(channel_layer.group_send)(
+            "superadmin_updates",
+            {
+                "type": "institution_update",
+                "data": {
+                    "type": "HEALTH_DISCREPANCY",
+                    "discrepancies": discrepancies,
+                    "timestamp": time.time()
+                }
+            }
+        )
+    return f"Heartbeat complete. {len(discrepancies)} discrepancies detected."
+

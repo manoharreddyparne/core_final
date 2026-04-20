@@ -1,5 +1,5 @@
 """
-AUIP PKI Service — Root CA, Intermediate CA, Institution Certificate Issuance
+Nexora PKI Service — Root CA, Intermediate CA, Institution Certificate Issuance
 Uses pyca/cryptography (industry standard, same as Let's Encrypt's certbot)
 
 Hierarchy:
@@ -79,8 +79,8 @@ def generate_root_ca(force=False):
     subject = issuer = x509.Name([
         x509.NameAttribute(NameOID.COUNTRY_NAME, "IN"),
         x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, "Telangana"),
-        x509.NameAttribute(NameOID.ORGANIZATION_NAME, "AUIP Platform"),
-        x509.NameAttribute(NameOID.COMMON_NAME, "AUIP Root CA"),
+        x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Nexora"),
+        x509.NameAttribute(NameOID.COMMON_NAME, "Nexora Root CA"),
     ])
 
     now = datetime.datetime.now(datetime.timezone.utc)
@@ -133,8 +133,8 @@ def generate_intermediate_ca(force=False):
     subject = x509.Name([
         x509.NameAttribute(NameOID.COUNTRY_NAME, "IN"),
         x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, "Telangana"),
-        x509.NameAttribute(NameOID.ORGANIZATION_NAME, "AUIP Platform"),
-        x509.NameAttribute(NameOID.COMMON_NAME, "AUIP Intermediate CA"),
+        x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Nexora"),
+        x509.NameAttribute(NameOID.COMMON_NAME, "Nexora Intermediate CA"),
     ])
 
     now = datetime.datetime.now(datetime.timezone.utc)
@@ -183,7 +183,7 @@ def issue_institution_certificate(institution):
     subject = x509.Name([
         x509.NameAttribute(NameOID.COUNTRY_NAME, "IN"),
         x509.NameAttribute(NameOID.ORGANIZATION_NAME, institution.name),
-        x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, "AUIP Member Institution"),
+        x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, "Nexora Member Institution"),
         x509.NameAttribute(NameOID.COMMON_NAME, institution.domain),
     ])
 
@@ -254,7 +254,7 @@ def issue_activation_certificate(institution):
     subject = x509.Name([
         x509.NameAttribute(NameOID.COUNTRY_NAME, "IN"),
         x509.NameAttribute(NameOID.ORGANIZATION_NAME, institution.name),
-        x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, "AUIP Sovereign Member"),
+        x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, "Nexora Sovereign Member"),
         x509.NameAttribute(NameOID.COMMON_NAME, institution.domain),
     ])
 
@@ -304,4 +304,5 @@ def issue_activation_certificate(institution):
     fingerprint = cert.fingerprint(hashes.SHA256()).hex().upper()
 
     return cert_pem, serial_hex, fingerprint, expires, inst_key
+
 

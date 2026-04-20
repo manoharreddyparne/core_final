@@ -3,6 +3,7 @@
 
 import { useEffect, useRef, useCallback, useState } from "react";
 import { apiClient } from "../../api/base"; // ✅ Use apiClient
+import { API_CONFIG } from "../../../../config/api";
 
 import {
   getAccessToken,
@@ -89,7 +90,7 @@ export const useSessionSocket = (user: User | null, isReady: boolean = true) => 
     if (socketRef.current?.readyState === WebSocket.OPEN) return;
 
     const wsBase =
-      import.meta.env.VITE_BACKEND_WS_URL || "ws://localhost:8000/ws/sessions/";
+      import.meta.env.VITE_BACKEND_WS_URL || `${API_CONFIG.WS}/ws/sessions/`;
     const wsUrl = `${wsBase}?token=${token}`;
 
     logger.log("[WS] connecting →", wsUrl);
@@ -165,6 +166,20 @@ export const useSessionSocket = (user: User | null, isReady: boolean = true) => 
 
         case "institution_update": {
           logger.log("[WS] 🏢 Institution Update Received!", data.data);
+          
+          // 🚀 REAL-TIME ACK FEEDBACK LOOP
+          if (data.data?.type === "PROVISION_PROGRESS") {
+             const { schema_name, timestamp } = data.data;
+             if (socketRef.current?.readyState === WebSocket.OPEN) {
+                socketRef.current.send(JSON.stringify({
+                   action: "ack",
+                   schema_name: schema_name,
+                   seq: timestamp
+                }));
+                logger.log(`[WS] 📤 ACK sent for ${schema_name} @ ${timestamp}`);
+             }
+          }
+
           // Dispatch global event so InstitutionAdmin.tsx can refresh
           const customEvent = new CustomEvent('institution-updated', {
             detail: data.data

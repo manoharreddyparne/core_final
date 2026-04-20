@@ -98,7 +98,7 @@ export const InstitutionInterestModal: React.FC<Props> = ({ isOpen, onClose, ini
                                     Campus <span className="text-primary italic">Survey</span>
                                 </DialogTitle>
                                 <DialogDescription className="text-xs text-gray-500 font-medium mt-0.5">
-                                    Help us bring AUIP to your institution
+                                    Help us bring Nexora to your institution
                                 </DialogDescription>
                             </div>
                         </div>
@@ -255,7 +255,7 @@ export const InstitutionInterestModal: React.FC<Props> = ({ isOpen, onClose, ini
 
                     <textarea
                         id="additional_notes"
-                        placeholder="Tell us why your campus needs AUIP..."
+                        placeholder="Tell us why your campus needs Nexora..."
                         rows={3}
                         className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-medium text-sm placeholder:text-gray-700 outline-none focus:ring-2 focus:ring-primary/40 transition-all resize-none"
                         value={formData.additional_notes}
@@ -303,3 +303,4 @@ export const InstitutionInterestModal: React.FC<Props> = ({ isOpen, onClose, ini
         </Dialog>
     );
 };
+

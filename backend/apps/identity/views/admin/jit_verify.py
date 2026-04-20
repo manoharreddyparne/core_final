@@ -3,6 +3,7 @@ import logging
 from django.conf import settings
 from django.core.cache import cache
 from django.core.mail import send_mail
+from apps.identity.utils.email_utils import send_jit_link_email, send_burst_suppression_alert
 from rest_framework import generics, status
 from rest_framework.response import Response
 from apps.identity.utils.jit_admin import verify_jit_admin_ticket, generate_jit_admin_ticket
@@ -13,15 +14,24 @@ logger = logging.getLogger(__name__)
 class VerifyAdminTicketView(generics.GenericAPIView):
     """
     Validation endpoint for JIT admin tickets.
+    Enforces Strict Session Isolation.
     """
     def post(self, request, *args, **kwargs):
+        # 🚨 ZERO-TRUST: Block if an active session already exists
+        if request.user and request.user.is_authenticated:
+            logger.warning(f"[SEC-GATE] JIT Rejected: Existing session detected for {request.user.email}")
+            return Response({
+                "valid": False, 
+                "detail": "Active session detected. Please logout before using a secure access link."
+            }, status=status.HTTP_200_OK)
+
         ticket = request.data.get("ticket")
         if not ticket:
             return Response({"valid": False}, status=status.HTTP_400_BAD_REQUEST)
         
         is_valid = verify_jit_admin_ticket(ticket)
         logger.info(f"[SEC-GATE] Ticket check: ticket={ticket[:15]}... valid={is_valid}")
-        return Response({"valid": is_valid}, status=status.HTTP_200_OK if is_valid else status.HTTP_200_OK) # Return 200 even for invalid to avoid Axios throw 404 immediately
+        return Response({"valid": is_valid}, status=status.HTTP_200_OK)
 
 
 
@@ -74,28 +84,8 @@ class RequestAdminAccessView(generics.GenericAPIView):
             if ttl is not None and ttl > 0:
                 logger.info(f"[SEC-GATE] Burst protection active for {email}. Waiting {ttl}s.")
                 
-                # Proactive Security Notification
-                alert_subject = "⚠️ PROTOCOL ALERT: JIT Burst Suppression"
-                alert_message = (
-                    f"A suppressed JIT access request was detected for root identifier: {email}\n\n"
-                    f"INTRA-GATE STATUS:\n"
-                    f"-----------------------------------\n"
-                    f"Action: REQUEST SUPPRESSED\n"
-                    f"Reason: Multi-Request Burst Detected\n"
-                    f"Blocked IP: {ip}\n"
-                    f"Suppression Window Remaining: {ttl} seconds\n"
-                    f"Timestamp: {time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime())}\n"
-                    f"-----------------------------------\n\n"
-                    f"No action is required if this was you. If this activity is unexpected, please bridge into the infrastructure monitor."
-                )
                 try:
-                    send_mail(
-                        alert_subject,
-                        alert_message,
-                        settings.DEFAULT_FROM_EMAIL,
-                        [target_email],
-                        fail_silently=True,
-                    )
+                    send_burst_suppression_alert(target_email, ip, ttl)
                 except Exception as e:
                     logger.error(f"Failed to send burst alert: {e}")
 
@@ -123,24 +113,9 @@ class RequestAdminAccessView(generics.GenericAPIView):
             clear_failed_attempt(target_email, ip)
             logger.info(f"[SEC-GATE] JIT generated for {target_email} — failure counters reset for IP={ip}")
 
-            subject = "SECURITY: Dynamic Admin Gate Initialization"
-            message = (
-                f"A secure gateway request was initiated for AUIP Platform.\n\n"
-                f"Your JIT access link is valid for 15 minutes and strictly one-time use:\n"
-                f"{access_url}\n\n"
-                f"Note: Requesting a new link automatically invalidates any existing ones.\n"
-                f"Incident Report ID: {int(time.time())}\n"
-                f"Auth Protocol: HMAC-SHA256-JIT"
-            )
-            
             try:
-                send_mail(
-                    subject,
-                    message,
-                    settings.DEFAULT_FROM_EMAIL,
-                    [target_email],
-                    fail_silently=False,
-                )
+                device_info = request.META.get('HTTP_USER_AGENT', 'Unknown Cybernetics OS')
+                send_jit_link_email(target_email, access_url, ip_address=ip, device=device_info)
                 # Set 3 minute burst cooldown
                 cache.set(cooldown_key, True, 180) 
                 logger.info(f"✅ JIT Link sent to {target_email} - URL: {access_url}")

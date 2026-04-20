@@ -26,7 +26,7 @@ def _cert_status(expires_at) -> str:
 
 class CertificateVerifyView(APIView):
     """
-    Unified public endpoint to verify any AUIP digital certificate.
+    Unified public endpoint to verify any Nexora digital certificate.
     ?type=approval   → Provisional Trust Certificate (issued on approval)
     ?type=activation → Sovereign Activation Certificate (issued after account activation)
     Default: approval
@@ -69,7 +69,7 @@ class CertificateVerifyView(APIView):
                 "fingerprint": institution.certificate_fingerprint,
                 "issued_at": institution.certificate_issued_at.isoformat() if institution.certificate_issued_at else None,
                 "expires_at": institution.certificate_expires_at.isoformat() if institution.certificate_expires_at else None,
-                "authority": "AUIP Intermediate CA",
+                "authority": "Nexora Intermediate CA",
                 "signature_algo": "SHA-256 with RSA-4096",
                 "key_usage": ["digitalSignature", "contentCommitment"],
                 "extended_key_usage": ["serverAuth", "emailProtection"],
@@ -77,8 +77,8 @@ class CertificateVerifyView(APIView):
                 "pdf_url": request.build_absolute_uri(institution.certificate_url) if institution.certificate_url else None,
             },
             "chain": [
-                {"name": "AUIP Root CA", "type": "root", "validity": "20 years"},
-                {"name": "AUIP Intermediate CA", "type": "intermediate", "validity": "10 years"},
+                {"name": "Nexora Root CA", "type": "root", "validity": "20 years"},
+                {"name": "Nexora Intermediate CA", "type": "intermediate", "validity": "10 years"},
                 {"name": institution.name, "type": "end-entity", "validity": "2 years"},
             ],
         })
@@ -110,7 +110,7 @@ class CertificateVerifyView(APIView):
                 "fingerprint": institution.activation_cert_fingerprint,
                 "issued_at": institution.activation_cert_issued_at.isoformat() if institution.activation_cert_issued_at else None,
                 "expires_at": institution.activation_cert_expires_at.isoformat() if institution.activation_cert_expires_at else None,
-                "authority": "AUIP Intermediate CA",
+                "authority": "Nexora Intermediate CA",
                 "signature_algo": "SHA-256 with RSA-4096",
                 "key_usage": ["digitalSignature", "contentCommitment"],
                 "extended_key_usage": ["clientAuth", "emailProtection", "codeSigning"],
@@ -118,8 +118,9 @@ class CertificateVerifyView(APIView):
                 "pdf_url": request.build_absolute_uri(institution.activation_cert_url) if institution.activation_cert_url else None,
             },
             "chain": [
-                {"name": "AUIP Root CA", "type": "root", "validity": "20 years"},
-                {"name": "AUIP Intermediate CA", "type": "intermediate", "validity": "10 years"},
+                {"name": "Nexora Root CA", "type": "root", "validity": "20 years"},
+                {"name": "Nexora Intermediate CA", "type": "intermediate", "validity": "10 years"},
                 {"name": institution.name, "type": "end-entity", "validity": "1 year"},
             ],
         })
+

@@ -22,8 +22,11 @@ class SessionViewSet(viewsets.ViewSet):
     @action(detail=False, methods=['get'])
     def list_sessions(self, request):
         """Highly optimized session list with <500ms target."""
-        my_id = self._get_my_id(request)
         role = request.user.role
+        if role == 'SUPER_ADMIN':
+            return success_response("Sessions retrieved", data=[])
+            
+        my_id = self._get_my_id(request)
         search = request.query_params.get('search', '').lower()
 
         # Optimize with select_related if there were related objects, 

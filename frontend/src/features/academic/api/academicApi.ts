@@ -1,9 +1,8 @@
 import axios from "axios";
 import { attachInterceptors } from "../../auth/api/base";
+import { API_CONFIG } from "../../../config/api";
 
-export const ACADEMIC_API_BASE_URL = import.meta.env.VITE_BACKEND_URL
-    ? `${import.meta.env.VITE_BACKEND_URL}/api/courses/`
-    : `http://localhost:8000/api/courses/`;
+export const ACADEMIC_API_BASE_URL = API_CONFIG.COURSES;
 
 export const academicApiClient = axios.create({
     baseURL: ACADEMIC_API_BASE_URL,

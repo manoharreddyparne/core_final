@@ -24,12 +24,12 @@ def _build_html_email(
     role_label = entry_type.capitalize()
     plain = (
         f"Hello {full_name},\n\n"
-        f"You have been invited to join AUIP as a {role_label} at {institution_name}.\n\n"
+        f"You have been invited to join Nexora as a {role_label} at {institution_name}.\n\n"
         f"Activate your account here:\n  {activation_url}\n\n"
         f"This link is valid for {expires_days} days and can only be used once.\n"
         f"If a new link is sent by your admin, this one will be invalidated.\n\n"
         f"If you did not expect this, contact your institution administrator.\n\n"
-        f"Regards,\nAUIP Governance Team"
+        f"Regards,\nNexora Governance Team"
     )
 
     html = f"""<!DOCTYPE html>
@@ -37,7 +37,7 @@ def _build_html_email(
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>AUIP Account Activation</title>
+<title>Nexora Account Activation</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
   * {{ box-sizing: border-box; margin: 0; padding: 0; }}
@@ -86,7 +86,7 @@ def _build_html_email(
           <path d="M2 12L12 17L22 12" stroke="white" stroke-width="2" stroke-linejoin="round"/>
         </svg>
       </div>
-      <div class="brand-text">AUIP <span>Platform</span></div>
+      <div class="brand-text">Nexora <span>Platform</span></div>
     </div>
     <div class="badge">Identity Access Request</div>
     <h1>Activate Your<br/><span>{role_label} Account</span></h1>
@@ -95,7 +95,7 @@ def _build_html_email(
   <div class="body">
     <p class="greeting">Hello, {full_name}</p>
     <p class="subtext">
-      You have been invited to join the <strong>Adaptive University Intelligence Platform</strong>
+      You have been invited to join the <strong>Nexora</strong>
       as a <strong>{role_label}</strong> at <strong>{institution_name}</strong>.
       Click the button below to set up your credentials and access your dashboard.
     </p>
@@ -144,8 +144,8 @@ def _build_html_email(
 
   <div class="footer">
     <p class="footer-text">
-      This is an automated message from the AUIP Governance System.<br/>
-      Sent on behalf of <strong>{institution_name}</strong> · Powered by AUIP Platform<br/>
+      This is an automated message from the Nexora Governance System.<br/>
+      Sent on behalf of <strong>{institution_name}</strong> · Powered by Nexora<br/>
       Do not reply to this email · <a href="#">Privacy Policy</a>
     </p>
   </div>
@@ -220,7 +220,7 @@ class ActivationService:
             institution_name=institution_name,
             expires_days=7,
         )
-        subject = f"[AUIP] Activate Your {entry_type.capitalize()} Account — {institution_name}"
+        subject = f"[Nexora] Activate Your {entry_type.capitalize()} Account — {institution_name}"
 
         # Collect recipient list: official + personal (deduped)
         recipients = [registry_entry.email]
@@ -258,8 +258,9 @@ class NotificationService:
     def send_activation_link(student, invitation):
         from django.core.mail import EmailMultiAlternatives
         activation_url = f"{settings.FRONTEND_URL}/activate?token={invitation.token}"
-        subject = "Welcome to AUIP - Activate Your Account"
-        body = f"Hello {student.full_name},\n\nActivate here:\n{activation_url}\n\nAUIP Team"
+        subject = "Welcome to Nexora - Activate Your Account"
+        body = f"Hello {student.full_name},\n\nActivate here:\n{activation_url}\n\nNexora Team"
         msg = EmailMultiAlternatives(subject, body, settings.DEFAULT_FROM_EMAIL, [student.official_email])
         msg.send()
+
 

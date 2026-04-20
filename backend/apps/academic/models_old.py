@@ -1,5 +1,5 @@
 # apps/academic/models.py
-# Full Academic Infrastructure for AUIP Platform
+# Full Academic Infrastructure for Nexora
 # Per-tenant schema (in TENANT_APPS)
 # ─────────────────────────────────────────────────────────────────────────────
 from django.db import models
@@ -477,3 +477,4 @@ class Batch(models.Model):
 
     def __str__(self):
         return f"{self.course.code} - {self.name}"
+

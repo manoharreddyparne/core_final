@@ -17,9 +17,12 @@ t = ActivationToken.objects.filter(email=email).order_by('-created_at').first()
 
 tenant_t = TenantActivationToken.objects.filter(email=email).order_by('-created_at').first()
 
+from django.conf import settings as s
+frontend = getattr(s, 'FRONTEND_URL', 'http://localhost:3000')
+
 if tenant_t and (not t or tenant_t.created_at > t.created_at):
-    print(f"http://localhost:3000/auth/activate?token={tenant_t.token}")
+    print(f"{frontend}/auth/activate?token={tenant_t.token}")
 elif t:
-    print(f"http://localhost:3000/auth/activate?token={t.token}")
+    print(f"{frontend}/auth/activate?token={t.token}")
 else:
     print("NONE")

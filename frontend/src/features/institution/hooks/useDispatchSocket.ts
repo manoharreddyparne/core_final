@@ -4,6 +4,7 @@
  */
 import { useState, useRef, useCallback } from "react";
 import { getAccessToken } from "../../auth/utils/tokenStorage";
+import { API_CONFIG } from "../../../config/api";
 
 export interface DispatchEvent {
     roll: string;
@@ -48,7 +49,7 @@ export const useDispatchSocket = () => {
         setState("connecting");
 
         const token = getAccessToken();
-        const wsBase = (import.meta.env.VITE_WS_URL || "ws://localhost:8000").replace(/\/$/, "");
+        const wsBase = (import.meta.env.VITE_WS_URL || API_CONFIG.WS).replace(/\/$/, "");
         const url = `${wsBase}/ws/dispatch/${token ? `?token=${token}` : ""}`;
 
         const ws = new WebSocket(url);

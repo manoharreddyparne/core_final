@@ -1,24 +1,6 @@
-// src/features/resumes/api.ts
-import axios from "axios";
+import { coreApiClient as resumeClient } from "../auth/api/base";
+import { API_CONFIG } from "../../config/api";
 import { StudentResume, ResumeTemplate, AIOptimizationResponse, ATSCheckResponse } from "./types";
-import { getAccessToken } from "../auth/utils/tokenStorage";
-
-const BASE_URL = import.meta.env.VITE_BACKEND_URL
-    ? `${import.meta.env.VITE_BACKEND_URL}/api/`
-    : `http://localhost:8000/api/`;
-
-const resumeClient = axios.create({
-    baseURL: BASE_URL,
-    withCredentials: true,
-});
-
-resumeClient.interceptors.request.use((config) => {
-    const token = getAccessToken();
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-});
 
 export const resumeApi = {
     getResumes: async (): Promise<StudentResume[]> => {

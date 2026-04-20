@@ -7,7 +7,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         ticket = generate_jit_admin_ticket()
-        base_url = "http://localhost:3000"
+        base_url = getattr(settings, "FRONTEND_URL", "http://localhost:3000")
         jit_url = f"{base_url}/auth/secure-gateway?ticket={ticket}"
         
         self.stdout.write(self.style.SUCCESS("--- AUTHENTICATED JIT GATE GENERATED ---"))

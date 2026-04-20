@@ -72,7 +72,7 @@ def send_otp_to_identifier(identifier: str, email: str, otp: str = None) -> str:
 
     # Send valid email
     try:
-        subject = "AUIP - Your Verification Code"
+        subject = "Nexora - Your Verification Code"
         message = f"Your verification code is: {otp}"
         send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [email])
     except Exception as e:
@@ -97,3 +97,4 @@ def verify_otp_for_identifier(identifier: str, otp: str) -> bool:
         
     logger.warning(f"OTP invalid/expired for identifier {identifier}")
     return False
+

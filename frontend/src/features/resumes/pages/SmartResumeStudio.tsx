@@ -34,7 +34,7 @@ const SmartResumeStudio: React.FC = () => {
                 skills: ["React", "Python", "Docker", "AWS", "TypeScript"],
                 experience: [
                     {
-                        company: "AUIP Tech Labs",
+                        company: "Nexora Tech Labs",
                         role: "Student Intern",
                         duration: "Jan 2026 - Present",
                         bullets: ["Developing multi-tenant AI architecture", "Scaling PostgreSQL for 10k users"]
@@ -176,3 +176,4 @@ const SmartResumeStudio: React.FC = () => {
 };
 
 export default SmartResumeStudio;
+

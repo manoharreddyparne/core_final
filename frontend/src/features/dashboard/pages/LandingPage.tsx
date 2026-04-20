@@ -81,7 +81,7 @@ export const LandingPage = () => {
                     {content.brand?.logo_url ? (
                         <img
                             src={content.brand.logo_url}
-                            alt={content.brand.logo_alt || "AUIP Platform"}
+                            alt={content.brand.logo_alt || "Nexora"}
                             className="h-10 w-auto object-contain"
                         />
                     ) : (
@@ -90,7 +90,7 @@ export const LandingPage = () => {
                                 <Globe className="w-5 h-5 text-white" />
                             </div>
                             <span className="text-xl font-black tracking-tight uppercase italic">
-                                AUIP <span className="text-blue-500 not-italic">Platform</span>
+                                Nexora <span className="text-blue-500 not-italic">Platform</span>
                             </span>
                         </>
                     )}
@@ -271,7 +271,7 @@ export const LandingPage = () => {
                             </div>
                             <div className="space-y-3">
                                 <h3 className="text-2xl font-black">Register Institution</h3>
-                                <p style={{ color: "var(--text-secondary)" }} className="leading-relaxed">New university? Apply to join the AUIP Academic Network and get your institutional environment provisioned.</p>
+                                <p style={{ color: "var(--text-secondary)" }} className="leading-relaxed">New university? Apply to join the Nexora Academic Network and get your institutional environment provisioned.</p>
                             </div>
                             <div className="mt-auto flex items-center gap-2 text-xs font-black text-green-400 uppercase tracking-widest">
                                 Apply Now <ArrowRight className="w-4 h-4 group-hover:translate-x-2 transition-transform duration-300" />
@@ -401,8 +401,8 @@ export const LandingPage = () => {
                             </div>
                         </div>
                         <h2 className="text-4xl md:text-5xl font-black tracking-tight">
-                            {content.whitepaper.heading.includes("AUIP")
-                                ? <>{content.whitepaper.heading.split("AUIP ")[0]}AUIP <span className="italic font-light">{content.whitepaper.heading.split("AUIP ")[1] || "Whitepaper"}</span></>
+                            {content.whitepaper.heading.includes("Nexora")
+                                ? <>{content.whitepaper.heading.split("Nexora ")[0]}Nexora <span className="italic font-light">{content.whitepaper.heading.split("Nexora ")[1] || "Whitepaper"}</span></>
                                 : content.whitepaper.heading
                             }
                         </h2>
@@ -418,7 +418,7 @@ export const LandingPage = () => {
                             src={content.whitepaper.view_url || "/whitepaper.html"}
                             className="w-full"
                             style={{ height: "560px", border: "none", display: "block" }}
-                            title="AUIP Whitepaper Preview"
+                            title="Nexora Whitepaper Preview"
                         />
 
                         {/* Action bar */}
@@ -608,7 +608,7 @@ export const LandingPage = () => {
                             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
                                 <Globe className="w-5 h-5 text-white" />
                             </div>
-                            <span className="text-xl font-black tracking-tight uppercase italic">AUIP</span>
+                            <span className="text-xl font-black tracking-tight uppercase italic">Nexora</span>
                         </div>
                         <p className="text-sm leading-relaxed max-w-xs" style={{ color: "var(--text-secondary)" }}>
                             {content.footer.tagline}
@@ -700,3 +700,4 @@ export const LandingPage = () => {
         </div>
     );
 };
+

@@ -69,14 +69,23 @@ export const PremiumOTPModal = ({
     }, [open]);
 
     const handleInput = (val: string, index: number) => {
-        const cleanVal = val.replace(/\D/g, "").slice(-1);
+        const cleanVal = val.replace(/\D/g, "");
         if (!cleanVal && val !== "") return;
+
+        // 🚀 Handle multi-digit input (Auto-fill or long paste)
+        if (cleanVal.length >= 2) {
+            const pastedData = cleanVal.slice(0, 6);
+            setOtp(pastedData);
+            const nextIndex = Math.min(pastedData.length, 5);
+            focusInput(nextIndex);
+            return;
+        }
 
         const newOtpArr = otp.split("");
         // Ensure array is 6 length
         while (newOtpArr.length < 6) newOtpArr.push("");
 
-        newOtpArr[index] = cleanVal;
+        newOtpArr[index] = cleanVal.slice(-1);
         const finalOtp = newOtpArr.join("").slice(0, 6);
         setOtp(finalOtp);
 
@@ -175,6 +184,7 @@ export const PremiumOTPModal = ({
                                         onKeyDown={(e) => handleKeyDown(e, i)}
                                         onPaste={handlePaste}
                                         onFocus={() => setFocusedIndex(i)}
+                                        autoComplete={i === 0 ? "one-time-code" : "off"}
                                         className={`w-10 h-16 sm:w-14 sm:h-20 bg-white/5 border-2 rounded-2xl text-center text-3xl font-black text-white outline-none transition-all duration-300 caret-transparent ${focusedIndex === i
                                             ? "border-primary shadow-[0_0_25px_rgba(59,130,246,0.3)] bg-white/10 scale-105"
                                             : "border-white/10 hover:border-white/20"

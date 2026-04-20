@@ -182,10 +182,10 @@ export const AppLayout: React.FC = () => {
 
 
 
-        // CROSS-ROLE TOOLS
-        { to: "/professional-hub", label: "Professional Hub", icon: Globe, roles: ["all"] },
-        { to: "/discovery", label: "Search Network", icon: Search, roles: ["all"] },
-        { to: "/chat-hub", label: "Comms Hub", icon: MessageCircle, roles: ["all"], badge: 'SECURE' },
+        // CROSS-ROLE TOOLS (Multi-tenant focused)
+        { to: "/professional-hub", label: "Professional Hub", icon: Globe, roles: ["student", "faculty", "teacher", "institution_admin", "admin", "inst_admin"] },
+        { to: "/discovery", label: "Search Network", icon: Search, roles: ["student", "faculty", "teacher", "institution_admin", "admin", "inst_admin"] },
+        { to: "/chat-hub", label: "Comms Hub", icon: MessageCircle, roles: ["student", "faculty", "teacher", "institution_admin", "admin", "inst_admin"], badge: 'SECURE' },
         { to: "/profile", label: "My Profile", icon: User, roles: ["all"] },
     ], [isInstAdmin, isFaculty, role]);
 
@@ -209,7 +209,7 @@ export const AppLayout: React.FC = () => {
 
     // 📡 3. Background Services (Notification & Heartbeat)
     useEffect(() => {
-        if (!user) return;
+        if (!user || user.role === 'SUPER_ADMIN') return;
         const fetchCount = () => {
             notificationApi.getNotifications().then(res => {
                 const list = res?.data || (Array.isArray(res) ? res : []);
@@ -276,7 +276,7 @@ export const AppLayout: React.FC = () => {
         return (
             <div className="fixed inset-0 bg-[#050608] flex flex-col items-center justify-center z-[100] gap-8">
                 <div className="w-24 h-24 border-t-4 border-primary rounded-full animate-spin shadow-2xl shadow-primary/20" />
-                <h2 className="text-2xl font-black text-white tracking-widest uppercase italic">AUIP <span className="text-primary NOT-italic">Matrix</span></h2>
+                <h2 className="text-2xl font-black text-white tracking-widest uppercase italic">Nexora <span className="text-primary NOT-italic">Matrix</span></h2>
             </div>
         );
     }
@@ -302,7 +302,7 @@ export const AppLayout: React.FC = () => {
                 <div className={`h-24 px-8 border-b border-white/5 flex items-center ${isSidebarCollapsed ? "justify-center" : "justify-between"}`}>
                     {!isSidebarCollapsed && (
                         <div className="animate-in fade-in slide-in-from-left duration-700">
-                            <h2 className="text-2xl font-black tracking-tighter text-white italic">AUIP<span className="text-primary NOT-italic">.</span></h2>
+                            <h2 className="text-2xl font-black tracking-tighter text-white italic">Nexora<span className="text-primary NOT-italic">.</span></h2>
                             <p className="text-[9px] font-black text-white/20 uppercase tracking-[0.4em] leading-none mt-1">Platform</p>
                         </div>
                     )}
@@ -410,32 +410,52 @@ export const AppLayout: React.FC = () => {
                 {/* 🛡️ Global Layer Anchor for Overlays */}
                 <div className="relative flex-1 min-h-0 min-w-0 flex flex-col">
                     {/* Top Bar for Chat or Global Tools */}
-                    <div className={`h-24 flex items-center justify-end px-8 md:px-14 gap-8 sticky top-0 z-[100] backdrop-blur-3xl bg-inherit/10 shrink-0`}>
+                    <div className={`${user?.role === 'SUPER_ADMIN' ? 'h-16' : 'h-24'} flex items-center justify-end px-8 md:px-14 gap-8 sticky top-0 z-[100] backdrop-blur-3xl bg-inherit/10 shrink-0 border-b border-white/[0.02]`}>
                         {/* Mobile Menu Trigger */}
                         <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden mr-auto w-12 h-12 glass rounded-2xl flex items-center justify-center">
                             <Menu className="w-6 h-6 text-white" />
                         </button>
 
                         <div className="flex items-center gap-4">
-                            {/* Neural Omni-Search */}
-                            <button onClick={() => setIsSearchOpen(true)} className="hidden sm:flex glass-dark h-12 px-6 rounded-2xl border-white/5 items-center gap-4 text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-white transition-all group">
-                                <Search className="w-5 h-5 group-hover:text-primary transition-all duration-500" />
-                                <span>Matrix Search</span>
-                                <div className="ml-4 px-2 py-1 bg-white/5 rounded-lg border border-white/5 text-[8px] opacity-40">⌘K</div>
-                            </button>
-
-                            {/* Alert Matrix Trigger */}
-                            <div className="relative">
-                                <button onClick={() => setIsNotificationsOpen(!isNotificationsOpen)} className={`w-12 h-12 rounded-2xl glass-dark border-white/5 flex items-center justify-center text-gray-500 hover:text-white transition-all relative ${isNotificationsOpen ? 'ring-2 ring-primary/50 text-primary' : ''}`}>
-                                    <Bell className="w-6 h-6" />
-                                    {unreadNotifs > 0 && <span className="absolute top-4 right-4 w-2.5 h-2.5 bg-primary rounded-full shadow-[0_0_15px_rgba(235,108,34,1)] animate-pulse" />}
-                                </button>
-                                {isNotificationsOpen && (
-                                    <div className="absolute top-[120%] right-0 z-[200] origin-top-right">
-                                        <NotificationOverlay isOpen={isNotificationsOpen} onClose={() => setIsNotificationsOpen(false)} />
+                            {user?.role === 'SUPER_ADMIN' ? (
+                                <div className="hidden md:flex items-center gap-6">
+                                    <div className="flex items-center gap-2 px-4 py-2 glass bg-emerald-500/5 rounded-xl border border-emerald-500/10">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                        <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">Global Ops: Optimal</span>
                                     </div>
-                                )}
-                            </div>
+                                    <div className="flex items-center gap-2 px-4 py-2 glass bg-primary/5 rounded-xl border border-primary/10">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                                        <span className="text-[9px] font-black text-primary uppercase tracking-widest">Auth Gateway: Secure</span>
+                                    </div>
+                                </div>
+                            ) : (
+                                <>
+                                    {/* Neural Omni-Search */}
+                                    <button onClick={() => setIsSearchOpen(true)} className="hidden sm:flex glass-dark h-12 px-6 rounded-2xl border-white/5 items-center gap-4 text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-white transition-all group">
+                                        <Search className="w-5 h-5 group-hover:text-primary transition-all duration-500" />
+                                        <span>Matrix Search</span>
+                                        <div className="ml-4 px-2 py-1 bg-white/5 rounded-lg border border-white/5 text-[8px] opacity-40">⌘K</div>
+                                    </button>
+        
+                                    {/* Alert Matrix Trigger */}
+                                    <div className="relative">
+                                        <button onClick={() => setIsNotificationsOpen(!isNotificationsOpen)} className={`w-12 h-12 rounded-2xl glass-dark border-white/5 flex items-center justify-center text-gray-500 hover:text-white transition-all relative ${isNotificationsOpen ? 'ring-2 ring-primary/50 text-primary' : ''}`}>
+                                            <Bell className="w-6 h-6" />
+                                            {unreadNotifs > 0 && (
+                                                <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary text-white text-[10px] font-black rounded-lg flex items-center justify-center border-4 border-[#070b14] animate-bounce">
+                                                    {unreadNotifs}
+                                                </span>
+                                            )}
+                                        </button>
+        
+                                        {isNotificationsOpen && (
+                                            <div className="absolute right-0 top-full mt-4 animate-in slide-in-from-top-4 duration-500">
+                                                <NotificationOverlay isOpen={isNotificationsOpen} onClose={() => setIsNotificationsOpen(false)} />
+                                            </div>
+                                        )}
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
 
@@ -476,3 +496,4 @@ export const AppLayout: React.FC = () => {
 };
 
 export default AppLayout;
+

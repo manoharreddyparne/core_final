@@ -11,7 +11,8 @@ import {
     Brain,
     ExternalLink,
     ArrowRight,
-    BookOpen
+    BookOpen,
+    MessageSquare
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
@@ -276,6 +277,38 @@ export const InstAdminDashboard = () => {
                     </div>
                 </div>
 
+                {/* HQ Support Card - DIRECT CONNECT TO SUPER ADMIN */}
+                <div className="glass p-10 rounded-[3rem] bg-primary/5 border-primary/20 relative overflow-hidden group flex flex-col justify-between h-[320px] lg:col-span-2">
+                    <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-110 transition-transform">
+                        <ShieldCheck className="w-64 h-64 text-primary" />
+                    </div>
+                    <div className="relative z-10 space-y-4">
+                        <div className="w-16 h-16 rounded-3xl bg-primary/20 flex items-center justify-center text-primary border border-primary/30 shadow-2xl">
+                            <Users className="w-8 h-8" />
+                        </div>
+                        <div>
+                            <h2 className="text-4xl font-black text-white leading-tight tracking-tighter italic">CONNECT WITH <span className="text-primary not-italic">Nexora HQ</span></h2>
+                            <p className="text-gray-400 text-base font-medium max-w-2xl leading-relaxed mt-2">
+                                Direct encrypted line to the Platform Governors. Use this to report infrastructure anomalies,
+                                requested scale increments, or tenant-level governance assistance.
+                            </p>
+                        </div>
+                    </div>
+                    <div className="relative z-10 flex items-center gap-4">
+                        <button
+                            onClick={() => navigate("/chat-hub")}
+                            className="px-10 py-4 bg-primary text-white font-black uppercase tracking-widest rounded-[2rem] shadow-[0_0_30px_rgba(235,108,34,0.3)] hover:scale-105 active:scale-95 transition-all flex items-center gap-3"
+                        >
+                            <MessageSquare className="w-5 h-5" />
+                            Open Secure Channel
+                        </button>
+                        <div className="hidden sm:flex items-center gap-2 px-6 py-4 glass bg-white/5 rounded-[2rem] border-white/10">
+                            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                            <span className="text-[10px] font-black text-white uppercase tracking-widest">HQ Availability: Online</span>
+                        </div>
+                    </div>
+                </div>
+
             </div>
 
             {/* Recent Activity Mini-Feed */}
@@ -305,3 +338,4 @@ export const InstAdminDashboard = () => {
 };
 
 export default InstAdminDashboard;
+

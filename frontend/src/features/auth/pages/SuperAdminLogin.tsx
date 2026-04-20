@@ -16,6 +16,7 @@ import { useSearchParams } from "react-router-dom";
 import { v2AuthApi } from "../api/v2AuthApi";
 import { toast } from "react-hot-toast";
 import { PageNotFound } from "../../../components/PageNotFound";
+import { LoadingScreen } from "../../../shared/components/LoadingScreen";
 
 
 export default function SuperAdminLogin() {
@@ -36,16 +37,17 @@ export default function SuperAdminLogin() {
         setRememberDevice,
         lockoutTimer,
         resendCooldown,
-        handleResendAdminOTP
+        handleResendAdminOTP,
+        turnstileSiteKey // Extract from hook
     } = useLoginV2VM();
 
     const [searchParams] = useSearchParams();
-    // 🛡️ SECURITY FAILSAFE: Combined URL extraction to bypass potential React Router sync delays
     const ticket = searchParams.get("ticket") || new URLSearchParams(window.location.search).get("ticket");
 
     const [isVerifyingTicket, setIsVerifyingTicket] = useState(true);
     const [isTicketValid, setIsTicketValid] = useState(false);
-    const [siteKey, setSiteKey] = useState<string>("");
+    const [error, setError] = useState<string | null>(null);
+    const verificationLock = React.useRef<string | null>(null);
 
     const handleTurnstileSuccess = useCallback((token: string) => {
         setTurnstileToken(token);
@@ -57,61 +59,46 @@ export default function SuperAdminLogin() {
 
     useEffect(() => {
         const init = async () => {
-            console.debug("[SEC-GATE] Initializing Infrastructure Protocol...");
-
-            // Fetch public config (site keys)
+            if (!ticket || verificationLock.current === ticket) return;
+            
+            console.debug("[SEC-GATE] ⚡ 10000x Handshake: Initializing...");
+            
             try {
-                const config = await v2AuthApi.getPublicConfig();
-                console.debug("[SEC-GATE] Remote configuration loaded:", config.app_name);
-                setSiteKey(config.turnstile_site_key);
-            } catch (err) {
-                console.error("[SEC-GATE] ❌ Critical failure loading security config", err);
-            }
-
-
-            if (!ticket) {
-                console.debug("[SEC-GATE] ⚠️ No JIT ticket detected in handshake.");
-                setIsVerifyingTicket(false);
-                return;
-            }
-
-            try {
-                console.debug("[SEC-GATE] Validating JIT Certificate:", ticket.substring(0, 10) + "...");
-
-                // 🔐 Robust Identity Extraction (URL-safe Base64 + Padding Restoration)
+                verificationLock.current = ticket;
+                setIsVerifyingTicket(true);
+                setError(null);
+                
+                // Extraction (Instant)
                 try {
                     const base64 = ticket.replace(/-/g, '+').replace(/_/g, '/');
                     const pad = base64.length % 4;
                     const paddedBase64 = pad ? base64 + "=".repeat(4 - pad) : base64;
                     const decoded = atob(paddedBase64);
                     const parts = decoded.split(':');
-
                     if (parts.length === 3) {
-                        const encodedEmail = parts[0];
-                        console.debug("[SEC-GATE] 🛡️ Identity Bound:", encodedEmail);
-                        setIdentifier(encodedEmail);
+                        // Only update if different to avoid render cycles
+                        setIdentifier(prev => prev === parts[0] ? prev : parts[0]);
                     }
-                } catch (decodeErr) {
-                    console.error("[SEC-GATE] ❌ Certificate identity extraction failed:", decodeErr);
-                }
+                } catch (e) {}
 
-                setIsVerifyingTicket(true);
+                // Execute verification
                 const res = await v2AuthApi.verifyAdminTicket(ticket);
-                console.debug("[SEC-GATE] Validation Result:", res.valid ? "✅ APPROVED" : "❌ REVOKED");
                 setIsTicketValid(res.valid);
-
+                
                 if (!res.valid) {
-                    toast.error("Security Certificate Revoked or Expired.");
+                    console.warn("[SEC-GATE] 🛡️ Stealth Mode Activated: Invalid Ticket.");
                 }
-            } catch (err) {
-                console.error("[SEC-GATE] ❌ Certificate verification failed:", err);
+            } catch (err: any) {
+                console.error("[SEC-GATE] ❌ Infrastructure Error", err);
+                setError("Neural Handshake Failure: Network Interference Detected.");
                 setIsTicketValid(false);
+                verificationLock.current = null; // Reset lock on error to allow retry
             } finally {
                 setIsVerifyingTicket(false);
             }
         };
         init();
-    }, [ticket]);
+    }, [ticket, setIdentifier]);
 
     const onSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -128,21 +115,19 @@ export default function SuperAdminLogin() {
     };
 
     if (isVerifyingTicket) {
-        return (
-            <div className="flex flex-col items-center justify-center min-h-screen bg-[#050505] text-white font-mono">
-                <Loader2 className="w-12 h-12 text-red-500 animate-spin mb-4" />
-                <p className="text-[10px] font-black uppercase tracking-[0.3em] animate-pulse">Authenticating Sec-Link...</p>
-            </div>
-        );
+        return <LoadingScreen message="Verifying access link..." subtitle="Securing your infrastructure handshake" />;
     }
 
-    // 🕵️ INVISIBLE GATEWAY: Show 404 if no ticket exists or if it's invalid
-    if (!ticket || (!isTicketValid && !isVerifyingTicket)) {
+    // 🕵️ STEALTH GATEWAY: 
+    // Show 404 if ticket is missing OR if the backend explicitly says it's invalid.
+    // We only show the UI if isTicketValid is true OR if there's a network error to debug.
+    if (!ticket || (!isTicketValid && !error)) {
         return <PageNotFound />;
     }
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-[#050505] p-4 text-white font-mono">
+        <div className="flex flex-col items-center justify-start min-h-screen bg-[#050505] p-4 py-12 md:py-20 text-white font-mono overflow-y-auto">
+            {/* 🚨 SYSTEM LOCKOUT OVERLAY */}
             {/* 🚨 SYSTEM LOCKOUT OVERLAY */}
             {lockoutTimer > 0 && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-2xl animate-in fade-in duration-500">
@@ -207,6 +192,28 @@ export default function SuperAdminLogin() {
                         <span>ROOT_ACCESS_PROTOCOL_V2</span>
                     </div>
 
+                    {error && (
+                        <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl space-y-3 animate-in fade-in slide-in-from-top-2">
+                            <div className="flex items-start gap-3">
+                                <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                                <div className="space-y-1">
+                                    <p className="text-xs font-bold text-red-500 uppercase tracking-wider">Connection Error</p>
+                                    <p className="text-[10px] text-red-400/80 leading-relaxed font-bold">The security gateway timed out. Please check your connection or try again.</p>
+                                </div>
+                            </div>
+                            <button 
+                                type="button"
+                                onClick={() => {
+                                    verificationLock.current = null;
+                                    window.location.reload(); // Hard reset for safety
+                                }}
+                                className="w-full py-2 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all"
+                            >
+                                Retry Handshake
+                            </button>
+                        </div>
+                    )}
+
                     <form onSubmit={onSubmit} className="space-y-6">
                         {otpRequired ? (
                             <div className="space-y-5 animate-in fade-in zoom-in duration-300">
@@ -220,6 +227,9 @@ export default function SuperAdminLogin() {
                                             id="otp"
                                             name="otp"
                                             type="text"
+                                            inputMode="numeric"
+                                            autoComplete="one-time-code"
+                                            pattern="\d{6}"
                                             value={otp}
                                             onChange={(e) => setOtp(e.target.value)}
                                             className="w-full pl-12 pr-6 py-4 bg-red-500/5 border border-red-500/20 focus:border-red-500/50 rounded-xl text-white outline-none transition-all placeholder:text-red-500/30 text-center tracking-[0.5em] font-bold text-xl"
@@ -312,7 +322,7 @@ export default function SuperAdminLogin() {
 
                                 <div className="pt-2">
                                     <TurnstileWidget
-                                        siteKey={siteKey}
+                                        siteKey={turnstileSiteKey}
                                         onSuccess={handleTurnstileSuccess}
                                         onExpire={handleTurnstileExpire}
                                         theme="dark"
@@ -329,7 +339,7 @@ export default function SuperAdminLogin() {
                             {isLoading ? (
                                 <>
                                     <Loader2 className="w-5 h-5 animate-spin" />
-                                    {otpRequired ? "Verifying Token..." : "Bypassing Layers..."}
+                                    {otpRequired ? "Verifying Token..." : "Neural Handshake..."}
                                 </>
                             ) : (
                                 <>

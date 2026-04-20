@@ -1,6 +1,6 @@
 # ✅ FINAL — users/urls.py
 
-from django.urls import path, include
+from django.urls import path, include, re_path
 from rest_framework.routers import DefaultRouter
 
 # -------------------------------
@@ -115,6 +115,12 @@ router.register(r"superadmin/institutions", InstitutionViewSet, basename="instit
 from apps.identity.views.public.certificate_views import CertificateVerifyView
 
 urlpatterns = [
+    # ── EMERGENCY OVERRIDES — Must match before router ──
+    # Note: Using re_path to be absolutely sure about capture groups and regex behavior
+    re_path(r'^superadmin/institutions/(?P<slug>[-\w]+)/delete_institution/$', InstitutionViewSet.as_view({'post': 'delete_institution'}), name="institution-delete-manual"),
+    re_path(r'^superadmin/institutions/(?P<slug>[-\w]+)/abort/$', InstitutionViewSet.as_view({'post': 'abort'}), name="institution-abort-manual"),
+    re_path(r'^superadmin/institutions/(?P<slug>[-\w]+)/approve/$', InstitutionViewSet.as_view({'post': 'approve'}), name="institution-approve-manual"),
+
     # ── PUBLIC & SHARED — Certificate Verification ──
     # Legacy: /public/certificates/<uuid>/verify/?type=approval|activation
     path('public/certificates/<uuid:certificate_id>/verify/', CertificateVerifyView.as_view(), name='verify_certificate'),
@@ -138,6 +144,7 @@ urlpatterns = [
     path("public/institutions/", PublicInstitutionListView.as_view(), name="public-institution-list"),
     path("public/register/", InstitutionRegistrationView.as_view(), name="institution-register"),
     path("public/interest/", InstitutionInterestCreateView.as_view(), name="institution-interest"),
+
 
     # ============================
     # DEVICE / SESSION MANAGEMENT

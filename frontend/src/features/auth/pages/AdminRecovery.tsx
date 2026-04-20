@@ -214,9 +214,10 @@ export default function AdminRecovery() {
                 </div>
 
                 <p className="text-center text-[9px] text-gray-700 uppercase tracking-widest font-black opacity-50">
-                    System Node: {Math.random().toString(16).substring(2, 8).toUpperCase()} // AUIP CORE V2
+                    System Node: {Math.random().toString(16).substring(2, 8).toUpperCase()} // Nexora CORE V2
                 </p>
             </div>
         </div>
     );
 }
+

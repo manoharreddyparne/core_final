@@ -41,7 +41,7 @@ export const FeedPost: React.FC<FeedPostProps> = ({ post }) => {
             navigator.clipboard.writeText(url);
             alert("Link copied to clipboard!");
         } else if (method === 'wa') {
-            window.open(`https://wa.me/?text=Check out this professional update on AUIP: ${url}`);
+            window.open(`https://wa.me/?text=Check out this professional update on Nexora: ${url}`);
         } else if (method === 'repost') {
             socialApi.createPost(`RP: ${post.content.substring(0, 50)}...`, post.media_url, post.media_type).then(() => {
                 alert("Successfully reposted to your wall!");
@@ -161,3 +161,4 @@ export const FeedPost: React.FC<FeedPostProps> = ({ post }) => {
         </div>
     );
 };
+

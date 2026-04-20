@@ -186,7 +186,7 @@ export const FacultyRegistry = () => {
         const sample = ["EMP-001", "Dr. Manohar Reddy", "manohar@university.edu", "manohar.personal@gmail.com", "Assistant Professor", "CSE", "2024-01-15"];
         const blob = new Blob([[headers.join(","), sample.join(",")].join("\n")], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
-        Object.assign(document.createElement("a"), { href: url, download: "AUIP_Faculty_Template.csv" }).click();
+        Object.assign(document.createElement("a"), { href: url, download: "Nexora_Faculty_Template.csv" }).click();
         URL.revokeObjectURL(url);
         toast.success("Faculty Template downloaded");
     };
@@ -510,3 +510,4 @@ const FacultyEscListener = ({ onEsc }: { onEsc: () => void }) => {
 };
 
 export default FacultyRegistry;
+

@@ -1,24 +1,6 @@
-// src/features/intelligence/api.ts
-import axios from "axios";
+import { coreApiClient as intelligenceClient } from "../auth/api/base";
+import { API_CONFIG } from "../../config/api";
 import { IntelligenceDashboard, AIResponse } from "./types";
-import { getAccessToken } from "../auth/utils/tokenStorage";
-
-const BASE_URL = import.meta.env.VITE_BACKEND_URL
-    ? `${import.meta.env.VITE_BACKEND_URL}/api/`
-    : `http://localhost:8000/api/`;
-
-const intelligenceClient = axios.create({
-    baseURL: BASE_URL,
-    withCredentials: true,
-});
-
-intelligenceClient.interceptors.request.use((config) => {
-    const token = getAccessToken();
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-});
 
 export const intelligenceApi = {
     getDashboard: async (): Promise<IntelligenceDashboard> => {

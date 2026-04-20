@@ -64,13 +64,13 @@ class Command(BaseCommand):
         subject = f"{subject_prefix} - {institution.name}"
         message = (
             f"Dear Administrator,\n\n"
-            f"This is an automated security notice from the AUIP Platform.\n\n"
+            f"This is an automated security notice from the Nexora.\n\n"
             f"The X.509 digital certificate for your node ({institution.domain}) is set to expire in {days} days on {institution.certificate_expires_at.strftime('%Y-%m-%d')}.\n\n"
             f"To prevent service interruption and avoid access revocation, please initiate the renewal process immediately through your administrative dashboard:\n\n"
             f"  {renewal_url}\n\n"
             f"If the certificate is not renewed by the expiry date, all institutional data access will be automatically locked by the PKI enforcement layer.\n\n"
             f"Best regards,\n"
-            f"AUIP Governance Authority"
+            f"Nexora Governance Authority"
         )
         
         send_mail(
@@ -86,9 +86,9 @@ class Command(BaseCommand):
         message = (
             f"URGENT NOTICE,\n\n"
             f"The digital certificate for {institution.name} has EXPIRED as of {institution.certificate_expires_at.strftime('%Y-%m-%d')}.\n\n"
-            f"In accordance with AUIP security protocols, all network traffic to your institutional node has been revoked. Users will be unable to log in until the subscription is renewed and a new X.509 certificate is issued.\n\n"
-            f"Please contact AUIP support or use the emergency recovery console to restore access.\n\n"
-            f"AUIP PKI Enforcement System"
+            f"In accordance with Nexora security protocols, all network traffic to your institutional node has been revoked. Users will be unable to log in until the subscription is renewed and a new X.509 certificate is issued.\n\n"
+            f"Please contact Nexora support or use the emergency recovery console to restore access.\n\n"
+            f"Nexora PKI Enforcement System"
         )
         
         send_mail(
@@ -98,3 +98,4 @@ class Command(BaseCommand):
             [institution.contact_email],
             fail_silently=True
         )
+
