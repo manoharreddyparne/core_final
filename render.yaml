@@ -1,0 +1,47 @@
+services:
+  # 1. API Node (Handles HTTP/Websockets)
+  - type: web
+    name: auip-api
+    env: docker
+    rootDir: backend # This tells Render to only look at the backend folder
+    dockerContext: .
+    dockerfile: Dockerfile
+    plan: free
+    region: singapore
+    healthCheckPath: /api/users/auth/config/
+    scaling:
+      minReplicas: 1
+      maxReplicas: 5 # Automatic scaling based on CPU
+      targetCpuUtilizationPercentage: 60
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: auip_core.settings.production
+
+  # 2. Worker Node (Handles Async Tasks)
+  - type: worker
+    name: auip-worker
+    env: docker
+    rootDir: backend
+    dockerContext: .
+    dockerfile: Dockerfile
+    dockerCommand: celery -A auip_core worker --loglevel=info -Q celery,certificates,emails
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: auip_core.settings.production
+
+  # 3. Beat Node (The Scheduler)
+  - type: worker
+    name: auip-beat
+    env: docker
+    rootDir: backend
+    dockerContext: .
+    dockerfile: Dockerfile
+    dockerCommand: celery -A auip_core beat --loglevel=info
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: auip_core.settings.production
+
+databases:
+  - name: auip-db
+    plan: free
+    region: singapore

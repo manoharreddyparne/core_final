@@ -27,8 +27,8 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      - REDIS_HOST=redis
-      - REDIS_URL=redis://redis:${REDIS_PORT:-6379}/0
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - DB_HOST=${DB_HOST:-aws-1-ap-southeast-1.pooler.supabase.com}
     depends_on:
       redis:
@@ -99,8 +99,8 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      - REDIS_HOST=redis
-      - REDIS_URL=redis://redis:${REDIS_PORT:-6379}/0
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - DB_HOST=${DB_HOST:-aws-1-ap-southeast-1.pooler.supabase.com}
     depends_on:
       redis:
@@ -121,8 +121,8 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      - REDIS_HOST=redis
-      - REDIS_URL=redis://redis:${REDIS_PORT:-6379}/0
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - DB_HOST=${DB_HOST:-aws-1-ap-southeast-1.pooler.supabase.com}
     depends_on:
       redis:
