@@ -63,3 +63,4 @@ django-celery-results==2.5.1
 redis==5.0.1
 django-filter==25.1
 drf-spectacular==0.29.0
+dj-database-url==2.1.0
