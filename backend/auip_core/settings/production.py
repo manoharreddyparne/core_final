@@ -18,6 +18,8 @@ DATABASES = {
         conn_health_checks=True,
     )
 }
+# IMPORTANT: Override engine for django-tenants
+DATABASES['default']['ENGINE'] = 'django_tenants.postgresql_backend'
 
 # Use production Redis (Upstash)
 REDIS_URL = config('REDIS_URL', default=None)
