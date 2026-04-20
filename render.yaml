@@ -1,9 +1,9 @@
 services:
-  # 1. API Node (Handles HTTP/Websockets)
+  # 1. API Node (Django Daphne / ASGI)
   - type: web
     name: auip-api
     env: docker
-    rootDir: backend # This tells Render to only look at the backend folder
+    rootDir: backend
     dockerContext: .
     dockerfile: Dockerfile
     plan: free
@@ -11,35 +11,49 @@ services:
     healthCheckPath: /api/users/auth/config/
     scaling:
       minReplicas: 1
-      maxReplicas: 5 # Automatic scaling based on CPU
-      targetCpuUtilizationPercentage: 60
+      maxReplicas: 3
     envVars:
       - key: DJANGO_SETTINGS_MODULE
         value: auip_core.settings.production
+      - key: DATABASE_URL
+        sync: false # Set in Dashboard
+      - key: REDIS_URL
+        sync: false # Set in Dashboard
+      - key: DEBUG
+        value: "False"
 
-  # 2. Worker Node (Handles Async Tasks)
+  # 2. Celery Worker (Task Consumer)
   - type: worker
     name: auip-worker
     env: docker
     rootDir: backend
     dockerContext: .
     dockerfile: Dockerfile
-    dockerCommand: celery -A auip_core worker --loglevel=info -Q celery,certificates,emails
+    dockerCommand: daphne -b 0.0.0.0 -p 8000 auip_core.asgi:application # Fallback if celery fails
+    # NOTE: In Render Worker UI, set Command to: celery -A auip_core worker --loglevel=info
     envVars:
       - key: DJANGO_SETTINGS_MODULE
         value: auip_core.settings.production
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
 
-  # 3. Beat Node (The Scheduler)
+  # 3. Celery Beat (Scheduler)
   - type: worker
     name: auip-beat
     env: docker
     rootDir: backend
     dockerContext: .
     dockerfile: Dockerfile
-    dockerCommand: celery -A auip_core beat --loglevel=info
+    # NOTE: In Render Beat UI, set Command to: celery -A auip_core beat --loglevel=info
     envVars:
       - key: DJANGO_SETTINGS_MODULE
         value: auip_core.settings.production
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
 
 databases:
   - name: auip-db
